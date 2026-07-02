@@ -22,6 +22,7 @@ use App\Http\Controllers\Security\ModuleController;
 use App\Http\Controllers\Security\PermissionController;
 use App\Http\Controllers\Security\RoleController;
 use App\Http\Controllers\Security\UserController;
+use App\Http\Controllers\UserThemeController;
 use App\Http\Controllers\WhatsappMessageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -56,6 +57,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', function () {
         return Inertia::render('Profile/Show');
     })->name('profile.show');
+
+    Route::get('/profile/password', [AuthController::class, 'showChangePasswordForm'])->name('profile.password.edit');
+    Route::patch('/profile/password', [AuthController::class, 'updatePassword'])->name('profile.password.update');
+
+    Route::patch('/profile/theme', [UserThemeController::class, 'update'])->name('profile.theme.update');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 

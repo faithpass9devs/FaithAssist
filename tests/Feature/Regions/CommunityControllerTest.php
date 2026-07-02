@@ -135,7 +135,7 @@ class CommunityControllerTest extends TestCase
         $this->assertSoftDeleted('communities', ['id' => $chain['community']->id]);
     }
 
-    public function test_export_returns_csv_stream_for_authorized_user(): void
+    public function test_export_returns_xlsx_for_authorized_user(): void
     {
         $chain = $this->createChain();
         $user = $this->makeGlobalUser('comunidades.read', 'comunidades.export');
@@ -143,6 +143,9 @@ class CommunityControllerTest extends TestCase
         $response = $this->actingAs($user)->get('/comunidades/export');
 
         $response->assertOk();
-        $this->assertStringContainsString('text/csv', $response->headers->get('Content-Type') ?? '');
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type') ?? ''
+        );
     }
 }

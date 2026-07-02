@@ -40,8 +40,30 @@ class SyncRolePermissionsSeeder extends Seeder
 
         $coordinador->syncPermissions(array_merge(
             $this->permissionsForModules(['municipios'], $readAndShowActions),
-            $this->permissionsForModules(['comunidades', 'parroquias', 'capillas', 'periodos', 'periodo_movimientos', 'tipos_movimientos_periodo', 'niveles', 'children', 'usuarios', 'weekends', 'masses', 'mass_attendance'], $allActions),
-            ['municipios.scope.all', 'comunidades.scope.all', 'parroquias.scope.all', 'capillas.scope.all', 'weekends.scope.all', 'masses.scope.all', 'mass_attendance.scope.all']
+            $this->permissionsForModules([
+                'comunidades',
+                'parroquias',
+                'capillas',
+                'periodos',
+                'periodo_movimientos',
+                'tipos_movimientos_periodo',
+                'niveles',
+                'children',
+                'usuarios',
+                'weekends',
+                'masses',
+                'mass_attendance'
+            ], $allActions),
+            [
+                'municipios.scope.all',
+                'comunidades.scope.all',
+                'comunidades.export',
+                'parroquias.scope.all',
+                'capillas.scope.all',
+                'weekends.scope.all',
+                'masses.scope.all',
+                'mass_attendance.scope.all'
+            ]
         ));
 
         $catequista->syncPermissions(array_merge(

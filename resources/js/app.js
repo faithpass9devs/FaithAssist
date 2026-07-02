@@ -15,6 +15,8 @@ createInertiaApp({
   resolve: (name) =>
     resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
   setup({ el, App, props, plugin }) {
+    applyTheme(getInitialTheme(props.initialPage.props.auth?.user?.ui_theme));
+
     createApp({ render: () => h(App, props) })
       .use(plugin)
       .mount(el);

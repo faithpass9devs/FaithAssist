@@ -1,5 +1,11 @@
+@php($uiTheme = auth()->user()?->ui_theme === 'dark' ? 'dark' : 'light')
 <!DOCTYPE html>
-<html lang="en">
+<html
+    lang="en"
+    data-theme="{{ $uiTheme }}"
+    class="{{ $uiTheme === 'dark' ? 'dark' : '' }}"
+    style="color-scheme: {{ $uiTheme }}"
+>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

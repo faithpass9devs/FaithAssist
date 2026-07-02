@@ -20,6 +20,26 @@
 }
 
 @layer components {
+  .ui-shell {
+    @apply min-h-screen bg-slate-100 transition-colors duration-300 dark:bg-slate-950;
+  }
+
+  .ui-container {
+    @apply mx-auto w-full max-w-7xl;
+  }
+
+  .ui-main {
+    @apply px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .ui-topbar {
+    @apply sticky top-0 z-30 border-b border-blue-500 bg-blue-600/95 shadow-sm shadow-blue-900/20 backdrop-blur-xl transition-colors duration-300 dark:border-blue-400 dark:bg-blue-600/90 dark:shadow-blue-950/30;
+  }
+
+  .ui-brand {
+    @apply text-lg font-black uppercase tracking-[0.24em] text-white transition-opacity hover:opacity-80 sm:text-xl dark:text-white;
+  }
+
   .ui-surface {
     @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900;
   }
@@ -48,6 +68,10 @@
     @apply rounded-xl border-0 bg-red-600 text-white shadow-sm shadow-red-600/20 transition-all duration-200 ease-in-out hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600;
   }
 
+  .ui-icon-btn {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+
   .ui-table-wrap {
     @apply overflow-x-auto rounded-2xl border border-slate-200 bg-white transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900;
   }
@@ -74,5 +98,73 @@
 
   .ui-section-subtitle {
     @apply text-sm text-slate-600 dark:text-slate-300;
+  }
+
+  .ui-auth-page {
+    @apply relative min-h-screen overflow-hidden bg-blue-600 px-4 py-6 transition-colors duration-300 dark:bg-blue-600 sm:px-6 sm:py-10 lg:px-8;
+  }
+
+  .ui-auth-card {
+    @apply card w-full max-w-xl rounded-[1.75rem] border border-slate-200/80 bg-white/90 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_24px_80px_-28px_rgba(0,0,0,0.55)];
+  }
+
+  .ui-auth-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400;
+  }
+
+  .ui-auth-back-link {
+    @apply text-sm font-semibold text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white;
+  }
+
+  .ui-auth-step {
+    @apply mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  }
+
+  .ui-auth-step-index {
+    @apply inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900;
+  }
+
+  .ui-auth-title {
+    @apply text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100;
+  }
+
+  .ui-auth-subtitle {
+    @apply mt-2 text-sm text-slate-600 dark:text-slate-300;
+  }
+
+  .ui-auth-progress-on {
+    @apply h-1.5 rounded-full bg-slate-900 dark:bg-slate-100;
+  }
+
+  .ui-auth-progress-off {
+    @apply h-1.5 rounded-full bg-slate-200 dark:bg-slate-700;
+  }
+
+  .ui-auth-info {
+    @apply mb-4 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-slate-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-slate-200;
+  }
+
+  .ui-auth-note {
+    @apply mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200;
+  }
+
+  .ui-auth-success {
+    @apply mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300;
+  }
+
+  .ui-auth-error {
+    @apply mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300;
+  }
+
+  .ui-auth-label {
+    @apply mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200;
+  }
+
+  .ui-auth-help {
+    @apply mb-3 text-xs text-slate-500 dark:text-slate-400;
+  }
+
+  .ui-auth-code-input {
+    @apply h-14 w-12 rounded-xl border-2 border-slate-300 bg-white text-center text-xl font-black text-slate-900 shadow-sm transition focus:border-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:w-14;
   }
 }

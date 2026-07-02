@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Regions;
 
+use App\Exports\Regions\CommunitiesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regions\CommunityRequest;
 use App\Models\Regions\Community;
@@ -11,7 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Excel as ExcelWriter;
 
 class CommunityController extends Controller
 {
@@ -77,42 +79,18 @@ class CommunityController extends Controller
         ]);
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request)
     {
         $this->authorize('export', Community::class);
 
         $search = $request->input('search', '');
-        $scope = new UserScopeService($request->user());
 
-        $communities = Community::query()
-            ->with(['municipality:id,name'])
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('municipality_id', $scope->municipalityIds()))
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-            ->orderBy('name')
-            ->select(['id', 'municipality_id', 'name', 'status'])
-            ->lazy();
+        $fileName = 'comunidades_'.now()->format('Ymd_His').'.xlsx';
 
-        $fileName = 'comunidades_'.now()->format('Ymd_His').'.csv';
-
-        return response()->streamDownload(function () use ($communities) {
-            $output = fopen('php://output', 'w');
-
-            // UTF-8 BOM para que Excel respete acentos al abrir CSV.
-            fwrite($output, "\xEF\xBB\xBF");
-
-            fputcsv($output, ['Municipio', 'Nombre', 'Estatus']);
-
-            foreach ($communities as $community) {
-                fputcsv($output, [
-                    $community->municipality?->name ?? '',
-                    $community->name,
-                    $community->status === 'active' ? 'Activo' : 'Inactivo',
-                ]);
-            }
-
-            fclose($output);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return Excel::download(
+            new CommunitiesExport($request->user(), $search),
+            $fileName,
+            ExcelWriter::XLSX
+        );
     }
 }

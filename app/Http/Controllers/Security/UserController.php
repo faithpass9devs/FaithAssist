@@ -132,9 +132,20 @@ class UserController extends Controller
 
         $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
         $submittedIds = collect(array_filter((array) $request->input('permissions', [])));
-        $safeIds = $submittedIds->intersect($editorPermissionIds)->all();
+        $safeIds = $submittedIds->intersect($editorPermissionIds);
+        $rolePermissionIds = $user->getPermissionsViaRoles()->pluck('id');
+        $mustRemainDirectIds = $this->mustRemainDirectPermissionIds();
 
-        $user->syncPermissions(empty($safeIds) ? collect() : Permission::whereIn('id', $safeIds)->get());
+        $directIds = $safeIds
+            ->diff($rolePermissionIds)
+            ->merge($safeIds->intersect($mustRemainDirectIds))
+            ->unique();
+
+        $directPerms = $directIds->isNotEmpty()
+            ? Permission::whereIn('id', $directIds->all())->get()
+            : collect();
+
+        $user->syncPermissions($directPerms);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -223,20 +234,24 @@ class UserController extends Controller
 
         $usuario->syncRoles($roleId ? [$roleId] : collect());
 
-        // Permissions granted via the new role — no need to duplicate as direct permissions.
-        $rolePermissionIds = $usuario->getPermissionsViaRoles()->pluck('id');
-
         $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $rolePermissionIds = $usuario->getPermissionsViaRoles()->pluck('id');
+        $mustRemainDirectIds = $this->mustRemainDirectPermissionIds();
 
         // Preserve direct permissions the target has that the editor cannot manage.
         $preservedPerms = $usuario->getDirectPermissions()
             ->filter(fn (Permission $p) => ! $editorPermissionIds->contains($p->id));
 
-        // Grant submitted permissions that are (a) within editor scope and (b) not already in the role.
+        // Sync submitted direct permissions that are within editor scope.
         $submittedIds = collect(array_filter((array) $request->input('permissions', [])));
-        $extraIds = $submittedIds->intersect($editorPermissionIds)->diff($rolePermissionIds);
-        $grantedPerms = $extraIds->isNotEmpty()
-            ? Permission::whereIn('id', $extraIds->all())->get()
+        $safeIds = $submittedIds->intersect($editorPermissionIds);
+        $directIds = $safeIds
+            ->diff($rolePermissionIds)
+            ->merge($safeIds->intersect($mustRemainDirectIds))
+            ->unique();
+
+        $grantedPerms = $directIds->isNotEmpty()
+            ? Permission::whereIn('id', $directIds->all())->get()
             : collect();
 
         $finalPerms = $preservedPerms->merge($grantedPerms)->unique('id');
@@ -246,6 +261,13 @@ class UserController extends Controller
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario actualizado correctamente.');
+    }
+
+    private function mustRemainDirectPermissionIds(): \Illuminate\Support\Collection
+    {
+        return Permission::query()
+            ->whereIn('name', ['comunidades.export'])
+            ->pluck('id');
     }
 
     /**

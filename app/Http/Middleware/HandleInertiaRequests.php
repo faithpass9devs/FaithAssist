@@ -32,12 +32,17 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'auth' => fn (): array => [
-                'user' => $this->buildAuthUserPayload($request->user()),
-                'permissions' => $request->user()?->getAllPermissions()->pluck('name') ?? [],
-                'roles' => $request->user()?->getRoleNames() ?? [],
-                'scope' => $this->buildScopePayload($request->user()),
-            ],
+            'auth' => function () use ($request): array {
+                $authUser = $request->user()?->fresh();
+
+                return [
+                    'user' => $this->buildAuthUserPayload($authUser),
+                    'permissions' => $authUser?->getAllPermissions()->pluck('name')->values()->all() ?? [],
+                    'direct_permissions' => $authUser?->getDirectPermissions()->pluck('name')->values()->all() ?? [],
+                    'roles' => $authUser?->getRoleNames()->values()->all() ?? [],
+                    'scope' => $this->buildScopePayload($authUser),
+                ];
+            },
         ];
     }
 
@@ -69,6 +74,7 @@ class HandleInertiaRequests extends Middleware
             'display_name' => $displayName,
             'initials' => $this->resolveInitials($user),
             'photo_url' => $user->profile_photo_path,
+            'ui_theme' => $user->ui_theme,
             'profile' => $user->profile ? [
                 'name' => $user->profile->name,
                 'paterno' => $user->profile->paterno,

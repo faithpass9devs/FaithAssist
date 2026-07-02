@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   CircleHelp,
   Eye,
@@ -15,7 +15,7 @@ import {
 import { useTheme } from '../../composables/useTheme';
 
 const showPassword = ref(false);
-const { isDark, toggleTheme } = useTheme();
+const { theme, isDark, savingTheme, toggleTheme } = useTheme();
 
 defineProps({
   status: {
@@ -28,7 +28,16 @@ const form = useForm({
   email: '',
   password: '',
   remember: false,
+  theme: theme.value,
 });
+
+watch(
+  theme,
+  (value) => {
+    form.theme = value;
+  },
+  { immediate: true },
+);
 
 const forgotPasswordHref = computed(() => {
   const email = form.email.trim();
@@ -50,29 +59,14 @@ const submit = () => {
 <template>
   <Head title="Iniciar sesion" />
 
-  <main
-    class="relative min-h-screen overflow-hidden bg-linear-to-br from-slate-100 via-slate-200 to-blue-100 px-4 py-6 transition-colors duration-300 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 sm:px-6 sm:py-10 lg:px-8"
-  >
-    <div class="pointer-events-none absolute inset-0">
-      <div
-        class="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-slate-400/35 blur-3xl dark:bg-slate-700/20"
-      ></div>
-      <div
-        class="absolute -right-16 top-1/4 h-72 w-72 rounded-full bg-blue-300/35 blur-3xl dark:bg-sky-800/20"
-      ></div>
-      <div
-        class="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-slate-300/30 blur-3xl dark:bg-slate-800/20"
-      ></div>
-      <div
-        class="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.04),transparent_55%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_55%)]"
-      ></div>
-    </div>
+  <main class="ui-auth-page">
 
     <div class="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
       <button
         type="button"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white/90 text-slate-600 shadow-sm backdrop-blur transition hover:border-slate-400 hover:bg-white dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+        class="ui-icon-btn h-11 w-11 rounded-full bg-white/90 backdrop-blur dark:bg-slate-900/90"
         :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        :disabled="savingTheme"
         @click="toggleTheme"
       >
         <SunMedium v-if="isDark" class="h-5 w-5" />
@@ -83,9 +77,7 @@ const submit = () => {
     <div
       class="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl items-center justify-center"
     >
-      <section
-        class="card w-full max-w-xl border border-slate-200/80 bg-white/90 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-[0_24px_80px_-28px_rgba(0,0,0,0.55)]"
-      >
+      <section class="ui-auth-card">
         <div class="card-body p-6 sm:p-8">
           <div class="flex flex-col items-center text-center">
             <div
@@ -189,7 +181,7 @@ const submit = () => {
 
             <button
               type="submit"
-              class="btn h-12 w-full border-none bg-linear-to-r from-slate-700 to-blue-900 text-white shadow-lg shadow-slate-400/40 transition hover:from-slate-800 hover:to-blue-950"
+              class="ui-btn ui-btn-primary h-12 w-full bg-linear-to-r from-slate-700 to-blue-900 hover:from-slate-800 hover:to-blue-950"
               :disabled="form.processing"
             >
               {{ form.processing ? 'Ingresando...' : 'Entrar al sistema' }}

@@ -63,7 +63,7 @@ const columns = computed(() => [
       :create-requires-full-scope="true"
       export-url="/comunidades/export"
       export-permission="comunidades.export"
-      export-label="Exportar CSV"
+      export-label="Exportar Excel"
       store-url="/comunidades"
       base-url="/comunidades"
       permission-module="comunidades"

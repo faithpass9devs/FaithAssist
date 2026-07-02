@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
-import { Plus, Search, X } from 'lucide-vue-next';
+import { Download, Plus, Search, X } from 'lucide-vue-next';
 
 import AppPagination from '../AppPagination.vue';
 import CatalogRow from './CatalogRow.vue';
@@ -82,6 +82,10 @@ const permissions = computed(
   () => page.props.auth?.permissions ?? []
 );
 
+const directPermissions = computed(
+  () => page.props.auth?.direct_permissions ?? []
+);
+
 const fullScopeAccess = computed(
   () => page.props.auth?.scope?.full_access ?? {}
 );
@@ -101,6 +105,24 @@ const hasModuleFullScope = computed(() => {
     props.permissionModule
   ] === true;
 });
+
+const canExport = computed(() => {
+  if (!props.exportUrl || !props.exportPermission) return false;
+
+  return permissions.value.includes(props.exportPermission);
+});
+
+const exportTable = () => {
+  if (!canExport.value) return;
+
+  const url = new URL(props.exportUrl, window.location.origin);
+
+  if (searchTerm.value) {
+    url.searchParams.set('search', searchTerm.value);
+  }
+
+  window.location.assign(url.toString());
+};
 
 const canCreate = computed(() =>
   hasPermission('create') &&

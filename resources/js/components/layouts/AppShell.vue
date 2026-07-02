@@ -15,7 +15,7 @@ const page = usePage();
 const form = useForm({});
 const menuOpen = ref(false);
 const menuRef = ref(null);
-const { isDark, toggleTheme } = useTheme();
+const { isDark, savingTheme, toggleTheme } = useTheme();
 
 const appName = import.meta.env.VITE_APP_NAME || 'FAITHPASS';
 
@@ -70,25 +70,19 @@ onBeforeUnmount(() => {
 
 <template>
   <Head :title="pageTitle" />
-  <div class="min-h-screen bg-slate-100 transition-colors duration-300 dark:bg-slate-950">
-    <header
-      class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur transition-colors duration-300 dark:border-slate-800 dark:bg-slate-950/90"
-    >
-      <div
-        class="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8"
-      >
-        <Link
-          href="/"
-          class="text-lg font-black uppercase tracking-[0.24em] text-slate-800 sm:text-xl dark:text-slate-100 hover:opacity-75 transition-opacity"
-        >
+  <div class="ui-shell">
+    <header class="ui-topbar">
+      <div class="ui-container flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <Link href="/" class="ui-brand">
           {{ appName }}
         </Link>
 
         <div class="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
-            class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+            class="ui-icon-btn rounded-full"
             :aria-label="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+            :disabled="savingTheme"
             @click="toggleTheme"
           >
             <SunMedium v-if="isDark" class="h-5 w-5" />
@@ -153,8 +147,8 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <main class="px-4 py-6 sm:px-6 lg:px-8">
-      <div class="mx-auto w-full max-w-7xl">
+    <main class="ui-main">
+      <div class="ui-container">
         <slot />
       </div>
     </main>
