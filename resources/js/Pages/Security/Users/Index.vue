@@ -96,7 +96,7 @@ const destroyUser = async (user) => {
     Swal.fire({
       icon: 'error',
       title: 'No se pudo eliminar',
-      text: error?.message ?? 'Ocurrió un error al intentar ocultar el usuario.',
+      text: error?.message ?? 'Ocurrió un error al intentar eliminar el usuario.',
     });
   }
 };
