@@ -76,16 +76,18 @@ const destroyUser = async (user) => {
     const json = await response.json();
 
     if (!response.ok) {
-      throw new Error(json?.message ?? 'Ocurrió un error al intentar ocultar el usuario.');
+      throw new Error(json?.message ?? 'Ocurrió un error al intentar eliminar el usuario.');
     }
 
     rows.value = rows.value.filter((row) => row.id !== user.id);
+
+    router.get('/usuarios', { search: searchTerm.value || undefined }, { preserveScroll: true, replace: true });
 
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: json?.message ?? 'Usuario ocultado correctamente.',
+      title: json?.message ?? 'Usuario eliminado correctamente.',
       showConfirmButton: false,
       timer: 2200,
       timerProgressBar: true,
