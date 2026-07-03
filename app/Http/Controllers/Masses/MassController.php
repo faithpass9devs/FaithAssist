@@ -10,7 +10,7 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\Mass;
 use App\Models\Masses\Weekend;
 use App\Services\UserScopeService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,7 +39,7 @@ class MassController extends Controller
                             ->orWhereHas('chapel', fn ($chapel) => $chapel->where('name', 'like', "%{$search}%"));
                     });
                 })
-                ->orderByDesc('celebrated_at')
+                ->orderByDesc('starts_at')
         )
             ->paginate(15)
             ->withQueryString()
@@ -57,36 +57,50 @@ class MassController extends Controller
         ]);
     }
 
-    public function store(MassRequest $request): JsonResponse
+    public function create(Request $request): Response
     {
-        $mass = Mass::query()->create($request->validated());
-
-        return response()->json([
-            'success' => true,
-            'data' => $this->serializeMass($mass->load(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name'])),
-            'message' => 'Misa creada correctamente.',
-        ], 201);
+        return Inertia::render('Masses/Masses/Form', [
+            'mass' => null,
+            'weekends' => $this->weekendOptions($request),
+            'churches' => $this->churchOptions($request),
+            'chapels' => $this->chapelOptions($request),
+        ]);
     }
 
-    public function update(MassRequest $request, Mass $misa): JsonResponse
+    public function store(MassRequest $request): RedirectResponse
+    {
+        Mass::query()->create($request->validated());
+
+        return redirect()->route('misas.index')
+            ->with('success', 'Misa creada correctamente.');
+    }
+
+    public function edit(Request $request, Mass $misa): Response
+    {
+        $misa->loadMissing(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name']);
+
+        return Inertia::render('Masses/Masses/Form', [
+            'mass' => $this->serializeMass($misa, true),
+            'weekends' => $this->weekendOptions($request),
+            'churches' => $this->churchOptions($request),
+            'chapels' => $this->chapelOptions($request),
+        ]);
+    }
+
+    public function update(MassRequest $request, Mass $misa): RedirectResponse
     {
         $misa->update($request->validated());
 
-        return response()->json([
-            'success' => true,
-            'data' => $this->serializeMass($misa->fresh(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name'])),
-            'message' => 'Misa actualizada correctamente.',
-        ]);
+        return redirect()->route('misas.index')
+            ->with('success', 'Misa actualizada correctamente.');
     }
 
-    public function destroy(Mass $misa): JsonResponse
+    public function destroy(Mass $misa): RedirectResponse
     {
         $misa->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Misa eliminada correctamente.',
-        ]);
+        return redirect()->route('misas.index')
+            ->with('success', 'Misa eliminada correctamente.');
     }
 
     private function weekendOptions(Request $request): array
@@ -103,8 +117,8 @@ class MassController extends Controller
                 'id' => $weekend->id,
                 'church_id' => $weekend->church_id,
                 'name' => $weekend->name ?: $weekend->starts_at?->format('Y-m-d'),
-                'starts_at' => $weekend->starts_at?->format('Y-m-d'),
-                'ends_at' => $weekend->ends_at?->format('Y-m-d'),
+                'starts_at' => $weekend->starts_at?->format('Y-m-d H:i'),
+                'ends_at' => $weekend->ends_at?->format('Y-m-d H:i'),
                 'status' => $weekend->status,
                 'church' => $weekend->church?->name,
             ])
@@ -125,7 +139,12 @@ class MassController extends Controller
 
     private function chapelOptions(Request $request): array
     {
+        $user = $request->user();
         $scope = new UserScopeService($request->user());
+
+        if (! $scope->isGlobal() && ! $user->can('masses.scope.all') && $user->chapel_id === null) {
+            return [];
+        }
 
         return Chapel::query()
             ->when(! $scope->isGlobal(), fn ($query) => $query->whereIn('id', $scope->chapelIds()))
@@ -135,7 +154,7 @@ class MassController extends Controller
             ->all();
     }
 
-    private function serializeMass(Mass $mass): array
+    private function serializeMass(Mass $mass, bool $forForm = false): array
     {
         return [
             'id' => $mass->id,
@@ -143,7 +162,8 @@ class MassController extends Controller
             'church_id' => $mass->church_id,
             'chapel_id' => $mass->chapel_id,
             'name' => $mass->name,
-            'celebrated_at' => $mass->celebrated_at?->format('Y-m-d H:i'),
+            'starts_at' => $mass->starts_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d H:i'),
+            'ends_at' => $mass->ends_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d H:i'),
             'status' => $mass->status,
             'attendance_status' => $mass->attendance_status,
             'notes' => $mass->notes,

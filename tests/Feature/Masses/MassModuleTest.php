@@ -24,20 +24,19 @@ class MassModuleTest extends TestCase
         $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'weekends.create');
 
         $this->actingAs($user)
-            ->postJson('/fines-semana-misas', [
+            ->post('/fines-semana-misas', [
                 'church_id' => $chain['church']->id,
                 'name' => 'Fin de semana test',
                 'starts_at' => '2026-07-04',
-                'ends_at' => '2026-07-05',
                 'status' => Status::UPCOMING,
             ])
-            ->assertCreated()
-            ->assertJsonPath('data.name', 'FIN DE SEMANA TEST');
+            ->assertRedirect('/fines-semana-misas');
 
         $this->assertDatabaseHas('weekends', [
             'church_id' => $chain['church']->id,
-            'starts_at' => '2026-07-04',
-            'ends_at' => '2026-07-05',
+            'starts_at' => '2026-07-04 00:00:00',
+            'ends_at' => '2026-07-05 23:59:00',
+            'name' => 'FIN DE SEMANA TEST',
         ]);
     }
 
@@ -51,7 +50,6 @@ class MassModuleTest extends TestCase
             ->postJson('/fines-semana-misas', [
                 'church_id' => $chain['church']->id,
                 'starts_at' => '2026-07-04',
-                'ends_at' => '2026-07-05',
                 'status' => Status::UPCOMING,
             ])
             ->assertForbidden();
@@ -66,7 +64,6 @@ class MassModuleTest extends TestCase
             ->postJson('/fines-semana-misas', [
                 'church_id' => $chain['church']->id,
                 'starts_at' => '2026-07-03',
-                'ends_at' => '2026-07-04',
                 'status' => Status::UPCOMING,
             ])
             ->assertUnprocessable()
@@ -81,23 +78,69 @@ class MassModuleTest extends TestCase
         $user = $this->makeChapelUser($chain, $chapel, 'masses.create');
 
         $this->actingAs($user)
-            ->postJson('/misas', [
+            ->post('/misas', [
                 'weekend_id' => $weekend->id,
                 'church_id' => $chain['church']->id,
                 'chapel_id' => $chapel->id,
                 'name' => 'Misa de capilla',
-                'celebrated_at' => '2026-07-04 18:00',
+                'starts_at' => '2026-07-04 18:00',
+                'ends_at' => '2026-07-04 19:00',
                 'status' => Status::UPCOMING,
                 'attendance_status' => Status::UPCOMING,
             ])
-            ->assertCreated()
-            ->assertJsonPath('data.chapel_id', $chapel->id);
+            ->assertRedirect('/misas');
 
         $this->assertDatabaseHas('masses', [
             'church_id' => $chain['church']->id,
             'chapel_id' => $chapel->id,
             'name' => 'MISA DE CAPILLA',
         ]);
+    }
+
+    public function test_mass_time_range_must_be_inside_weekend(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'masses.create');
+
+        $this->actingAs($user)
+            ->post('/misas', [
+                'weekend_id' => $weekend->id,
+                'church_id' => $chain['church']->id,
+                'chapel_id' => null,
+                'name' => 'Misa fuera de rango',
+                'starts_at' => '2026-07-06 10:00',
+                'ends_at' => '2026-07-06 11:00',
+                'status' => Status::UPCOMING,
+                'attendance_status' => Status::UPCOMING,
+            ])
+            ->assertSessionHasErrors(['starts_at', 'ends_at']);
+    }
+
+    public function test_masses_form_routes_render(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::UPCOMING,
+            'attendance_status' => Status::UPCOMING,
+        ]);
+        $user = $this->makeGlobalUser('weekends.create', 'weekends.update', 'masses.create', 'masses.update');
+
+        $this->actingAs($user)
+            ->get('/fines-semana-misas/create')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Masses/Weekends/Form'));
+
+        $this->actingAs($user)
+            ->get("/misas/{$mass->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Masses/Masses/Form'));
     }
 
     public function test_mass_attendance_requires_check_in_and_check_out_to_be_valid(): void
@@ -108,7 +151,8 @@ class MassModuleTest extends TestCase
             'weekend_id' => $weekend->id,
             'church_id' => $chain['church']->id,
             'name' => 'MISA DOMINICAL',
-            'celebrated_at' => '2026-07-05 10:00',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
             'attendance_status' => Status::IN_PROGRESS,
         ]);
@@ -139,13 +183,39 @@ class MassModuleTest extends TestCase
         ]);
     }
 
+    public function test_mass_attendance_rejects_child_from_other_church(): void
+    {
+        $chain = $this->createChain();
+        $otherChain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($otherChain, ['code' => 'OTHER-CHILD']));
+        $user = $this->makeGlobalUser('masses.show', 'mass_attendance.create');
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_IN,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['child_code']);
+    }
+
     private function createWeekend(array $chain): Weekend
     {
         return Weekend::query()->create([
             'church_id' => $chain['church']->id,
             'name' => 'FIN DE SEMANA TEST',
-            'starts_at' => '2026-07-04',
-            'ends_at' => '2026-07-05',
+            'starts_at' => '2026-07-04 00:00:00',
+            'ends_at' => '2026-07-05 23:59:00',
             'status' => Status::IN_PROGRESS,
         ]);
     }

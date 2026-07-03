@@ -31,6 +31,24 @@ class MassAttendanceService
             ]);
         }
 
+        $mass->loadMissing('chapel:id,community_id');
+
+        if ((int) $child->church_id !== (int) $mass->church_id) {
+            throw ValidationException::withMessages([
+                'child_code' => 'El niño no pertenece a la parroquia de esta misa.',
+            ]);
+        }
+
+        if (
+            $mass->chapel_id !== null
+            && $mass->chapel?->community_id !== null
+            && (int) $child->community_id !== (int) $mass->chapel->community_id
+        ) {
+            throw ValidationException::withMessages([
+                'child_code' => 'El niño no pertenece a la comunidad de esta capilla.',
+            ]);
+        }
+
         return DB::transaction(function () use ($mass, $child, $action, $user): MassAttendance {
             $attendance = MassAttendance::query()
                 ->where('mass_id', $mass->id)

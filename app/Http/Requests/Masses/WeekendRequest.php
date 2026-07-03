@@ -10,10 +10,33 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Throwable;
 
 class WeekendRequest extends FormRequest
 {
-    use UppercasesFields;
+    use UppercasesFields {
+        prepareForValidation as prepareTextFieldsForValidation;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->prepareTextFieldsForValidation();
+
+        if (! $this->filled('starts_at')) {
+            return;
+        }
+
+        try {
+            $startsAt = Carbon::parse($this->input('starts_at'))->startOfDay();
+        } catch (Throwable) {
+            return;
+        }
+
+        $this->merge([
+            'starts_at' => $startsAt->format('Y-m-d H:i:s'),
+            'ends_at' => $startsAt->copy()->addDay()->setTime(23, 59)->format('Y-m-d H:i:s'),
+        ]);
+    }
 
     protected function textFields(): array
     {
@@ -61,8 +84,8 @@ class WeekendRequest extends FormRequest
             $scope = new UserScopeService($user);
             $churchId = (int) $this->input('church_id');
             $weekendId = $this->route('weekend')?->id;
-            $startsAt = Carbon::parse($this->input('starts_at'))->startOfDay();
-            $endsAt = Carbon::parse($this->input('ends_at'))->startOfDay();
+            $startsAt = Carbon::parse($this->input('starts_at'));
+            $endsAt = Carbon::parse($this->input('ends_at'));
 
             if (! $scope->isGlobal() && ! $user->can('weekends.scope.all')) {
                 $isOwnChurchUser = $user->church_id !== null
@@ -80,8 +103,11 @@ class WeekendRequest extends FormRequest
                 $validator->errors()->add('starts_at', 'El fin de semana debe iniciar en sábado.');
             }
 
-            if (! $endsAt->isSunday() || ! $endsAt->equalTo($startsAt->copy()->addDay())) {
-                $validator->errors()->add('ends_at', 'El fin de semana debe terminar el domingo inmediato.');
+            if (
+                ! $endsAt->isSunday()
+                || ! $endsAt->equalTo($startsAt->copy()->addDay()->setTime(23, 59))
+            ) {
+                $validator->errors()->add('ends_at', 'El fin de semana debe terminar el domingo inmediato a las 23:59.');
             }
 
             $overlapExists = Weekend::query()

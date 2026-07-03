@@ -116,11 +116,11 @@ Route::middleware('auth')->group(function () {
 
     // Misas
     Route::resource('fines-semana-misas', WeekendController::class)
-        ->only(['index', 'store', 'update', 'destroy'])
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['fines-semana-misas' => 'weekend']);
 
     Route::resource('misas', MassController::class)
-        ->only(['index', 'store', 'update', 'destroy'])
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
     Route::get('misas/{misa}/asistencias', [MassAttendanceController::class, 'index'])

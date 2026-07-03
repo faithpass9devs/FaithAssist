@@ -14,7 +14,14 @@ use Illuminate\Validation\Validator;
 
 class MassRequest extends FormRequest
 {
-    use UppercasesFields;
+    use UppercasesFields {
+        prepareForValidation as prepareTextFieldsForValidation;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->prepareTextFieldsForValidation();
+    }
 
     protected function textFields(): array
     {
@@ -33,7 +40,8 @@ class MassRequest extends FormRequest
             'church_id' => ['required', 'integer', Rule::exists('churches', 'id')->whereNull('deleted_at')],
             'chapel_id' => ['nullable', 'integer', Rule::exists('chapels', 'id')->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:150'],
-            'celebrated_at' => ['required', 'date'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
             'status' => ['required', Rule::in([
                 Status::UPCOMING,
                 Status::IN_PROGRESS,
@@ -77,12 +85,17 @@ class MassRequest extends FormRequest
                 }
             }
 
-            $celebratedAt = Carbon::parse($this->input('celebrated_at'));
-            $startsAt = $weekend->starts_at->copy()->startOfDay();
-            $endsAt = $weekend->ends_at->copy()->endOfDay();
+            $massStartsAt = Carbon::parse($this->input('starts_at'));
+            $massEndsAt = Carbon::parse($this->input('ends_at'));
+            $weekendStartsAt = $weekend->starts_at->copy();
+            $weekendEndsAt = $weekend->ends_at->copy();
 
-            if ($celebratedAt->lt($startsAt) || $celebratedAt->gt($endsAt)) {
-                $validator->errors()->add('celebrated_at', 'La misa debe celebrarse dentro del fin de semana seleccionado.');
+            if ($massStartsAt->lt($weekendStartsAt) || $massStartsAt->gt($weekendEndsAt)) {
+                $validator->errors()->add('starts_at', 'La misa debe iniciar dentro del fin de semana seleccionado.');
+            }
+
+            if ($massEndsAt->lt($weekendStartsAt) || $massEndsAt->gt($weekendEndsAt)) {
+                $validator->errors()->add('ends_at', 'La misa debe terminar dentro del fin de semana seleccionado.');
             }
 
             if ($scope->isGlobal() || $user->can('masses.scope.all')) {

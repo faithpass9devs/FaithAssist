@@ -64,7 +64,8 @@ class MassAttendanceController extends Controller
         return [
             'id' => $mass->id,
             'name' => $mass->name,
-            'celebrated_at' => $mass->celebrated_at?->format('Y-m-d H:i'),
+            'starts_at' => $mass->starts_at?->format('Y-m-d H:i'),
+            'ends_at' => $mass->ends_at?->format('Y-m-d H:i'),
             'attendance_status' => $mass->attendance_status,
             'church' => $mass->church?->name,
             'chapel' => $mass->chapel?->name,

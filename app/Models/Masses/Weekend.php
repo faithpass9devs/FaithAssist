@@ -35,8 +35,8 @@ class Weekend extends Model
     protected function casts(): array
     {
         return [
-            'starts_at' => 'date:Y-m-d',
-            'ends_at' => 'date:Y-m-d',
+            'starts_at' => 'datetime:Y-m-d H:i:s',
+            'ends_at' => 'datetime:Y-m-d H:i:s',
             'status' => 'string',
         ];
     }

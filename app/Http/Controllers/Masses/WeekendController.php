@@ -8,7 +8,7 @@ use App\Http\Requests\Masses\WeekendRequest;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\Weekend;
 use App\Services\UserScopeService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,36 +47,44 @@ class WeekendController extends Controller
         ]);
     }
 
-    public function store(WeekendRequest $request): JsonResponse
+    public function create(Request $request): Response
     {
-        $weekend = Weekend::query()->create($request->validated());
-
-        return response()->json([
-            'success' => true,
-            'data' => $this->serializeWeekend($weekend->load('church:id,name')),
-            'message' => 'Fin de semana creado correctamente.',
-        ], 201);
+        return Inertia::render('Masses/Weekends/Form', [
+            'weekend' => null,
+            'churches' => $this->churchOptions($request),
+        ]);
     }
 
-    public function update(WeekendRequest $request, Weekend $weekend): JsonResponse
+    public function store(WeekendRequest $request): RedirectResponse
+    {
+        Weekend::query()->create($request->validated());
+
+        return redirect()->route('fines-semana-misas.index')
+            ->with('success', 'Fin de semana creado correctamente.');
+    }
+
+    public function edit(Request $request, Weekend $weekend): Response
+    {
+        return Inertia::render('Masses/Weekends/Form', [
+            'weekend' => $this->serializeWeekend($weekend->load('church:id,name'), true),
+            'churches' => $this->churchOptions($request),
+        ]);
+    }
+
+    public function update(WeekendRequest $request, Weekend $weekend): RedirectResponse
     {
         $weekend->update($request->validated());
 
-        return response()->json([
-            'success' => true,
-            'data' => $this->serializeWeekend($weekend->fresh('church:id,name')),
-            'message' => 'Fin de semana actualizado correctamente.',
-        ]);
+        return redirect()->route('fines-semana-misas.index')
+            ->with('success', 'Fin de semana actualizado correctamente.');
     }
 
-    public function destroy(Weekend $weekend): JsonResponse
+    public function destroy(Weekend $weekend): RedirectResponse
     {
         $weekend->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Fin de semana eliminado correctamente.',
-        ]);
+        return redirect()->route('fines-semana-misas.index')
+            ->with('success', 'Fin de semana eliminado correctamente.');
     }
 
     private function churchOptions(Request $request): array
@@ -91,15 +99,15 @@ class WeekendController extends Controller
             ->all();
     }
 
-    private function serializeWeekend(Weekend $weekend): array
+    private function serializeWeekend(Weekend $weekend, bool $forForm = false): array
     {
         return [
             'id' => $weekend->id,
             'church_id' => $weekend->church_id,
             'church' => $weekend->church?->name,
             'name' => $weekend->name,
-            'starts_at' => $weekend->starts_at?->format('Y-m-d'),
-            'ends_at' => $weekend->ends_at?->format('Y-m-d'),
+            'starts_at' => $weekend->starts_at?->format($forForm ? 'Y-m-d' : 'Y-m-d H:i'),
+            'ends_at' => $weekend->ends_at?->format($forForm ? 'Y-m-d' : 'Y-m-d H:i'),
             'status' => $weekend->status,
         ];
     }

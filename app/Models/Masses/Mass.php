@@ -19,7 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'church_id',
     'chapel_id',
     'name',
-    'celebrated_at',
+    'starts_at',
+    'ends_at',
     'status',
     'attendance_status',
     'notes',
@@ -39,7 +40,8 @@ class Mass extends Model
     protected function casts(): array
     {
         return [
-            'celebrated_at' => 'datetime:Y-m-d H:i',
+            'starts_at' => 'datetime:Y-m-d H:i',
+            'ends_at' => 'datetime:Y-m-d H:i',
             'status' => 'string',
             'attendance_status' => 'string',
         ];
