@@ -154,4 +154,47 @@ class UserControllerTest extends TestCase
 
         $this->assertDatabaseHas('profiles', ['user_id' => $target->id, 'paterno' => 'González']);
     }
+
+    public function test_destroy_requires_usuarios_delete_permission(): void
+    {
+        $target = User::factory()->create(['diocese_id' => null]);
+        $editor = $this->makeGlobalUser();
+
+        $this->actingAs($editor)
+            ->deleteJson("/usuarios/{$target->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'deleted_at' => null]);
+    }
+
+    public function test_destroy_blocks_self_deletion(): void
+    {
+        $editor = $this->makeGlobalUser('usuarios.delete');
+
+        $this->actingAs($editor)
+            ->deleteJson("/usuarios/{$editor->id}")
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'No puedes eliminar tu propio usuario.');
+
+        $this->assertDatabaseHas('users', ['id' => $editor->id, 'deleted_at' => null]);
+    }
+
+    public function test_destroy_soft_deletes_user_and_hides_it_from_index(): void
+    {
+        $target = User::factory()->create(['diocese_id' => null]);
+        $editor = $this->makeGlobalUser('usuarios.delete');
+
+        $this->actingAs($editor)
+            ->deleteJson("/usuarios/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Usuario eliminado correctamente.');
+
+        $this->assertSoftDeleted('users', ['id' => $target->id]);
+
+        $this->actingAs($editor)->get('/usuarios')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('users.total', 1));
+    }
 }

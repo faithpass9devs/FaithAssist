@@ -9,6 +9,7 @@ use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
 use App\Models\Catechism\ChildReinscription;
 use App\Models\Operation\Level;
+use App\Models\Regions\Community;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +26,9 @@ class ReinscriptionController extends Controller
         abort_unless($request->user()->can('reinscripciones.read'), 403);
 
         $search = $request->input('search', '');
+        $communityId = $request->integer('community_id') ?: null;
+        $levelId = $request->integer('level_id') ?: null;
+        $scope = new UserScopeService($request->user());
 
         $query = $this->eligibleChildrenQuery($request)
             ->when($search !== '', function ($query) use ($search) {
@@ -37,6 +41,11 @@ class ReinscriptionController extends Controller
                         ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"));
                 });
             })
+            ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
+            ->when($levelId, fn ($query) => $query->whereHas(
+                'activeLevelAssignments',
+                fn ($assignment) => $assignment->where('level_id', $levelId)
+            ))
             ->orderBy('paterno')
             ->orderBy('materno')
             ->orderBy('name');
@@ -49,6 +58,22 @@ class ReinscriptionController extends Controller
         return Inertia::render('Catechism/Reinscriptions/Index', [
             'children' => $children,
             'search' => $search,
+            'filters' => [
+                'community_id' => $communityId,
+                'level_id' => $levelId,
+            ],
+            'communityOptions' => Community::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->values(),
+            'levelOptions' => Level::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('diocese_id', $scope->dioceseIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->values(),
         ]);
     }
 

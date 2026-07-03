@@ -25,12 +25,18 @@ class ChurchController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $municipalityId = $request->integer('municipality_id') ?: null;
+        $deaneryId = $request->integer('deanery_id') ?: null;
+        $status = $request->input('status') ?: null;
         $scope = new UserScopeService($request->user());
 
         $churches = Church::query()
             ->with(['municipality:id,name', 'deanery:id,name'])
             ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->churchIds()))
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->when($municipalityId, fn ($q) => $q->where('municipality_id', $municipalityId))
+            ->when($deaneryId, fn ($q) => $q->where('deanery_id', $deaneryId))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString()
@@ -39,6 +45,25 @@ class ChurchController extends Controller
         return Inertia::render('Ecclesiastes/Churches/Index', [
             'churches' => $churches,
             'search' => $search,
+            'filters' => [
+                'municipality_id' => $municipalityId,
+                'deanery_id' => $deaneryId,
+                'status' => $status,
+            ],
+            'municipalities' => Municipality::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->municipalityIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'deaneries' => Deanery::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->deaneryIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'statuses' => [
+                ['value' => Status::ACTIVE, 'label' => 'Activo'],
+                ['value' => Status::INACTIVE, 'label' => 'Inactivo'],
+            ],
         ]);
     }
 
