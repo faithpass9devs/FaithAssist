@@ -36,7 +36,15 @@ class SyncRolePermissionsSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
-        $superadmin->syncPermissions(Permission::all());
+        $superadmin->syncPermissions(
+            Permission::query()
+                ->whereNotIn('name', [
+                    'estados.export',
+                    'municipios.export',
+                    'comunidades.export',
+                ])
+                ->get()
+        );
 
         $coordinador->syncPermissions(array_merge(
             $this->permissionsForModules(['municipios'], $readAndShowActions),
@@ -54,7 +62,6 @@ class SyncRolePermissionsSeeder extends Seeder
             [
                 'municipios.scope.all',
                 'comunidades.scope.all',
-                'comunidades.export',
                 'parroquias.scope.all',
                 'capillas.scope.all',
             ]

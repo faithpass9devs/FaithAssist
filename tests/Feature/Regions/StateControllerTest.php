@@ -52,6 +52,15 @@ class StateControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_user_without_export_permission_gets_403_on_export(): void
+    {
+        $user = $this->makeGlobalUser('estados.read');
+
+        $this->actingAs($user)
+            ->get('/estados/export')
+            ->assertForbidden();
+    }
+
     // ── CRUD ──────────────────────────────────────────────────────────────────
 
     public function test_index_returns_inertia_response(): void
@@ -112,5 +121,19 @@ class StateControllerTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->assertSoftDeleted('states', ['id' => $state->id]);
+    }
+
+    public function test_export_returns_xlsx_for_authorized_user(): void
+    {
+        State::query()->create(['name' => 'JALISCO', 'short_name' => 'JAL', 'status' => 'active']);
+        $user = $this->makeGlobalUser('estados.read', 'estados.export');
+
+        $response = $this->actingAs($user)->get('/estados/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type') ?? ''
+        );
     }
 }

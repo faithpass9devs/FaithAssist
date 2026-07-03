@@ -51,7 +51,9 @@ class PermissionsSeeder extends Seeder
         }
 
         foreach ([
+            ['name' => 'estados.export', 'module_key' => 'regions', 'description' => 'Permite exportar estados a Excel'],
             ['name' => 'municipios.scope.all', 'module_key' => 'regions', 'description' => 'Permite ver todos los municipios'],
+            ['name' => 'municipios.export', 'module_key' => 'regions', 'description' => 'Permite exportar municipios a Excel'],
             ['name' => 'comunidades.scope.all', 'module_key' => 'regions', 'description' => 'Permite ver todas las comunidades'],
             ['name' => 'comunidades.export', 'module_key' => 'regions', 'description' => 'Permite exportar comunidades a Excel'],
             ['name' => 'parroquias.scope.all', 'module_key' => 'ecclesiastes', 'description' => 'Permite ver todas las parroquias'],

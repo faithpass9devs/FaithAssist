@@ -67,9 +67,13 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['estados' => 'estado']);
 
+    Route::get('/estados/export', [StateController::class, 'export'])->name('estados.export');
+
     Route::resource('municipios', MunicipalityController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['municipios' => 'municipio']);
+
+    Route::get('/municipios/export', [MunicipalityController::class, 'export'])->name('municipios.export');
 
     Route::resource('comunidades', CommunityController::class)
         ->only(['index', 'store', 'update', 'destroy'])

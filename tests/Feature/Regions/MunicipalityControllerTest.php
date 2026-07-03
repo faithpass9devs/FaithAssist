@@ -34,6 +34,15 @@ class MunicipalityControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_user_without_export_permission_gets_403_on_export(): void
+    {
+        $user = $this->makeGlobalUser('municipios.read');
+
+        $this->actingAs($user)
+            ->get('/municipios/export')
+            ->assertForbidden();
+    }
+
     // ── Scope ─────────────────────────────────────────────────────────────────
 
     public function test_global_user_sees_all_municipalities(): void
@@ -130,5 +139,19 @@ class MunicipalityControllerTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->assertSoftDeleted('municipalities', ['id' => $chain['municipality']->id]);
+    }
+
+    public function test_export_returns_xlsx_for_authorized_user(): void
+    {
+        $this->createChain();
+        $user = $this->makeGlobalUser('municipios.read', 'municipios.export');
+
+        $response = $this->actingAs($user)->get('/municipios/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type') ?? ''
+        );
     }
 }

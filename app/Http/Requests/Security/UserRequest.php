@@ -4,6 +4,7 @@ namespace App\Http\Requests\Security;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class UserRequest extends FormRequest
@@ -63,12 +64,23 @@ class UserRequest extends FormRequest
                     return;
                 }
 
-                $editorPermissionIds = $editor->getAllPermissions()->pluck('id')->toArray();
+                $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+                $manageableExportIds = Permission::query()
+                    ->whereIn('name', [
+                        'estados.export',
+                        'municipios.export',
+                        'comunidades.export',
+                    ])
+                    ->pluck('id');
+                $assignablePermissionIds = $editorPermissionIds
+                    ->merge($manageableExportIds)
+                    ->unique()
+                    ->toArray();
 
                 // Validate submitted permissions are within the editor's own set
                 $submittedIds = array_filter((array) $this->input('permissions', []));
                 foreach ($submittedIds as $permId) {
-                    if (! in_array((int) $permId, $editorPermissionIds)) {
+                    if (! in_array((int) $permId, $assignablePermissionIds)) {
                         $validator->errors()->add(
                             'permissions',
                             'No puedes asignar permisos que no posees.'
@@ -84,7 +96,7 @@ class UserRequest extends FormRequest
                     $role = Role::with('permissions:id')->find($roleId);
                     if ($role) {
                         $hasUnallowed = $role->permissions->contains(
-                            fn ($p) => ! in_array($p->id, $editorPermissionIds)
+                            fn ($p) => ! in_array($p->id, $assignablePermissionIds)
                         );
 
                         if ($hasUnallowed) {
