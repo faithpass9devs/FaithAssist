@@ -149,7 +149,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('roles', RoleController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
     Route::resource('usuarios', UserController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update'])
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['usuarios' => 'usuario']);
 
     if (app()->environment('local')) {

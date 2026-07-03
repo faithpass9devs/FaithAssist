@@ -4,7 +4,6 @@ namespace App\Http\Requests\Security;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 
 class UserRequest extends FormRequest
@@ -60,8 +59,8 @@ class UserRequest extends FormRequest
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['integer', 'exists:permissions,id'],
             'password' => $isUpdate
-                ? ['nullable', 'confirmed', Password::defaults()]
-                : ['required', 'confirmed', Password::defaults()],
+                ? ['nullable', 'string', 'min:8', 'regex:/[A-ZÁÉÍÓÚÑ]/u', 'regex:/[a-záéíóúñ]/u', 'regex:/[0-9]/', 'confirmed']
+                : ['required', 'string', 'min:8', 'regex:/[A-ZÁÉÍÓÚÑ]/u', 'regex:/[a-záéíóúñ]/u', 'regex:/[0-9]/', 'confirmed'],
         ];
     }
 
@@ -116,6 +115,10 @@ class UserRequest extends FormRequest
             'deanery_id.exists' => 'El decanato seleccionado no pertenece a la diócesis asignada.',
             'church_id.exists' => 'La parroquia seleccionada no pertenece al decanato asignado.',
             'chapel_id.exists' => 'La capilla seleccionada no pertenece a la parroquia asignada.',
+            'password.required' => 'Ingresa una contraseña.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'password.regex' => 'La contraseña debe incluir mayúscula, minúscula y número.',
+            'password.confirmed' => 'La confirmación de contraseña no coincide.',
         ];
     }
 }

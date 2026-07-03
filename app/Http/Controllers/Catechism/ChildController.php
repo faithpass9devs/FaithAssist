@@ -37,7 +37,9 @@ class ChildController extends Controller
         $search = $request->input('search', '');
         $churchId = $request->integer('church_id') ?: null;
         $municipalityId = $request->integer('municipality_id') ?: null;
+        $communityId = $request->integer('community_id') ?: null;
         $levelId = $request->integer('level_id') ?: null;
+        $status = $request->input('status');
         $scope = new UserScopeService($request->user());
 
         $query = Child::query()
@@ -56,10 +58,12 @@ class ChildController extends Controller
                 });
             })
             ->when($churchId, fn ($query) => $query->where('church_id', $churchId))
+            ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
             ->when($levelId, fn ($query) => $query->whereHas(
                 'activeLevelAssignments',
                 fn ($assignment) => $assignment->where('level_id', $levelId)
             ))
+            ->when($status, fn ($query) => $query->where('status', $status))
             ->when($municipalityId, function ($query) use ($municipalityId) {
                 $query->where(function ($builder) use ($municipalityId) {
                     $builder->whereHas('church', fn ($church) => $church->where('municipality_id', $municipalityId))
@@ -83,11 +87,15 @@ class ChildController extends Controller
             'filters' => [
                 'church_id' => $churchId,
                 'municipality_id' => $municipalityId,
+                'community_id' => $communityId,
                 'level_id' => $levelId,
+                'status' => $status,
             ],
             'churches' => $filterOptions['churches'],
             'municipalities' => $filterOptions['municipalities'],
+            'communities' => $filterOptions['communities'],
             'levels' => $filterOptions['levels'],
+            'statuses' => $this->options($this->statusLabels()),
             'statusLabels' => $this->statusLabels(),
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
@@ -274,6 +282,11 @@ class ChildController extends Controller
                 ->where('status', Status::ACTIVE)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'communities' => Community::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'municipality_id', 'name']),
             'levels' => Level::query()
                 ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('diocese_id', $scope->dioceseIds()))
                 ->where('status', Status::ACTIVE)
