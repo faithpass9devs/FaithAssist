@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { Camera, LogIn, LogOut, QrCode, Square } from 'lucide-vue-next';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -13,7 +13,14 @@ const props = defineProps({
   attendances: { type: Object, required: true },
 });
 
-const rows = ref([...props.attendances.data]);
+const rows = ref([]);
+watch(
+  () => props.attendances.data,
+  (data) => {
+    rows.value = [...data];
+  },
+  { immediate: true },
+);
 const childCode = ref('');
 const loading = ref(false);
 const errors = ref({});
@@ -23,7 +30,6 @@ const scannerRunning = ref(false);
 const scannerError = ref('');
 const lastScan = ref({ code: '', at: 0 });
 const qrRegionId = 'mass-attendance-qr-reader';
-
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
 const scan = async (action, code = childCode.value) => {
