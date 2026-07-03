@@ -1,6 +1,6 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Filter, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-vue-next';
+import { Filter, Pencil, Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -9,10 +9,21 @@ import AppShell from '../../../components/layouts/AppShell.vue';
 const props = defineProps({
   children: { type: Object, required: true },
   search: { type: String, default: '' },
-  filters: { type: Object, default: () => ({ church_id: null, municipality_id: null, level_id: null }) },
+  filters: {
+    type: Object,
+    default: () => ({
+      church_id: null,
+      municipality_id: null,
+      community_id: null,
+      level_id: null,
+      status: null,
+    }),
+  },
   churches: { type: Array, default: () => [] },
   municipalities: { type: Array, default: () => [] },
+  communities: { type: Array, default: () => [] },
   levels: { type: Array, default: () => [] },
+  statuses: { type: Array, default: () => [] },
   statusLabels: { type: Object, default: () => ({}) },
   sexLabels: { type: Object, default: () => ({}) },
   bloodTypeLabels: { type: Object, default: () => ({}) },
@@ -21,11 +32,26 @@ const props = defineProps({
 const searchTerm = ref(props.search);
 const selectedChurch = ref(props.filters.church_id);
 const selectedMunicipality = ref(props.filters.municipality_id);
+const selectedCommunity = ref(props.filters.community_id);
 const selectedLevel = ref(props.filters.level_id);
+const selectedStatus = ref(props.filters.status);
 let debounce = null;
 
+const availableCommunities = computed(() => {
+  if (!selectedMunicipality.value) return props.communities;
+  return props.communities.filter(
+    (community) => String(community.municipality_id) === String(selectedMunicipality.value),
+  );
+});
+
 const activeFilters = computed(
-  () => !!searchTerm.value || !!selectedChurch.value || !!selectedMunicipality.value || !!selectedLevel.value,
+  () =>
+    !!searchTerm.value ||
+    !!selectedChurch.value ||
+    !!selectedMunicipality.value ||
+    !!selectedCommunity.value ||
+    !!selectedLevel.value ||
+    !!selectedStatus.value,
 );
 
 const reload = () => {
@@ -33,22 +59,48 @@ const reload = () => {
     search: searchTerm.value || undefined,
     church_id: selectedChurch.value || undefined,
     municipality_id: selectedMunicipality.value || undefined,
+    community_id: selectedCommunity.value || undefined,
     level_id: selectedLevel.value || undefined,
+    status: selectedStatus.value || undefined,
   };
 
   router.get('/children', params, { preserveState: true, replace: true });
 };
 
-watch([searchTerm, selectedChurch, selectedMunicipality, selectedLevel], () => {
-  clearTimeout(debounce);
-  debounce = setTimeout(reload, 400);
+watch(
+  [
+    searchTerm,
+    selectedChurch,
+    selectedMunicipality,
+    selectedCommunity,
+    selectedLevel,
+    selectedStatus,
+  ],
+  () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(reload, 400);
+  },
+);
+
+watch(selectedMunicipality, () => {
+  if (!selectedCommunity.value) return;
+
+  const exists = availableCommunities.value.some(
+    (community) => String(community.id) === String(selectedCommunity.value),
+  );
+
+  if (!exists) {
+    selectedCommunity.value = null;
+  }
 });
 
 const clearFilters = () => {
   searchTerm.value = '';
   selectedChurch.value = null;
   selectedMunicipality.value = null;
+  selectedCommunity.value = null;
   selectedLevel.value = null;
+  selectedStatus.value = null;
 };
 
 const page = usePage();
@@ -82,9 +134,9 @@ const destroyChild = (child) => {
     </div>
 
     <section
-      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-3 flex items-center justify-between gap-3">
+      <div class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2
           class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
         >
@@ -94,17 +146,17 @@ const destroyChild = (child) => {
         <button
           v-if="activeFilters"
           type="button"
-          class="btn btn-ghost btn-xs gap-1"
+          class="inline-flex items-center gap-1.5 self-start rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 sm:self-auto dark:border-sky-900/60 dark:bg-sky-900/30 dark:text-sky-200 dark:hover:bg-sky-900/50"
           @click="clearFilters"
         >
-          <X class="h-3.5 w-3.5" />
-          Limpiar
+          <RotateCcw class="h-3.5 w-3.5" />
+          Limpiar filtros
         </button>
       </div>
 
-      <div class="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div class="grid gap-4">
         <label
-          class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
         >
           <Search class="h-4 w-4 shrink-0 text-slate-400" />
           <input
@@ -115,30 +167,61 @@ const destroyChild = (child) => {
           />
         </label>
 
-        <select v-model="selectedMunicipality" class="select select-bordered w-full">
-          <option :value="null">Todos los municipios</option>
-          <option
-            v-for="municipality in municipalities"
-            :key="municipality.id"
-            :value="municipality.id"
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <select
+            v-model="selectedChurch"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white pr-10 sm:col-span-2 lg:col-span-1 xl:col-span-2 dark:bg-slate-950"
           >
-            {{ municipality.name }}
-          </option>
-        </select>
+            <option :value="null">Todas las iglesias</option>
+            <option v-for="church in churches" :key="church.id" :value="church.id">
+              {{ church.name }}
+            </option>
+          </select>
 
-        <select v-model="selectedChurch" class="select select-bordered w-full">
-          <option :value="null">Todas las iglesias</option>
-          <option v-for="church in churches" :key="church.id" :value="church.id">
-            {{ church.name }}
-          </option>
-        </select>
+          <select
+            v-model="selectedMunicipality"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los municipios</option>
+            <option
+              v-for="municipality in municipalities"
+              :key="municipality.id"
+              :value="municipality.id"
+            >
+              {{ municipality.name }}
+            </option>
+          </select>
 
-        <select v-model="selectedLevel" class="select select-bordered w-full">
-          <option :value="null">Todos los niveles</option>
-          <option v-for="level in levels" :key="level.id" :value="level.id">
-            {{ level.name }}
-          </option>
-        </select>
+          <select
+            v-model="selectedCommunity"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todas las comunidades</option>
+            <option v-for="community in availableCommunities" :key="community.id" :value="community.id">
+              {{ community.name }}
+            </option>
+          </select>
+
+          <select
+            v-model="selectedLevel"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los niveles</option>
+            <option v-for="level in levels" :key="level.id" :value="level.id">
+              {{ level.name }}
+            </option>
+          </select>
+
+          <select
+            v-model="selectedStatus"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los estados</option>
+            <option v-for="status in statuses" :key="status.value" :value="status.value">
+              {{ status.label }}
+            </option>
+          </select>
+        </div>
       </div>
     </section>
 
