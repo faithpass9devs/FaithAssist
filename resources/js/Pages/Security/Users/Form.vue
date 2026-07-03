@@ -65,19 +65,19 @@ const form = useForm({
 
 const passwordRules = computed(() => [
   {
-    label: 'Minimo 8 caracteres',
+    label: 'Mínimo 8 caracteres',
     valid: form.password.length >= 8,
   },
   {
-    label: 'Una mayuscula',
+    label: 'Una mayúscula',
     valid: /[A-ZÁÉÍÓÚÑ]/u.test(form.password),
   },
   {
-    label: 'Una minuscula',
+    label: 'Una minúscula',
     valid: /[a-záéíóúñ]/u.test(form.password),
   },
   {
-    label: 'Un numero',
+    label: 'Un número',
     valid: /\d/.test(form.password),
   },
 ]);
