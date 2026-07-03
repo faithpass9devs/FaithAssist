@@ -11,6 +11,7 @@ use App\Models\Lada;
 use App\Models\Profile;
 use App\Models\User;
 use App\Services\UserScopeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -251,6 +252,25 @@ class UserController extends Controller
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario actualizado correctamente.');
+    }
+
+    public function destroy(Request $request, User $usuario): JsonResponse
+    {
+        abort_unless($request->user()->can('usuarios.delete'), 403);
+
+        if ($request->user()->id === $usuario->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes eliminar tu propio usuario.',
+            ], 422);
+        }
+
+        $usuario->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario eliminado correctamente.',
+        ]);
     }
 
     private function mustRemainDirectPermissionIds(): \Illuminate\Support\Collection
