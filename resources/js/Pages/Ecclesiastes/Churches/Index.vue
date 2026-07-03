@@ -1,6 +1,6 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Filter, Home, Pencil, Plus, Search, Trash2, X } from 'lucide-vue-next';
+import { Filter, Home, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -10,11 +10,18 @@ import { useCatalogCrud } from '../../../composables/useCatalogCrud';
 const props = defineProps({
   churches: { type: Object, required: true },
   search: { type: String, default: '' },
+  filters: { type: Object, default: () => ({ municipality_id: null, deanery_id: null, status: null }) },
+  municipalities: { type: Array, default: () => [] },
+  deaneries: { type: Array, default: () => [] },
+  statuses: { type: Array, default: () => [] },
 });
 
 const page = usePage();
 const rows = ref([...props.churches.data]);
 const searchTerm = ref(props.search);
+const selectedMunicipality = ref(props.filters.municipality_id);
+const selectedDeanery = ref(props.filters.deanery_id);
+const selectedStatus = ref(props.filters.status);
 const debounce = ref(null);
 
 const { loading, deleteRow } = useCatalogCrud({
@@ -24,7 +31,9 @@ const { loading, deleteRow } = useCatalogCrud({
 
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 const fullScopeAccess = computed(() => page.props.auth?.scope?.full_access ?? {});
-const activeFilters = computed(() => !!searchTerm.value);
+const activeFilters = computed(
+  () => !!searchTerm.value || !!selectedMunicipality.value || !!selectedDeanery.value || !!selectedStatus.value,
+);
 const hasPermission = (action) => permissions.value.includes(`parroquias.${action}`);
 const canCreate = computed(
   () => hasPermission('create') && fullScopeAccess.value?.parroquias === true,
@@ -48,18 +57,27 @@ watch(
 const reload = () => {
   router.get(
     '/parroquias',
-    { search: searchTerm.value || undefined, page: 1 },
+    {
+      search: searchTerm.value || undefined,
+      municipality_id: selectedMunicipality.value || undefined,
+      deanery_id: selectedDeanery.value || undefined,
+      status: selectedStatus.value || undefined,
+      page: 1,
+    },
     { preserveState: true, replace: true },
   );
 };
 
-watch(searchTerm, () => {
+watch([searchTerm, selectedMunicipality, selectedDeanery, selectedStatus], () => {
   clearTimeout(debounce.value);
   debounce.value = setTimeout(reload, 400);
 });
 
 const clearFilters = () => {
   searchTerm.value = '';
+  selectedMunicipality.value = null;
+  selectedDeanery.value = null;
+  selectedStatus.value = null;
 };
 
 const destroyChurch = async (church) => {
@@ -89,9 +107,9 @@ const destroyChurch = async (church) => {
     </CatalogHeader>
 
     <section
-      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-3 flex items-center justify-between gap-3">
+      <div class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2
           class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
         >
@@ -101,25 +119,59 @@ const destroyChurch = async (church) => {
         <button
           v-if="activeFilters"
           type="button"
-          class="btn btn-ghost btn-xs gap-1"
+          class="inline-flex items-center gap-1.5 self-start rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 sm:self-auto dark:border-sky-900/60 dark:bg-sky-900/30 dark:text-sky-200 dark:hover:bg-sky-900/50"
           @click="clearFilters"
         >
-          <X class="h-3.5 w-3.5" />
-          Limpiar
+          <RotateCcw class="h-3.5 w-3.5" />
+          Limpiar filtros
         </button>
       </div>
 
-      <label
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
-      >
-        <Search class="h-4 w-4 shrink-0 text-slate-400" />
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por nombre de parroquia..."
-          class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-        />
-      </label>
+      <div class="grid gap-4">
+        <label
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+        >
+          <Search class="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            v-model="searchTerm"
+            type="text"
+            placeholder="Buscar por nombre de parroquia..."
+            class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+          />
+        </label>
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <select
+            v-model="selectedMunicipality"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los municipios</option>
+            <option v-for="municipality in municipalities" :key="municipality.id" :value="municipality.id">
+              {{ municipality.name }}
+            </option>
+          </select>
+
+          <select
+            v-model="selectedDeanery"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los decanatos</option>
+            <option v-for="deanery in deaneries" :key="deanery.id" :value="deanery.id">
+              {{ deanery.name }}
+            </option>
+          </select>
+
+          <select
+            v-model="selectedStatus"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los estados</option>
+            <option v-for="status in statuses" :key="status.value" :value="status.value">
+              {{ status.label }}
+            </option>
+          </select>
+        </div>
+      </div>
     </section>
 
     <div
