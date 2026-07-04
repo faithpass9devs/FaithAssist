@@ -33,6 +33,121 @@ const currentGroup = computed(() =>
   props.groups.find((g) => g.key === selectedModuleKey.value),
 );
 
+const permissionResourceMetaByModule = {
+  catechism: {
+    children: { singular: 'niño', plural: 'niños', gender: 'm' },
+    reinscripciones: { singular: 'reinscripción', plural: 'reinscripciones', gender: 'f' },
+  },
+  ecclesiastes: {
+    capillas: { singular: 'capilla', plural: 'capillas', gender: 'f' },
+    decanato: { singular: 'decanato', plural: 'decanatos', gender: 'm' },
+    diocesis: { singular: 'diócesis', plural: 'diócesis', gender: 'f' },
+    parroquias: { singular: 'parroquia', plural: 'parroquias', gender: 'f' },
+  },
+  operation: {
+    periodos: { singular: 'período', plural: 'períodos', gender: 'm' },
+    periodo_movimientos: { singular: 'movimiento de período', plural: 'movimientos de período', gender: 'm' },
+    tipos_movimientos_periodo: { singular: 'tipo de movimiento de período', plural: 'tipos de movimiento de período', gender: 'm' },
+    niveles: { singular: 'nivel', plural: 'niveles', gender: 'm' },
+  },
+  regions: {
+    estados: { singular: 'estado', plural: 'estados', gender: 'm' },
+    municipios: { singular: 'municipio', plural: 'municipios', gender: 'm' },
+    comunidades: { singular: 'comunidad', plural: 'comunidades', gender: 'f' },
+  },
+  security: {
+    modulos: { singular: 'módulo', plural: 'módulos', gender: 'm' },
+    permisos: { singular: 'permiso', plural: 'permisos', gender: 'm' },
+    roles: { singular: 'rol', plural: 'roles', gender: 'm' },
+    usuarios: { singular: 'usuario', plural: 'usuarios', gender: 'm' },
+  },
+  whatsapp: {
+    whatsapp: { singular: 'mensaje de WhatsApp', plural: 'mensajes de WhatsApp', gender: 'm' },
+  },
+};
+
+const capitalize = (value) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+
+const parsePermission = (permissionName) => {
+  const parts = permissionName.split('.');
+  return {
+    resource: parts[0] ?? '',
+    action: parts.slice(1).join('.'),
+  };
+};
+
+const getPermissionMeta = (perm) => {
+  const moduleKey = currentGroup.value?.key;
+  if (!moduleKey) return null;
+
+  const moduleMeta = permissionResourceMetaByModule[moduleKey];
+  if (!moduleMeta) return null;
+
+  const { resource, action } = parsePermission(perm.name);
+  const resourceMeta = moduleMeta[resource];
+  if (!resourceMeta) return null;
+
+  return { action, ...resourceMeta };
+};
+
+const getScopeAllText = (plural, gender) =>
+  gender === 'f' ? `todas las ${plural}` : `todos los ${plural}`;
+
+const getIndefiniteArticle = (gender) => (gender === 'f' ? 'una' : 'un');
+
+const getPermissionDisplayName = (perm) => {
+  const meta = getPermissionMeta(perm);
+  if (!meta) return perm.name;
+
+  switch (meta.action) {
+    case 'create':
+      return `Registrar ${capitalize(meta.singular)}`;
+    case 'read':
+      return `Consultar ${capitalize(meta.plural)}`;
+    case 'update':
+      return `Actualizar ${capitalize(meta.singular)}`;
+    case 'delete':
+      return `Eliminar ${capitalize(meta.singular)}`;
+    case 'show':
+      return `Ver módulo de ${capitalize(meta.plural)}`;
+    case 'export':
+      return `Exportar ${capitalize(meta.plural)}`;
+    case 'send':
+      return `Enviar ${capitalize(meta.plural)}`;
+    case 'scope.all':
+      return `Ver ${capitalize(getScopeAllText(meta.plural, meta.gender))}`;
+    default:
+      return perm.name;
+  }
+};
+
+const getPermissionDisplayDescription = (perm) => {
+  const meta = getPermissionMeta(perm);
+  if (!meta) return perm.description;
+
+  switch (meta.action) {
+    case 'create':
+      return `Permite registrar ${getIndefiniteArticle(meta.gender)} ${meta.singular}`;
+    case 'read':
+      return `Permite consultar ${meta.plural}`;
+    case 'update':
+      return `Permite actualizar ${meta.singular}`;
+    case 'delete':
+      return `Permite eliminar ${meta.singular}`;
+    case 'show':
+      return `Permite acceder al módulo de ${meta.plural}`;
+    case 'export':
+      return `Permite exportar ${meta.plural}`;
+    case 'send':
+      return `Permite enviar ${meta.plural}`;
+    case 'scope.all':
+      return `Permite ver ${getScopeAllText(meta.plural, meta.gender)}`;
+    default:
+      return perm.description;
+  }
+};
+
 const filteredPermissions = computed(() => {
   if (!currentGroup.value) return [];
   const q = permissionSearch.value.toLowerCase();
@@ -40,7 +155,9 @@ const filteredPermissions = computed(() => {
   return currentGroup.value.permissions.filter(
     (p) =>
       p.name.toLowerCase().includes(q) ||
-      (p.description ?? '').toLowerCase().includes(q),
+      (p.description ?? '').toLowerCase().includes(q) ||
+      getPermissionDisplayName(p).toLowerCase().includes(q) ||
+      (getPermissionDisplayDescription(p) ?? '').toLowerCase().includes(q),
   );
 });
 
@@ -96,7 +213,7 @@ const allFilteredSelected = computed(() =>
       </span>
     </div>
 
-    <div class="flex min-h-[420px] divide-x divide-slate-200 dark:divide-slate-800">
+    <div class="flex min-h-105 divide-x divide-slate-200 dark:divide-slate-800">
       <!-- Left: Modules panel -->
       <aside class="flex w-56 shrink-0 flex-col">
         <div class="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
@@ -105,7 +222,7 @@ const allFilteredSelected = computed(() =>
             <input
               v-model="moduleSearch"
               type="text"
-              placeholder="Filtrar m?dulo"
+              placeholder="Filtrar módulo"
               class="w-full bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
           </label>
@@ -209,13 +326,13 @@ const allFilteredSelected = computed(() =>
                   class="block truncate text-xs font-semibold"
                   :class="isSelected(perm.id) ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-200'"
                 >
-                  {{ perm.name }}
+                  {{ getPermissionDisplayName(perm) }}
                 </span>
                 <span
-                  v-if="perm.description"
+                  v-if="getPermissionDisplayDescription(perm)"
                   class="block truncate text-xs text-slate-400 dark:text-slate-500"
                 >
-                  {{ perm.description }}
+                  {{ getPermissionDisplayDescription(perm) }}
                 </span>
               </span>
             </button>
@@ -223,20 +340,20 @@ const allFilteredSelected = computed(() =>
 
           <div
             v-else-if="currentGroup"
-            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
             <span v-if="permissionSearch">
               Sin permisos para
               <strong class="text-slate-600 dark:text-slate-300">"{{ permissionSearch }}"</strong>
             </span>
-            <span v-else>Sin permisos en este m?dulo</span>
+            <span v-else>Sin permisos en este módulo</span>
           </div>
 
           <div
             v-else
-            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
-            Selecciona un m?dulo
+            Selecciona un módulo
           </div>
         </div>
       </section>
