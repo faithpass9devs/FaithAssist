@@ -351,7 +351,7 @@ const allFilteredSelected = computed(() =>
 
           <div
             v-else
-            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
             Selecciona un módulo
           </div>
