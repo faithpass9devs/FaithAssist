@@ -124,9 +124,13 @@ class UserController extends Controller
             $user->syncRoles([$roleId]);
         }
 
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
         $submittedIds = collect(array_filter((array) $request->input('permissions', [])));
-        $safeIds = $submittedIds->intersect($editorPermissionIds);
+        $safeIds = $submittedIds->intersect($manageablePermissionIds);
         $rolePermissionIds = $user->getPermissionsViaRoles()->pluck('id');
         $mustRemainDirectIds = $this->mustRemainDirectPermissionIds();
 
@@ -158,7 +162,10 @@ class UserController extends Controller
         ]);
 
         $editor = auth()->user();
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $manageablePermissionIds = $editor->getAllPermissions()
+            ->pluck('id')
+            ->merge($this->mustRemainDirectPermissionIds())
+            ->unique();
 
         return Inertia::render('Security/Users/Form', [
             'user' => [
@@ -178,7 +185,7 @@ class UserController extends Controller
             'selectedRole' => $usuario->roles->first()?->id,
             'selectedPermissions' => $usuario->getAllPermissions()
                 ->pluck('id')
-                ->intersect($editorPermissionIds)
+                ->intersect($manageablePermissionIds)
                 ->values()
                 ->toArray(),
             'selectedDiocese' => $usuario->diocese_id,
@@ -225,17 +232,21 @@ class UserController extends Controller
 
         $usuario->syncRoles($roleId ? [$roleId] : collect());
 
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
         $rolePermissionIds = $usuario->getPermissionsViaRoles()->pluck('id');
         $mustRemainDirectIds = $this->mustRemainDirectPermissionIds();
 
         // Preserve direct permissions the target has that the editor cannot manage.
         $preservedPerms = $usuario->getDirectPermissions()
-            ->filter(fn (Permission $p) => ! $editorPermissionIds->contains($p->id));
+            ->filter(fn (Permission $p) => ! $manageablePermissionIds->contains($p->id));
 
         // Sync submitted direct permissions that are within editor scope.
         $submittedIds = collect(array_filter((array) $request->input('permissions', [])));
-        $safeIds = $submittedIds->intersect($editorPermissionIds);
+        $safeIds = $submittedIds->intersect($manageablePermissionIds);
         $directIds = $safeIds
             ->diff($rolePermissionIds)
             ->merge($safeIds->intersect($mustRemainDirectIds))
@@ -276,7 +287,13 @@ class UserController extends Controller
     private function mustRemainDirectPermissionIds(): \Illuminate\Support\Collection
     {
         return Permission::query()
-            ->whereIn('name', ['comunidades.export'])
+            ->whereIn('name', [
+                'estados.export',
+                'municipios.export',
+                'comunidades.export',
+                'children.export',
+                'reinscripciones.export',
+            ])
             ->pluck('id');
     }
 
@@ -316,10 +333,14 @@ class UserController extends Controller
 
     private function getGroupedPermissions(User $editor): array
     {
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
 
         return Permission::query()
-            ->whereIn('id', $editorPermissionIds)
+            ->whereIn('id', $manageablePermissionIds)
             ->orderBy('module_key')
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'module_key'])

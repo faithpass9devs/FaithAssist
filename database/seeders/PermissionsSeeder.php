@@ -51,13 +51,17 @@ class PermissionsSeeder extends Seeder
         }
 
         foreach ([
+            ['name' => 'estados.export', 'module_key' => 'regions', 'description' => 'Permite exportar estados a Excel'],
             ['name' => 'municipios.scope.all', 'module_key' => 'regions', 'description' => 'Permite ver todos los municipios'],
+            ['name' => 'municipios.export', 'module_key' => 'regions', 'description' => 'Permite exportar municipios a Excel'],
             ['name' => 'comunidades.scope.all', 'module_key' => 'regions', 'description' => 'Permite ver todas las comunidades'],
             ['name' => 'comunidades.export', 'module_key' => 'regions', 'description' => 'Permite exportar comunidades a Excel'],
             ['name' => 'parroquias.scope.all', 'module_key' => 'ecclesiastes', 'description' => 'Permite ver todas las parroquias'],
             ['name' => 'capillas.scope.all', 'module_key' => 'ecclesiastes', 'description' => 'Permite ver todas las capillas'],
             ['name' => 'children.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todos los niños'],
+            ['name' => 'children.export', 'module_key' => 'catechism', 'description' => 'Permite exportar niños a Excel'],
             ['name' => 'reinscripciones.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todas las reinscripciones'],
+            ['name' => 'reinscripciones.export', 'module_key' => 'catechism', 'description' => 'Permite exportar reinscripciones a Excel'],
             ['name' => 'whatsapp.send', 'module_key' => 'whatsapp', 'description' => 'Permite enviar mensajes por WhatsApp'],
         ] as $permission) {
             Permission::query()->updateOrCreate(

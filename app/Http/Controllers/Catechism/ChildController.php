@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Catechism;
 
+use App\Exports\Catechism\ChildrenExport;
 use App\Globals\BloodType;
 use App\Globals\Sex;
 use App\Globals\Status;
@@ -24,6 +25,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ChildController extends Controller
 {
@@ -198,6 +201,28 @@ class ChildController extends Controller
 
         return redirect()->route('children.index')
             ->with('success', 'Niño eliminado correctamente.');
+    }
+
+    public function export(Request $request)
+    {
+        $this->authorize('export', Child::class);
+
+        $filters = [
+            'search' => $request->input('search', ''),
+            'church_id' => $request->integer('church_id') ?: null,
+            'municipality_id' => $request->integer('municipality_id') ?: null,
+            'community_id' => $request->integer('community_id') ?: null,
+            'level_id' => $request->integer('level_id') ?: null,
+            'status' => $request->input('status'),
+        ];
+
+        $fileName = 'ninos_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(
+            new ChildrenExport($request->user(), $filters),
+            $fileName,
+            ExcelWriter::XLSX
+        );
     }
 
     private function formOptions(Request $request): array

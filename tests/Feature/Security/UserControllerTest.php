@@ -6,6 +6,7 @@ use App\Models\Profile;
 use App\Models\User;
 use Database\Seeders\LadaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
 
@@ -110,6 +111,26 @@ class UserControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('Security/Users/Form'));
     }
 
+    public function test_create_form_shows_export_permissions_when_editor_has_them(): void
+    {
+        $editor = $this->makeGlobalUser(
+            'estados.export',
+            'municipios.export',
+            'comunidades.export',
+            'children.export',
+            'reinscripciones.export'
+        );
+
+        $this->actingAs($editor)
+            ->get('/usuarios/create')
+            ->assertOk()
+            ->assertSee('estados.export')
+            ->assertSee('municipios.export')
+            ->assertSee('comunidades.export')
+            ->assertSee('children.export')
+            ->assertSee('reinscripciones.export');
+    }
+
     public function test_store_creates_user_and_profile_then_redirects(): void
     {
         $editor = $this->makeGlobalUser();
@@ -137,6 +158,29 @@ class UserControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('Security/Users/Form'));
     }
 
+    public function test_edit_form_shows_export_permissions_when_editor_has_them(): void
+    {
+        $target = User::factory()->create(['diocese_id' => null]);
+        Profile::create(['user_id' => $target->id, 'name' => 'Ana', 'paterno' => 'López', 'materno' => null]);
+
+        $editor = $this->makeGlobalUser(
+            'estados.export',
+            'municipios.export',
+            'comunidades.export',
+            'children.export',
+            'reinscripciones.export'
+        );
+
+        $this->actingAs($editor)
+            ->get("/usuarios/{$target->id}/edit")
+            ->assertOk()
+            ->assertSee('estados.export')
+            ->assertSee('municipios.export')
+            ->assertSee('comunidades.export')
+                ->assertSee('children.export')
+                ->assertSee('reinscripciones.export');
+    }
+
     public function test_update_modifies_user_and_redirects(): void
     {
         $target = User::factory()->create(['diocese_id' => null]);
@@ -153,6 +197,62 @@ class UserControllerTest extends TestCase
             ->assertRedirect('/usuarios');
 
         $this->assertDatabaseHas('profiles', ['user_id' => $target->id, 'paterno' => 'González']);
+    }
+
+    public function test_update_can_grant_export_permission_to_user(): void
+    {
+        $target = User::factory()->create(['diocese_id' => null]);
+        Profile::create(['user_id' => $target->id, 'name' => 'Mario', 'paterno' => 'Lopez', 'materno' => null]);
+
+        $permission = Permission::firstOrCreate(
+            ['name' => 'municipios.export', 'guard_name' => 'web'],
+            ['description' => 'municipios.export', 'module_key' => 'regions']
+        );
+
+        $editor = $this->makeGlobalUser('municipios.export');
+
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Mario',
+                'paterno' => 'Lopez',
+                'permissions' => [$permission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertTrue($target->hasDirectPermission('municipios.export'));
+        $this->assertTrue($target->can('municipios.export'));
+    }
+
+    public function test_update_can_revoke_export_permission_from_user(): void
+    {
+        $target = User::factory()->create(['diocese_id' => null]);
+        Profile::create(['user_id' => $target->id, 'name' => 'Lucia', 'paterno' => 'Mora', 'materno' => null]);
+
+        $permission = Permission::firstOrCreate(
+            ['name' => 'estados.export', 'guard_name' => 'web'],
+            ['description' => 'estados.export', 'module_key' => 'regions']
+        );
+
+        $target->givePermissionTo($permission);
+
+        $editor = $this->makeGlobalUser('estados.export');
+
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Lucia',
+                'paterno' => 'Mora',
+                'permissions' => [],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertFalse($target->hasDirectPermission('estados.export'));
+        $this->assertFalse($target->can('estados.export'));
     }
 
     public function test_destroy_requires_usuarios_delete_permission(): void
