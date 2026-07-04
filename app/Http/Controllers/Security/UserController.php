@@ -333,10 +333,11 @@ class UserController extends Controller
 
     private function getGroupedPermissions(User $editor): array
     {
-        $manageablePermissionIds = $editor->getAllPermissions()
-            ->pluck('id')
-            ->merge($this->mustRemainDirectPermissionIds())
-            ->unique();
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
 
         return Permission::query()
             ->whereIn('id', $manageablePermissionIds)
