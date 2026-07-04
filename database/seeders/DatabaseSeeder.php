@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             PeriodMovementTypeSeeder::class,
             LevelSeeder::class,
             PeriodSeeder::class,
+            CatechismSeeder::class,
         ]);
     }
 }
