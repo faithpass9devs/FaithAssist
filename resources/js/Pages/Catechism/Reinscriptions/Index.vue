@@ -73,18 +73,19 @@ const exportReinscriptions = () => {
       back-href="/"
       :count="children.total"
       :icon="ArrowLeftRight"
-    />
-
-    <div v-if="canExport" class="mb-4 flex justify-end">
-      <button
-        type="button"
-        class="btn btn-outline btn-sm gap-1.5"
-        @click="exportReinscriptions"
-      >
-        <Download class="h-4 w-4" />
-        Exportar Excel
-      </button>
-    </div>
+    >
+      <template #actions>
+        <button
+          v-if="canExport"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5"
+          @click="exportReinscriptions"
+        >
+          <Download class="h-4 w-4" />
+          Exportar Excel
+        </button>
+      </template>
+    </CatalogHeader>
 
     <section
       class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"

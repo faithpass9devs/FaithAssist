@@ -140,24 +140,24 @@ const destroyChild = (child) => {
       back-href="/"
       :count="children.total"
       :icon="Users"
-    />
+    >
+      <template #actions>
+        <button
+          v-if="canExport"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5"
+          @click="exportChildren"
+        >
+          <Download class="h-4 w-4" />
+          Exportar Excel
+        </button>
 
-    <div v-if="canCreate || canExport" class="mb-4 flex justify-end gap-2">
-      <button
-        v-if="canExport"
-        type="button"
-        class="btn btn-outline btn-sm gap-1.5"
-        @click="exportChildren"
-      >
-        <Download class="h-4 w-4" />
-        Exportar Excel
-      </button>
-
-      <Link v-if="canCreate" href="/children/create" class="btn btn-primary btn-sm gap-1.5">
-        <Plus class="h-4 w-4" />
-        Nuevo niño
-      </Link>
-    </div>
+        <Link v-if="canCreate" href="/children/create" class="btn btn-primary btn-sm gap-1.5">
+          <Plus class="h-4 w-4" />
+          Nuevo niño
+        </Link>
+      </template>
+    </CatalogHeader>
 
     <section
       class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
