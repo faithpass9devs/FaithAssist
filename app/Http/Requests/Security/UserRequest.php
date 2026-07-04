@@ -65,19 +65,23 @@ class UserRequest extends FormRequest
                 }
 
                 $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
-                $manageableExportIds = Permission::query()
-                    ->whereIn('name', [
-                        'estados.export',
-                        'municipios.export',
-                        'comunidades.export',
-                        'children.export',
-                        'reinscripciones.export',
-                    ])
-                    ->pluck('id');
-                $assignablePermissionIds = $editorPermissionIds
-                    ->merge($manageableExportIds)
-                    ->unique()
-                    ->toArray();
+                $assignablePermissionIds = $editorPermissionIds;
+
+                if ($editor->hasRole('Superadmin')) {
+                    $assignablePermissionIds = $assignablePermissionIds->merge(
+                        Permission::query()
+                            ->whereIn('name', [
+                                'estados.export',
+                                'municipios.export',
+                                'comunidades.export',
+                                'children.export',
+                                'reinscripciones.export',
+                            ])
+                            ->pluck('id')
+                    );
+                }
+
+                $assignablePermissionIds = $assignablePermissionIds->unique()->toArray();
 
                 // Validate submitted permissions are within the editor's own set
                 $submittedIds = array_filter((array) $this->input('permissions', []));
