@@ -42,6 +42,8 @@ class SyncRolePermissionsSeeder extends Seeder
                     'estados.export',
                     'municipios.export',
                     'comunidades.export',
+                    'children.export',
+                    'reinscripciones.export',
                 ])
                 ->get()
         );

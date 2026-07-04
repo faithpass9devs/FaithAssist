@@ -119,10 +119,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('children', ChildController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
+    Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
     Route::resource('reinscripciones', ReinscriptionController::class)
         ->only(['index', 'store']);
+    Route::get('/reinscripciones/export', [ReinscriptionController::class, 'export'])->name('reinscripciones.export');
 
     // Seguridad
     Route::resource('modulos', ModuleController::class)

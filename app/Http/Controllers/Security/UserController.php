@@ -289,6 +289,8 @@ class UserController extends Controller
                 'estados.export',
                 'municipios.export',
                 'comunidades.export',
+                'children.export',
+                'reinscripciones.export',
             ])
             ->pluck('id');
     }

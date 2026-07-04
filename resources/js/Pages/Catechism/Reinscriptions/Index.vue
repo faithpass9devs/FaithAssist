@@ -1,11 +1,14 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeftRight, Filter, RotateCcw, Search } from 'lucide-vue-next';
+import { ArrowLeftRight, Download, Filter, RotateCcw, Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const page = usePage();
 const canCreate = computed(() =>
   (page.props.auth?.permissions ?? []).includes('reinscripciones.create'),
+);
+const canExport = computed(() =>
+  (page.props.auth?.permissions ?? []).includes('reinscripciones.export'),
 );
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -48,6 +51,18 @@ const clearFilters = () => {
   selectedCommunity.value = null;
   selectedLevel.value = null;
 };
+
+const exportReinscriptions = () => {
+  if (!canExport.value) return;
+
+  const url = new URL('/reinscripciones/export', window.location.origin);
+
+  if (searchTerm.value) url.searchParams.set('search', searchTerm.value);
+  if (selectedCommunity.value) url.searchParams.set('community_id', selectedCommunity.value);
+  if (selectedLevel.value) url.searchParams.set('level_id', selectedLevel.value);
+
+  window.location.assign(url.toString());
+};
 </script>
 
 <template>
@@ -59,6 +74,17 @@ const clearFilters = () => {
       :count="children.total"
       :icon="ArrowLeftRight"
     />
+
+    <div v-if="canExport" class="mb-4 flex justify-end">
+      <button
+        type="button"
+        class="btn btn-outline btn-sm gap-1.5"
+        @click="exportReinscriptions"
+      >
+        <Download class="h-4 w-4" />
+        Exportar Excel
+      </button>
+    </div>
 
     <section
       class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"

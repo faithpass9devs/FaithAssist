@@ -1,6 +1,6 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Filter, Pencil, Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next';
+import { Download, Filter, Pencil, Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -109,6 +109,22 @@ const hasPermission = (action) => permissions.value.includes(`children.${action}
 const canCreate = computed(() => hasPermission('create'));
 const canUpdate = computed(() => hasPermission('update'));
 const canDelete = computed(() => hasPermission('delete'));
+const canExport = computed(() => hasPermission('export'));
+
+const exportChildren = () => {
+  if (!canExport.value) return;
+
+  const url = new URL('/children/export', window.location.origin);
+
+  if (searchTerm.value) url.searchParams.set('search', searchTerm.value);
+  if (selectedChurch.value) url.searchParams.set('church_id', selectedChurch.value);
+  if (selectedMunicipality.value) url.searchParams.set('municipality_id', selectedMunicipality.value);
+  if (selectedCommunity.value) url.searchParams.set('community_id', selectedCommunity.value);
+  if (selectedLevel.value) url.searchParams.set('level_id', selectedLevel.value);
+  if (selectedStatus.value) url.searchParams.set('status', selectedStatus.value);
+
+  window.location.assign(url.toString());
+};
 
 const destroyChild = (child) => {
   if (!confirm(`Eliminar el registro de ${child.full_name}?`)) return;
@@ -126,8 +142,18 @@ const destroyChild = (child) => {
       :icon="Users"
     />
 
-    <div v-if="canCreate" class="mb-4 flex justify-end">
-      <Link href="/children/create" class="btn btn-primary btn-sm gap-1.5">
+    <div v-if="canCreate || canExport" class="mb-4 flex justify-end gap-2">
+      <button
+        v-if="canExport"
+        type="button"
+        class="btn btn-outline btn-sm gap-1.5"
+        @click="exportChildren"
+      >
+        <Download class="h-4 w-4" />
+        Exportar Excel
+      </button>
+
+      <Link v-if="canCreate" href="/children/create" class="btn btn-primary btn-sm gap-1.5">
         <Plus class="h-4 w-4" />
         Nuevo niño
       </Link>

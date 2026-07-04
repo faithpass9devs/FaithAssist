@@ -116,7 +116,9 @@ class UserControllerTest extends TestCase
         $editor = $this->makeGlobalUser(
             'estados.export',
             'municipios.export',
-            'comunidades.export'
+            'comunidades.export',
+            'children.export',
+            'reinscripciones.export'
         );
 
         $this->actingAs($editor)
@@ -124,7 +126,9 @@ class UserControllerTest extends TestCase
             ->assertOk()
             ->assertSee('estados.export')
             ->assertSee('municipios.export')
-            ->assertSee('comunidades.export');
+            ->assertSee('comunidades.export')
+            ->assertSee('children.export')
+            ->assertSee('reinscripciones.export');
     }
 
     public function test_store_creates_user_and_profile_then_redirects(): void
@@ -162,7 +166,9 @@ class UserControllerTest extends TestCase
         $editor = $this->makeGlobalUser(
             'estados.export',
             'municipios.export',
-            'comunidades.export'
+            'comunidades.export',
+            'children.export',
+            'reinscripciones.export'
         );
 
         $this->actingAs($editor)
@@ -170,7 +176,9 @@ class UserControllerTest extends TestCase
             ->assertOk()
             ->assertSee('estados.export')
             ->assertSee('municipios.export')
-            ->assertSee('comunidades.export');
+            ->assertSee('comunidades.export')
+                ->assertSee('children.export')
+                ->assertSee('reinscripciones.export');
     }
 
     public function test_update_modifies_user_and_redirects(): void
