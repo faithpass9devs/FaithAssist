@@ -124,10 +124,11 @@ class UserController extends Controller
             $user->syncRoles([$roleId]);
         }
 
-        $manageablePermissionIds = $editor->getAllPermissions()
-            ->pluck('id')
-            ->merge($this->mustRemainDirectPermissionIds())
-            ->unique();
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
         $submittedIds = collect(array_filter((array) $request->input('permissions', [])));
         $safeIds = $submittedIds->intersect($manageablePermissionIds);
         $rolePermissionIds = $user->getPermissionsViaRoles()->pluck('id');
