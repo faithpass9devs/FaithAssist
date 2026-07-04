@@ -232,10 +232,11 @@ class UserController extends Controller
 
         $usuario->syncRoles($roleId ? [$roleId] : collect());
 
-        $manageablePermissionIds = $editor->getAllPermissions()
-            ->pluck('id')
-            ->merge($this->mustRemainDirectPermissionIds())
-            ->unique();
+        $manageablePermissionIds = $editor->getAllPermissions()->pluck('id');
+        if ($editor->hasRole('Superadmin')) {
+            $manageablePermissionIds = $manageablePermissionIds->merge($this->mustRemainDirectPermissionIds());
+        }
+        $manageablePermissionIds = $manageablePermissionIds->unique();
         $rolePermissionIds = $usuario->getPermissionsViaRoles()->pluck('id');
         $mustRemainDirectIds = $this->mustRemainDirectPermissionIds();
 
