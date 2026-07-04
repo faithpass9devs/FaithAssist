@@ -50,6 +50,11 @@ class ChildPolicy extends BasePermissionPolicy
         return $this->can($user, 'delete') && $this->withinScope($user, $child);
     }
 
+    public function export(User $user): bool
+    {
+        return $this->can($user, 'export');
+    }
+
     private function withinScope(User $user, Child $child): bool
     {
         $scope = new UserScopeService($user);

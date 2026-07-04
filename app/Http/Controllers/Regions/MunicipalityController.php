@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Regions;
 
+use App\Exports\Regions\MunicipalitiesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regions\MunicipalityRequest;
 use App\Models\Ecclesiastes\Diocese;
@@ -12,6 +13,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Excel as ExcelWriter;
 
 class MunicipalityController extends Controller
 {
@@ -82,5 +85,20 @@ class MunicipalityController extends Controller
             'success' => true,
             'message' => 'Municipio eliminado correctamente.',
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $this->authorize('export', Municipality::class);
+
+        $search = $request->input('search', '');
+
+        $fileName = 'municipios_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(
+            new MunicipalitiesExport($request->user(), $search),
+            $fileName,
+            ExcelWriter::XLSX
+        );
     }
 }

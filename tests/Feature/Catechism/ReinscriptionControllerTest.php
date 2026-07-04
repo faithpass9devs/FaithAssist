@@ -37,6 +37,15 @@ class ReinscriptionControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('Catechism/Reinscriptions/Index'));
     }
 
+    public function test_user_without_export_permission_gets_403_on_export(): void
+    {
+        $user = $this->makeGlobalUser('reinscripciones.read');
+
+        $this->actingAs($user)
+            ->get('/reinscripciones/export')
+            ->assertForbidden();
+    }
+
     public function test_create_returns_reinscription_form_page(): void
     {
         $chain = $this->createChain();
@@ -143,6 +152,25 @@ class ReinscriptionControllerTest extends TestCase
                 'to_level_ids' => [$toLevel->id],
             ])
             ->assertSessionHasErrors('child_id');
+    }
+
+    public function test_export_returns_xlsx_for_authorized_user(): void
+    {
+        $chain = $this->createChain();
+        $level = $this->createLevel($chain, ['name' => 'PRIMERO']);
+        $movement = $this->createActiveMovement($chain, CatechismPeriodMovementService::INSCRIPTIONS);
+        $child = Child::query()->create($this->childRow($chain));
+        $this->assignLevel($child, $level, $movement);
+
+        $user = $this->makeGlobalUser('reinscripciones.read', 'reinscripciones.export');
+
+        $response = $this->actingAs($user)->get('/reinscripciones/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type') ?? ''
+        );
     }
 
     private function createLevel(array $chain, array $overrides = []): Level

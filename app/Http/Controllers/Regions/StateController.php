@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Regions;
 
+use App\Exports\Regions\StatesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regions\StateRequest;
 use App\Models\Regions\State;
@@ -10,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 
 class StateController extends Controller
 {
@@ -51,5 +54,19 @@ class StateController extends Controller
             'success' => true,
             'message' => 'Estado eliminado correctamente.',
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $this->authorize('export', State::class);
+
+        $search = $request->input('search', '');
+        $fileName = 'estados_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(
+            new StatesExport($request->user(), $search),
+            $fileName,
+            ExcelWriter::XLSX
+        );
     }
 }

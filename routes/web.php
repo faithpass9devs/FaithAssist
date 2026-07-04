@@ -70,9 +70,13 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['estados' => 'estado']);
 
+    Route::get('/estados/export', [StateController::class, 'export'])->name('estados.export');
+
     Route::resource('municipios', MunicipalityController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['municipios' => 'municipio']);
+
+    Route::get('/municipios/export', [MunicipalityController::class, 'export'])->name('municipios.export');
 
     Route::resource('comunidades', CommunityController::class)
         ->only(['index', 'store', 'update', 'destroy'])
@@ -132,10 +136,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('children', ChildController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
+    Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
     Route::resource('reinscripciones', ReinscriptionController::class)
         ->only(['index', 'store']);
+    Route::get('/reinscripciones/export', [ReinscriptionController::class, 'export'])->name('reinscripciones.export');
 
     // Seguridad
     Route::resource('modulos', ModuleController::class)
