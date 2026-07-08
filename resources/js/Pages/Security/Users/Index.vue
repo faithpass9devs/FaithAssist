@@ -232,7 +232,7 @@ const destroyUser = async (user) => {
             </td>
           </tr>
 
-          <tr v-if="users.data.length === 0">
+          <tr v-if="rows.length === 0">
             <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
               <span v-if="searchTerm">
                 No se encontraron usuarios para
