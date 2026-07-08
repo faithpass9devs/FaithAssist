@@ -64,25 +64,40 @@ class MassAttendanceService
         });
     }
 
-    private function checkIn(Mass $mass, Child $child, User $user, ?MassAttendance $attendance): MassAttendance
-    {
-        if ($attendance?->check_in_at) {
-            throw ValidationException::withMessages([
-                'child_code' => 'Este niño ya tiene entrada registrada en esta misa.',
-            ]);
-        }
+private function checkIn(Mass $mass, Child $child, User $user, ?MassAttendance $attendance): MassAttendance
+{
+    if ($attendance?->check_in_at) {
+        throw ValidationException::withMessages([
+            'child_code' => 'Este niño ya tiene entrada registrada en esta misa.',
+        ]);
+    }
 
-        return MassAttendance::query()->create([
-            'mass_id' => $mass->id,
-            'child_id' => $child->id,
+    if ($attendance) {
+        $attendance->update([
             'child_code' => $child->code,
             'church_id' => $mass->church_id,
             'chapel_id' => $mass->chapel_id,
             'check_in_at' => now(),
             'check_in_by' => $user->id,
+            'check_out_at' => null,
+            'check_out_by' => null,
             'status' => Status::CHECK_IN,
-        ])->load(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
+        ]);
+
+        return $attendance->fresh(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
     }
+
+    return MassAttendance::query()->create([
+        'mass_id' => $mass->id,
+        'child_id' => $child->id,
+        'child_code' => $child->code,
+        'church_id' => $mass->church_id,
+        'chapel_id' => $mass->chapel_id,
+        'check_in_at' => now(),
+        'check_in_by' => $user->id,
+        'status' => Status::CHECK_IN,
+    ])->load(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
+}
 
     private function checkOut(User $user, ?MassAttendance $attendance): MassAttendance
     {
