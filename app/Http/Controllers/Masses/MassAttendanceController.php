@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Masses;
 
+use App\Globals\Status;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Masses\MassAttendanceScanRequest;
 use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
+use App\Models\Masses\MassAttendanceIncident;
 use App\Services\MassAttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,14 +18,24 @@ class MassAttendanceController extends Controller
 {
     public function index(Request $request, Mass $misa): Response
     {
-        $this->authorize('view', $misa);
-        abort_unless($request->user()->can('mass_attendance.read'), 403);
+        $user = $request->user();
+        $canRead = $user->can('mass_attendance.read');
+        $canScan = $user->can('mass_attendance.scan');
+
+        abort_unless($canRead || $canScan, 403);
+
+        if ($canScan) {
+            $this->authorize('scan', [MassAttendance::class, $misa]);
+        } else {
+            $this->authorize('view', $misa);
+        }
 
         $misa->loadMissing(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name']);
 
         $attendances = MassAttendance::query()
-            ->with(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name'])
+            ->with(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name', 'mass:id,weekend_id'])
             ->where('mass_id', $misa->id)
+            ->when(! $canRead, fn ($query) => $query->whereRaw('1 = 0'))
             ->latest()
             ->paginate(15)
             ->withQueryString()
@@ -32,6 +44,7 @@ class MassAttendanceController extends Controller
         return Inertia::render('Masses/Attendance/Scan', [
             'mass' => $this->serializeMass($misa),
             'attendances' => $attendances,
+            'canScan' => $canScan,
         ]);
     }
 
@@ -40,8 +53,7 @@ class MassAttendanceController extends Controller
         Mass $misa,
         MassAttendanceService $attendanceService
     ): JsonResponse {
-        $this->authorize('view', $misa);
-        abort_unless($request->user()->can('mass_attendance.create'), 403);
+        $this->authorize('scan', [MassAttendance::class, $misa]);
 
         $attendance = $attendanceService->register(
             $misa,
@@ -81,6 +93,7 @@ class MassAttendanceController extends Controller
             $attendance->child?->paterno,
             $attendance->child?->materno,
         ])->filter()->implode(' '));
+        $incident = $this->activeIncident($attendance);
 
         return [
             'id' => $attendance->id,
@@ -94,6 +107,23 @@ class MassAttendanceController extends Controller
             'check_out_at' => $attendance->check_out_at?->format('Y-m-d H:i:s'),
             'status' => $attendance->status,
             'valid' => $attendance->isValidAttendance(),
+            'justified' => $incident !== null,
+            'incidence_type' => $incident?->incidenceType?->name,
+            'incidence_description' => $incident?->description,
         ];
+    }
+
+    private function activeIncident(MassAttendance $attendance): ?MassAttendanceIncident
+    {
+        if (! $attendance->mass?->weekend_id || ! $attendance->child_id) {
+            return null;
+        }
+
+        return MassAttendanceIncident::query()
+            ->with('incidenceType:id,name')
+            ->where('weekend_id', $attendance->mass->weekend_id)
+            ->where('child_id', $attendance->child_id)
+            ->where('status', Status::ACTIVE)
+            ->first();
     }
 }

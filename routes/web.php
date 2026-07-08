@@ -8,7 +8,9 @@ use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
+use App\Http\Controllers\Masses\IncidenceTypeController;
 use App\Http\Controllers\Masses\MassAttendanceController;
+use App\Http\Controllers\Masses\MassAttendanceIncidentController;
 use App\Http\Controllers\Masses\MassController;
 use App\Http\Controllers\Masses\WeekendController;
 use App\Http\Controllers\Operation\LevelController;
@@ -131,6 +133,14 @@ Route::middleware('auth')->group(function () {
         ->name('misas.asistencias.index');
     Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
         ->name('misas.asistencias.scan');
+
+    Route::resource('tipos-incidencias', IncidenceTypeController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['tipos-incidencias' => 'incidenceType']);
+
+    Route::resource('incidencias-asistencia', MassAttendanceIncidentController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['incidencias-asistencia' => 'attendanceIncident']);
 
     // Catechism
     Route::resource('children', ChildController::class)

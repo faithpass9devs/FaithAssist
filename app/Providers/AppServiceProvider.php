@@ -7,10 +7,12 @@ use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
-use App\Models\Module;
+use App\Models\Masses\IncidenceType;
 use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
+use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Masses\Weekend;
+use App\Models\Module;
 use App\Models\Operation\Level;
 use App\Models\Operation\Period;
 use App\Models\Operation\PeriodMovement;
@@ -25,7 +27,9 @@ use App\Policies\ChurchPolicy;
 use App\Policies\CommunityPolicy;
 use App\Policies\DeaneryPolicy;
 use App\Policies\DiocesePolicy;
+use App\Policies\IncidenceTypePolicy;
 use App\Policies\LevelPolicy;
+use App\Policies\MassAttendanceIncidentPolicy;
 use App\Policies\MassAttendancePolicy;
 use App\Policies\MassPolicy;
 use App\Policies\ModulePolicy;
@@ -74,5 +78,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Weekend::class, WeekendPolicy::class);
         Gate::policy(Mass::class, MassPolicy::class);
         Gate::policy(MassAttendance::class, MassAttendancePolicy::class);
+        Gate::policy(IncidenceType::class, IncidenceTypePolicy::class);
+        Gate::policy(MassAttendanceIncident::class, MassAttendanceIncidentPolicy::class);
     }
 }

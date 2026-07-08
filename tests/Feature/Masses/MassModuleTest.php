@@ -157,7 +157,7 @@ class MassModuleTest extends TestCase
             'attendance_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($chain));
-        $user = $this->makeGlobalUser('masses.show', 'mass_attendance.create');
+        $user = $this->makeGlobalUser('mass_attendance.scan');
 
         $this->actingAs($user)
             ->postJson("/misas/{$mass->id}/asistencias/scan", [
@@ -198,7 +198,7 @@ class MassModuleTest extends TestCase
             'attendance_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($otherChain, ['code' => 'OTHER-CHILD']));
-        $user = $this->makeGlobalUser('masses.show', 'mass_attendance.create');
+        $user = $this->makeGlobalUser('mass_attendance.scan');
 
         $this->actingAs($user)
             ->postJson("/misas/{$mass->id}/asistencias/scan", [
@@ -207,6 +207,63 @@ class MassModuleTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['child_code']);
+    }
+
+    public function test_scan_permission_can_capture_without_attendance_read_or_mass_show(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.scan');
+
+        $this->actingAs($user)
+            ->get("/misas/{$mass->id}/asistencias")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Masses/Attendance/Scan')
+                ->where('canScan', true)
+                ->where('attendances.total', 0));
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_IN,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.valid', false);
+    }
+
+    public function test_attendance_create_permission_does_not_allow_qr_capture(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.create');
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_IN,
+            ])
+            ->assertForbidden();
     }
 
     private function createWeekend(array $chain): Weekend

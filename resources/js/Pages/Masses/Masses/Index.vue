@@ -38,6 +38,11 @@ const permissions = computed(() => page.props.auth?.permissions ?? []);
 const canCreate = computed(() => permissions.value.includes('masses.create'));
 const canUpdate = computed(() => permissions.value.includes('masses.update'));
 const canDelete = computed(() => permissions.value.includes('masses.delete'));
+const canOpenAttendance = computed(
+  () =>
+    permissions.value.includes('mass_attendance.read') ||
+    permissions.value.includes('mass_attendance.scan'),
+);
 
 const destroyMass = (mass) => {
   if (!confirm(`Eliminar la misa ${mass.name}?`)) return;
@@ -131,6 +136,7 @@ const destroyMass = (mass) => {
             </td>
             <td class="text-right">
               <Link
+                v-if="canOpenAttendance"
                 :href="`/misas/${mass.id}/asistencias`"
                 class="btn btn-ghost btn-xs text-purple-600"
                 title="Asistencias"

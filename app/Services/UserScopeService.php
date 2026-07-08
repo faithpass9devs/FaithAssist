@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Chapel;
+use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
 use App\Models\Regions\Community;
@@ -302,5 +302,24 @@ class UserScopeService
         return $allowedChurchIds->isEmpty()
             ? $query->whereRaw('1 = 0')
             : $query->whereIn('church_id', $allowedChurchIds);
+    }
+
+    /**
+     * Apply attendance incident visibility through the incident's weekend.
+     */
+    public function applyMassAttendanceIncidentScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereHas(
+                'weekend',
+                fn (Builder $weekend) => $weekend->whereIn('church_id', $allowedChurchIds)
+            );
     }
 }

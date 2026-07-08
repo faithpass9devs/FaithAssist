@@ -11,6 +11,7 @@ import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 const props = defineProps({
   mass: { type: Object, required: true },
   attendances: { type: Object, required: true },
+  canScan: { type: Boolean, default: false },
 });
 
 const rows = ref([]);
@@ -33,6 +34,8 @@ const qrRegionId = 'mass-attendance-qr-reader';
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
 const scan = async (action, code = childCode.value) => {
+  if (!props.canScan) return;
+
   errors.value = {};
   loading.value = true;
 
@@ -88,6 +91,8 @@ const scan = async (action, code = childCode.value) => {
 };
 
 const startCamera = async () => {
+  if (!props.canScan) return;
+
   scannerError.value = '';
 
   try {
@@ -157,6 +162,10 @@ onBeforeUnmount(() => {
         </span>
       </div>
 
+      <div v-if="!canScan" class="alert alert-warning mb-4 text-sm">
+        No tienes permiso para capturar códigos QR en esta misa.
+      </div>
+
       <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
         Código único del niño
       </label>
@@ -168,13 +177,22 @@ onBeforeUnmount(() => {
           placeholder="Escanea o escribe el código del QR"
           autocomplete="off"
           autofocus
+          :disabled="!canScan"
           @keyup.enter="scan('check_in')"
         />
-        <button class="btn btn-primary gap-1.5" :disabled="loading" @click="scan('check_in')">
+        <button
+          class="btn btn-primary gap-1.5"
+          :disabled="loading || !canScan"
+          @click="scan('check_in')"
+        >
           <LogIn class="h-4 w-4" />
           Entrada
         </button>
-        <button class="btn btn-outline gap-1.5" :disabled="loading" @click="scan('check_out')">
+        <button
+          class="btn btn-outline gap-1.5"
+          :disabled="loading || !canScan"
+          @click="scan('check_out')"
+        >
           <LogOut class="h-4 w-4" />
           Salida
         </button>
@@ -217,7 +235,7 @@ onBeforeUnmount(() => {
           v-if="!scannerRunning"
           type="button"
           class="btn btn-primary btn-sm gap-1.5"
-          :disabled="loading"
+          :disabled="loading || !canScan"
           @click="startCamera"
         >
           <Camera class="h-4 w-4" />
@@ -244,6 +262,7 @@ onBeforeUnmount(() => {
             <th>Entrada</th>
             <th>Salida</th>
             <th>Estado</th>
+            <th>Justificación</th>
           </tr>
         </thead>
         <tbody>
@@ -261,9 +280,19 @@ onBeforeUnmount(() => {
                 {{ attendance.valid ? 'Válida' : 'Pendiente' }}
               </span>
             </td>
+            <td>
+              <span
+                v-if="attendance.justified"
+                class="badge badge-sm badge-info"
+                :title="attendance.incidence_description"
+              >
+                {{ attendance.incidence_type || 'Justificada' }}
+              </span>
+              <span v-else class="text-xs text-slate-400">—</span>
+            </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td colspan="6" class="py-10 text-center text-sm text-slate-400">
+            <td colspan="7" class="py-10 text-center text-sm text-slate-400">
               No hay asistencias registradas.
             </td>
           </tr>

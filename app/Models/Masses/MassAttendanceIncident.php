@@ -2,22 +2,21 @@
 
 namespace App\Models\Masses;
 
+use App\Models\Catechism\Child;
 use App\Models\Concerns\LogsActivityTrail;
-use App\Models\Ecclesiastes\Church;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'church_id',
-    'name',
-    'starts_at',
-    'ends_at',
+    'weekend_id',
+    'child_id',
+    'incidence_type_id',
+    'description',
     'status',
     'created_by',
     'updated_by',
@@ -26,34 +25,32 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Hidden([
     'deleted_at',
 ])]
-class Weekend extends Model
+class MassAttendanceIncident extends Model
 {
     use HasFactory, LogsActivityTrail, SoftDeletes;
 
-    protected $table = 'weekends';
+    protected $table = 'mass_attendance_incidents';
 
     protected function casts(): array
     {
         return [
-            'starts_at' => 'datetime:Y-m-d H:i:s',
-            'ends_at' => 'datetime:Y-m-d H:i:s',
             'status' => 'string',
         ];
     }
 
-    public function church(): BelongsTo
+    public function weekend(): BelongsTo
     {
-        return $this->belongsTo(Church::class, 'church_id');
+        return $this->belongsTo(Weekend::class, 'weekend_id');
     }
 
-    public function masses(): HasMany
+    public function child(): BelongsTo
     {
-        return $this->hasMany(Mass::class, 'weekend_id');
+        return $this->belongsTo(Child::class, 'child_id');
     }
 
-    public function attendanceIncidents(): HasMany
+    public function incidenceType(): BelongsTo
     {
-        return $this->hasMany(MassAttendanceIncident::class, 'weekend_id');
+        return $this->belongsTo(IncidenceType::class, 'incidence_type_id');
     }
 
     public function creator(): BelongsTo

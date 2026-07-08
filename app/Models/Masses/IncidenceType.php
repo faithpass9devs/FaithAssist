@@ -3,7 +3,6 @@
 namespace App\Models\Masses;
 
 use App\Models\Concerns\LogsActivityTrail;
-use App\Models\Ecclesiastes\Church;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -14,10 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'church_id',
     'name',
-    'starts_at',
-    'ends_at',
+    'description',
     'status',
     'created_by',
     'updated_by',
@@ -26,34 +23,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Hidden([
     'deleted_at',
 ])]
-class Weekend extends Model
+class IncidenceType extends Model
 {
     use HasFactory, LogsActivityTrail, SoftDeletes;
 
-    protected $table = 'weekends';
+    protected $table = 'incidence_types';
 
     protected function casts(): array
     {
         return [
-            'starts_at' => 'datetime:Y-m-d H:i:s',
-            'ends_at' => 'datetime:Y-m-d H:i:s',
+            'name' => 'string',
+            'description' => 'string',
             'status' => 'string',
         ];
     }
 
-    public function church(): BelongsTo
-    {
-        return $this->belongsTo(Church::class, 'church_id');
-    }
-
-    public function masses(): HasMany
-    {
-        return $this->hasMany(Mass::class, 'weekend_id');
-    }
-
     public function attendanceIncidents(): HasMany
     {
-        return $this->hasMany(MassAttendanceIncident::class, 'weekend_id');
+        return $this->hasMany(MassAttendanceIncident::class, 'incidence_type_id');
     }
 
     public function creator(): BelongsTo

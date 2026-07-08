@@ -62,7 +62,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'usuarios',
                 'weekends',
                 'masses',
-                'mass_attendance'
+                'mass_attendance',
             ], $allActions),
             [
                 'municipios.scope.all',
@@ -71,19 +71,22 @@ class SyncRolePermissionsSeeder extends Seeder
                 'capillas.scope.all',
                 'weekends.scope.all',
                 'masses.scope.all',
-                'mass_attendance.scope.all'
+                'mass_attendance.scope.all',
+                'mass_attendance.scan',
             ]
         ));
 
         $catequista->syncPermissions(array_merge(
             $this->permissionsForModules(['parroquias', 'capillas', 'niveles', 'children', 'weekends'], $readAndShowActions),
-            $this->permissionsForModules(['masses', 'mass_attendance'], ['create', 'read', 'update', 'show'])
+            $this->permissionsForModules(['masses', 'mass_attendance'], ['create', 'read', 'update', 'show']),
+            ['mass_attendance.scan']
         ));
 
         $capturista->syncPermissions(
             array_merge(
                 $this->permissionsForModules(['capillas', 'niveles', 'children', 'weekends', 'masses'], $readAndShowActions),
-                $this->permissionsForModules(['mass_attendance'], ['create', 'read', 'show'])
+                $this->permissionsForModules(['mass_attendance'], ['create', 'read', 'show']),
+                ['mass_attendance.scan']
             )
         );
 

@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             ChurchSeeder::class,
             ChapelSeeder::class,
             PeriodMovementTypeSeeder::class,
+            IncidenceTypeSeeder::class,
             LevelSeeder::class,
             PeriodSeeder::class,
             CatechismSeeder::class,
