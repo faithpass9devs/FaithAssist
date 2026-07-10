@@ -28,10 +28,14 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $theme = $request->validated('theme');
+        $palette = $request->validated('palette');
+        $customColor = $request->validated('custom_color');
 
-        if ($theme && $request->user()?->ui_theme !== $theme) {
+        if ($request->user() && ($theme || $palette || $customColor)) {
             $request->user()->forceFill([
-                'ui_theme' => $theme,
+                'ui_theme' => $theme ?? $request->user()->ui_theme,
+                'ui_palette' => $palette ?? $request->user()->ui_palette,
+                'ui_custom_color' => $customColor ?? $request->user()->ui_custom_color,
             ])->save();
         }
 

@@ -21,6 +21,8 @@ class LoginRequest extends FormRequest
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
             'theme' => ['nullable', 'string', Rule::in(['light', 'dark'])],
+            'palette' => ['nullable', 'string', 'max:50'],
+            'custom_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ];
     }
 

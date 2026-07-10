@@ -45,12 +45,30 @@ const form = useForm({
   password: '',
   remember: false,
   theme: theme.value,
+  palette: palette.value,
+  custom_color: customColor.value,
 });
 
 watch(
   theme,
   (value) => {
     form.theme = value;
+  },
+  { immediate: true },
+);
+
+watch(
+  palette,
+  (value) => {
+    form.palette = value;
+  },
+  { immediate: true },
+);
+
+watch(
+  customColor,
+  (value) => {
+    form.custom_color = value;
   },
   { immediate: true },
 );

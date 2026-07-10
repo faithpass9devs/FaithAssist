@@ -945,6 +945,7 @@ export function useTheme() {
   const palette = ref(getInitialPalette(page.props.auth?.user?.ui_palette));
   const customColor = ref(getInitialCustomColor(page.props.auth?.user?.ui_custom_color));
   const savingTheme = ref(false);
+  let persistAppearanceTimeoutId = null;
 
   const isDark = computed(() => theme.value === 'dark');
 
@@ -998,6 +999,52 @@ export function useTheme() {
     }
   };
 
+  const persistAppearance = (nextPalette, nextCustomColor, delay = 0) => {
+    if (!page.props.auth?.user) {
+      return;
+    }
+
+    if (persistAppearanceTimeoutId !== null) {
+      window.clearTimeout(persistAppearanceTimeoutId);
+    }
+
+    persistAppearanceTimeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/profile/theme', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({
+            theme: theme.value,
+            palette: nextPalette,
+            custom_color: nextCustomColor,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('No se pudo guardar la preferencia de color.');
+        }
+
+        const json = await response.json();
+        const normalizedPalette = normalizePalette(json.palette, nextPalette);
+        const normalizedCustomColor = normalizeCustomColor(json.custom_color, nextCustomColor);
+
+        if (page.props.auth?.user) {
+          page.props.auth.user.ui_palette = normalizedPalette;
+          page.props.auth.user.ui_custom_color = normalizedCustomColor;
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        persistAppearanceTimeoutId = null;
+      }
+    }, delay);
+  };
+
   const toggleTheme = async () => {
     if (savingTheme.value) {
       return;
@@ -1015,18 +1062,21 @@ export function useTheme() {
 
   const setPalette = (value) => {
     palette.value = normalizePalette(value, palette.value);
+    persistAppearance(palette.value, customColor.value);
   };
 
   const setCustomColor = (value) => {
     customColor.value = normalizeCustomColor(value, customColor.value);
     setStoredCustomColor(customColor.value);
     palette.value = CUSTOM_PALETTE_ID;
+    persistAppearance(palette.value, customColor.value, 250);
   };
 
   const resetPalette = () => {
     palette.value = RESET_NEUTRAL_PALETTE_ID;
     customColor.value = DEFAULT_CUSTOM_COLOR;
     setStoredCustomColor(DEFAULT_CUSTOM_COLOR);
+    persistAppearance(palette.value, customColor.value);
   };
 
   onMounted(() => {
