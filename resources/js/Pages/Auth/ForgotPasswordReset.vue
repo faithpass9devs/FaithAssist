@@ -20,7 +20,7 @@ const submit = () => {
 <template>
   <Head title="Restablecer contrasena" />
 
-  <main class="ui-auth-page px-4 py-10">
+  <main class="ui-auth-page flex items-center justify-center px-4 py-10">
     <section class="ui-auth-card relative mx-auto p-7 sm:p-8">
       <div class="mb-6 flex items-center justify-between">
         <p class="ui-auth-kicker">FaithAssist</p>

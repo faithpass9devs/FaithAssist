@@ -5,6 +5,21 @@
 }
 
 @layer base {
+  :root {
+    --ui-shell-bg: #f5f7f9;
+    --ui-shell-bg-image: none;
+    --ui-auth-bg: #ffffff;
+    --ui-auth-bg-image: none;
+    --ui-topbar-bg: rgba(255, 255, 255, 0.96);
+    --ui-topbar-border: rgba(203, 213, 225, 0.9);
+    --ui-topbar-shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
+    --ui-brand-color: #111827;
+    --ui-palette-rgb: 74 92 106;
+    --ui-shell-accent-alpha: 0.32;
+    --ui-auth-accent-alpha: 0.36;
+    --ui-topbar-accent-alpha: 0.16;
+  }
+
   body {
     @apply bg-slate-100 text-slate-800 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100;
   }
@@ -21,7 +36,15 @@
 
 @layer components {
   .ui-shell {
-    @apply min-h-screen bg-slate-100 transition-colors duration-300 dark:bg-slate-950;
+    @apply min-h-screen transition-colors duration-300;
+    background-color: var(--ui-shell-bg);
+    background-image:
+      radial-gradient(
+        120% 100% at 12% 0%,
+        rgb(var(--ui-palette-rgb) / var(--ui-shell-accent-alpha)) 0%,
+        transparent 58%
+      ),
+      var(--ui-shell-bg-image);
   }
 
   .ui-container {
@@ -33,11 +56,19 @@
   }
 
   .ui-topbar {
-    @apply sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm shadow-slate-900/10 backdrop-blur-xl transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-black/30;
+    @apply sticky top-0 z-30 border-b backdrop-blur-xl transition-colors duration-300;
+    border-color: var(--ui-topbar-border);
+    background: var(--ui-topbar-bg);
+    background-image: linear-gradient(
+      rgb(var(--ui-palette-rgb) / var(--ui-topbar-accent-alpha)),
+      rgb(var(--ui-palette-rgb) / var(--ui-topbar-accent-alpha))
+    );
+    box-shadow: var(--ui-topbar-shadow);
   }
 
   .ui-brand {
-    @apply text-lg font-black uppercase tracking-[0.24em] text-slate-900 transition-opacity hover:opacity-80 sm:text-xl dark:text-white;
+    @apply text-lg font-black uppercase tracking-[0.24em] transition-opacity hover:opacity-80 sm:text-xl;
+    color: var(--ui-brand-color);
   }
 
   .ui-surface {
@@ -58,6 +89,37 @@
 
   .ui-btn-primary {
     @apply rounded-xl border-0 bg-slate-900 text-white shadow-md shadow-slate-900/20 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:shadow-slate-950/30 dark:hover:bg-white dark:hover:text-slate-950 dark:focus-visible:outline-slate-300;
+  }
+
+  .ui-btn-enter {
+    will-change: box-shadow, filter;
+    transition:
+      box-shadow 220ms ease,
+      filter 220ms ease,
+      transform 220ms ease;
+  }
+
+  .ui-btn-enter:hover,
+  .ui-btn-enter:focus-visible {
+    box-shadow:
+      0 12px 20px -12px rgb(15 23 42 / 0.36),
+      0 0 0 3px rgb(59 130 246 / 0.08),
+      0 0 12px 0 rgb(59 130 246 / 0.12);
+    filter: brightness(1.015);
+  }
+
+  .ui-btn-enter:disabled {
+    box-shadow: none;
+    filter: none;
+  }
+
+  .dark .ui-btn-enter:hover,
+  .dark .ui-btn-enter:focus-visible {
+    box-shadow:
+      0 14px 24px -14px rgb(2 6 23 / 0.68),
+      0 0 0 3px rgb(226 232 240 / 0.08),
+      0 0 10px 0 rgb(226 232 240 / 0.1);
+    filter: brightness(1.02);
   }
 
   .ui-btn-secondary {
@@ -101,7 +163,20 @@
   }
 
   .ui-auth-page {
-    @apply relative min-h-screen overflow-hidden bg-white px-4 py-6 transition-colors duration-300 dark:bg-slate-950 sm:px-6 sm:py-10 lg:px-8;
+    @apply relative min-h-screen overflow-hidden px-4 py-6 transition-colors duration-300 sm:px-6 sm:py-10 lg:px-8;
+    background-color: var(--ui-auth-bg);
+    background-image:
+      radial-gradient(
+        120% 100% at 10% 0%,
+        rgb(var(--ui-palette-rgb) / var(--ui-auth-accent-alpha)) 0%,
+        transparent 54%
+      ),
+      radial-gradient(
+        95% 80% at 92% 100%,
+        rgb(var(--ui-palette-rgb) / calc(var(--ui-auth-accent-alpha) * 0.7)) 0%,
+        transparent 68%
+      ),
+      var(--ui-auth-bg-image);
   }
 
   .ui-auth-card {
@@ -166,5 +241,11 @@
 
   .ui-auth-code-input {
     @apply h-14 w-12 rounded-xl border-2 border-slate-300 bg-white text-center text-xl font-black text-slate-900 shadow-sm transition focus:border-slate-800 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:w-14;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn-enter {
+    transition: none;
   }
 }
