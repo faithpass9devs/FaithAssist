@@ -86,7 +86,7 @@ const submit = () => {
               <ShieldCheck class="h-7 w-7" />
             </div>
             <p
-              class="inline-flex items-center gap-2 rounded-full bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 dark:bg-slate-100 dark:text-slate-900"
+              class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             >
               <Sparkles class="h-3.5 w-3.5" />
               FaithAssist QR
