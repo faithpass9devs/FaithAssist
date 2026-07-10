@@ -2,9 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\Operation\Level;
+use App\Globals\Status;
 use App\Models\Ecclesiastes\Diocese;
+use App\Models\Operation\Level;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+
 class LevelSeeder extends Seeder
 {
     /**
@@ -12,72 +15,78 @@ class LevelSeeder extends Seeder
      */
     public function run(): void
     {
-        // Obtener el primer ID de diócesis disponible
-        $diocese = Diocese::first();
+        $superadmin = User::query()->where('email', 'superadmin@faithassistqr.test')->first();
 
-        if (!$diocese) {
-            // Si no hay diócesis, crear una temporal o lanzar error
-            $diocese = Diocese::create([
-                'name' => 'Diócesis Temporal',
-            ]);
+        if (! $superadmin) {
+            $this->command?->warn('No se encontró el usuario Superadmin. Ejecuta UsersPerRoleSeeder primero.');
+
+            return;
         }
 
-        $dioceseId = $diocese->id;
+        $dioceses = Diocese::query()->get();
+
+        if ($dioceses->isEmpty()) {
+            $this->command?->warn('No se encontraron diócesis. Ejecuta DioceseSeeder primero.');
+
+            return;
+        }
 
         $levels = [
-            // Grupo 1: Amarillo (Descubro a mi Papá Dios)
             [
                 'name' => 'Nivel 1',
                 'description' => 'Descubro a mi Papá Dios',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 2',
                 'description' => 'Descubro a mi Papá Dios',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 3',
                 'description' => 'Descubro a mi Papá Dios',
-                'diocese_id' => $dioceseId
             ],
-
-            // Grupo 2: Naranja (Jesús vive entre nosotros)
             [
                 'name' => 'Nivel 4',
                 'description' => 'Jesús vive entre nosotros',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 5',
                 'description' => 'Jesús vive entre nosotros',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 6',
                 'description' => 'Jesús vive entre nosotros',
-                'diocese_id' => $dioceseId
             ],
-
-            // Grupo 3: Azul (Por el espíritu conozco y vivo mi fe)
             [
                 'name' => 'Nivel 7',
                 'description' => 'Por el espíritu conozco y vivo mi fe',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 8',
                 'description' => 'Por el espíritu conozco y vivo mi fe',
-                'diocese_id' => $dioceseId
             ],
             [
                 'name' => 'Nivel 9',
                 'description' => 'Por el espíritu conozco y vivo mi fe',
-                'diocese_id' => $dioceseId
-            ]
+            ],
         ];
 
-        // Usar insert para múltiples registros
-        Level::insert($levels);
+        foreach ($dioceses as $diocese) {
+            foreach ($levels as $level) {
+                Level::query()->updateOrCreate(
+                    [
+                        'diocese_id' => $diocese->id,
+                        'name' => $level['name'],
+                    ],
+                    [
+                        'description' => $level['description'],
+                        'status' => Status::ACTIVE,
+                        'created_by' => $superadmin->id,
+                        'updated_by' => $superadmin->id,
+                    ],
+                );
+            }
+        }
+
+        $this->command?->info('Niveles creados exitosamente para todas las diócesis.');
     }
 }

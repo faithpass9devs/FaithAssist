@@ -27,11 +27,11 @@ class UserRequest extends FormRequest
             'whatsapp_country_code' => ['required', 'string', Rule::exists('ladas', 'code')->where('status', 'active')],
             'whatsapp_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9\s\-\(\)]{7,15}$/'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
-            'diocese_id' => ['nullable', 'integer', Rule::exists('dioceses', 'id'), 'required_with:deanery_id,church_id'],
+            'diocese_id' => ['nullable', 'integer', Rule::exists('dioceses', 'id'), 'required_with:deanery_id,church_id,chapel_id'],
             'deanery_id' => [
                 'nullable',
                 'integer',
-                'required_with:church_id',
+                'required_with:church_id,chapel_id',
                 Rule::exists('deaneries', 'id'),
                 Rule::when(
                     filled($this->input('deanery_id')) && filled($this->input('diocese_id')),
@@ -41,10 +41,20 @@ class UserRequest extends FormRequest
             'church_id' => [
                 'nullable',
                 'integer',
+                'required_with:chapel_id',
                 Rule::exists('churches', 'id'),
                 Rule::when(
                     filled($this->input('church_id')) && filled($this->input('deanery_id')),
                     Rule::exists('churches', 'id')->where('deanery_id', $this->input('deanery_id'))
+                ),
+            ],
+            'chapel_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('chapels', 'id'),
+                Rule::when(
+                    filled($this->input('chapel_id')) && filled($this->input('church_id')),
+                    Rule::exists('chapels', 'id')->where('church_id', $this->input('church_id'))
                 ),
             ],
             'permissions' => ['nullable', 'array'],
@@ -122,6 +132,7 @@ class UserRequest extends FormRequest
         return [
             'deanery_id.exists' => 'El decanato seleccionado no pertenece a la diócesis asignada.',
             'church_id.exists' => 'La parroquia seleccionada no pertenece al decanato asignado.',
+            'chapel_id.exists' => 'La capilla seleccionada no pertenece a la parroquia asignada.',
             'password.required' => 'Ingresa una contraseña.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.regex' => 'La contraseña debe incluir mayúscula, minúscula y número.',

@@ -150,6 +150,7 @@ const destroyUser = async (user) => {
             <th class="px-4 py-3 font-semibold">Rol</th>
             <th class="px-4 py-3 font-semibold">Diócesis</th>
             <th class="px-4 py-3 font-semibold">Parroquia</th>
+            <th class="px-4 py-3 font-semibold">Capilla</th>
             <th class="px-4 py-3 text-right font-semibold">Acciones</th>
           </tr>
         </thead>
@@ -204,6 +205,10 @@ const destroyUser = async (user) => {
               {{ formatScope(user.church) }}
             </td>
 
+            <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+              {{ user.chapel ?? '—' }}
+            </td>
+
             <!-- Actions -->
             <td class="px-4 py-3 text-right">
               <div class="inline-flex items-center gap-1">
@@ -228,7 +233,7 @@ const destroyUser = async (user) => {
           </tr>
 
           <tr v-if="rows.length === 0">
-            <td colspan="6" class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+            <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
               <span v-if="searchTerm">
                 No se encontraron usuarios para
                 <strong class="text-slate-600 dark:text-slate-300">"{{ searchTerm }}"</strong>.

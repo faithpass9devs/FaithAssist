@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use App\Models\Ecclesiastes\Church;
+use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
-use App\Models\Regions\Community;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -17,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'profile_photo_path', 'whatsapp_phone', 'ui_theme', 'diocese_id', 'deanery_id', 'church_id'])]
+#[Fillable(['name', 'email', 'password', 'profile_photo_path', 'whatsapp_phone', 'ui_theme', 'diocese_id', 'deanery_id', 'church_id', 'chapel_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -45,6 +45,11 @@ class User extends Authenticatable
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class);
+    }
+
+    public function chapel(): BelongsTo
+    {
+        return $this->belongsTo(Chapel::class);
     }
 
     public function profile(): HasOne

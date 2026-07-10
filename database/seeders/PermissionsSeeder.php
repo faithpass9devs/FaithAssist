@@ -28,6 +28,11 @@ class PermissionsSeeder extends Seeder
             'niveles' => 'operation',
             'children' => 'catechism',
             'reinscripciones' => 'catechism',
+            'weekends' => 'masses',
+            'masses' => 'masses',
+            'mass_attendance' => 'masses',
+            'tipos_incidencias' => 'masses',
+            'incidencias_asistencia' => 'masses',
             'roles' => 'security',
             'usuarios' => 'security',
         ];
@@ -61,6 +66,11 @@ class PermissionsSeeder extends Seeder
             ['name' => 'children.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todos los niños'],
             ['name' => 'children.export', 'module_key' => 'catechism', 'description' => 'Permite exportar niños a Excel'],
             ['name' => 'reinscripciones.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todas las reinscripciones'],
+            ['name' => 'weekends.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todos los fines de semana de misas'],
+            ['name' => 'masses.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las misas'],
+            ['name' => 'mass_attendance.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias a misas'],
+            ['name' => 'mass_attendance.scan', 'module_key' => 'masses', 'description' => 'Permite capturar códigos QR de asistencia a misas'],
+            ['name' => 'incidencias_asistencia.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las incidencias de asistencia'],
             ['name' => 'reinscripciones.export', 'module_key' => 'catechism', 'description' => 'Permite exportar reinscripciones a Excel'],
             ['name' => 'whatsapp.send', 'module_key' => 'whatsapp', 'description' => 'Permite enviar mensajes por WhatsApp'],
         ] as $permission) {

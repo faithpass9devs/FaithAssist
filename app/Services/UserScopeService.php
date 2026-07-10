@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
@@ -14,11 +15,12 @@ use Illuminate\Support\Collection;
 /**
  * Centralizes data-visibility scope rules for a given user.
  *
- * Scope levels (derived from users.diocese_id / deanery_id / church_id):
+ * Scope levels (derived from users.diocese_id / deanery_id / church_id / chapel_id):
  *   global   → null diocese_id — sees everything
  *   diocese  → diocese_id set, deanery_id null, church_id null
  *   deanery  → diocese_id + deanery_id set, church_id null
- *   church   → diocese_id + deanery_id + church_id set
+ *   church   → diocese_id + deanery_id + church_id set, chapel_id null
+ *   chapel   → diocese_id + deanery_id + church_id + chapel_id set
  *
  * Returning an *empty* collection from an `*Ids()` method signals "no filter needed"
  * (i.e. the caller should skip the whereIn). Check isGlobal() first.
@@ -32,14 +34,19 @@ class UserScopeService
     {
         return $this->user->diocese_id === null
             && $this->user->deanery_id === null
-            && $this->user->church_id === null;
+            && $this->user->church_id === null
+            && $this->user->chapel_id === null;
     }
 
-    /** Returns 'global' | 'diocese' | 'deanery' | 'church'. */
+    /** Returns 'global' | 'diocese' | 'deanery' | 'church' | 'chapel'. */
     public function level(): string
     {
         if ($this->isGlobal()) {
             return 'global';
+        }
+
+        if ($this->user->chapel_id !== null) {
+            return 'chapel';
         }
 
         if ($this->user->church_id !== null) {
@@ -124,6 +131,29 @@ class UserScopeService
     }
 
     /**
+     * IDs of chapels this user can see.
+     * Empty = no filter (isGlobal() is true).
+     */
+    public function chapelIds(): Collection
+    {
+        if ($this->isGlobal()) {
+            return collect();
+        }
+
+        if ($this->user->chapel_id !== null) {
+            return collect([$this->user->chapel_id]);
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        if ($allowedChurchIds->isEmpty()) {
+            return collect();
+        }
+
+        return Chapel::whereIn('church_id', $allowedChurchIds)->pluck('id');
+    }
+
+    /**
      * IDs of municipalities this user can see.
      */
     public function municipalityIds(): Collection
@@ -178,6 +208,10 @@ class UserScopeService
             return $query;
         }
 
+        if ($this->user->chapel_id !== null) {
+            return $query->whereKey($this->user->chapel_id);
+        }
+
         $allowedChurchIds = $this->churchIds();
         $allowedCommunityIds = $this->communityIds();
 
@@ -230,5 +264,62 @@ class UserScopeService
                 $scope->whereRaw('1 = 0');
             }
         });
+    }
+
+    /**
+     * Apply weekend visibility. Weekends belong to a church; chapel users see
+     * the weekends of their parent church but cannot manage them by policy.
+     */
+    public function applyWeekendScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereIn('church_id', $allowedChurchIds);
+    }
+
+    /**
+     * Apply mass visibility. Chapel users are restricted to their chapel's
+     * masses; broader users see all masses in their visible churches.
+     */
+    public function applyMassScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        if ($this->user->chapel_id !== null) {
+            return $query->where('chapel_id', $this->user->chapel_id);
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereIn('church_id', $allowedChurchIds);
+    }
+
+    /**
+     * Apply attendance incident visibility through the incident's weekend.
+     */
+    public function applyMassAttendanceIncidentScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereHas(
+                'weekend',
+                fn (Builder $weekend) => $weekend->whereIn('church_id', $allowedChurchIds)
+            );
     }
 }

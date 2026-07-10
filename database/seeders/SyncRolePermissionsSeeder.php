@@ -60,21 +60,34 @@ class SyncRolePermissionsSeeder extends Seeder
                 'niveles',
                 'children',
                 'usuarios',
+                'weekends',
+                'masses',
+                'mass_attendance',
             ], $allActions),
             [
                 'municipios.scope.all',
                 'comunidades.scope.all',
                 'parroquias.scope.all',
                 'capillas.scope.all',
+                'weekends.scope.all',
+                'masses.scope.all',
+                'mass_attendance.scope.all',
+                'mass_attendance.scan',
             ]
         ));
 
-        $catequista->syncPermissions(
-            $this->permissionsForModules(['parroquias', 'capillas', 'niveles', 'children'], $readAndShowActions)
-        );
+        $catequista->syncPermissions(array_merge(
+            $this->permissionsForModules(['parroquias', 'capillas', 'niveles', 'children', 'weekends'], $readAndShowActions),
+            $this->permissionsForModules(['masses', 'mass_attendance'], ['create', 'read', 'update', 'show']),
+            ['mass_attendance.scan']
+        ));
 
         $capturista->syncPermissions(
-            $this->permissionsForModules(['capillas', 'niveles', 'children'], $readAndShowActions)
+            array_merge(
+                $this->permissionsForModules(['capillas', 'niveles', 'children', 'weekends', 'masses'], $readAndShowActions),
+                $this->permissionsForModules(['mass_attendance'], ['create', 'read', 'show']),
+                ['mass_attendance.scan']
+            )
         );
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

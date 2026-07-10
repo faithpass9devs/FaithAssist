@@ -5,6 +5,8 @@ namespace App\Models\Catechism;
 use App\Globals\Status;
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Church;
+use App\Models\Masses\MassAttendance;
+use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Operation\Level;
 use App\Models\Regions\Community;
 use App\Models\User;
@@ -89,6 +91,16 @@ class Child extends Model
     public function reinscriptions(): HasMany
     {
         return $this->hasMany(ChildReinscription::class, 'child_id');
+    }
+
+    public function massAttendances(): HasMany
+    {
+        return $this->hasMany(MassAttendance::class, 'child_id');
+    }
+
+    public function massAttendanceIncidents(): HasMany
+    {
+        return $this->hasMany(MassAttendanceIncident::class, 'child_id');
     }
 
     public function levels(): BelongsToMany

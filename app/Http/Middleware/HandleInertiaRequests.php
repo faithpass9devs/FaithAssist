@@ -57,6 +57,7 @@ class HandleInertiaRequests extends Middleware
             'diocese:id,name',
             'deanery:id,name',
             'church:id,name',
+            'chapel:id,name',
         ]);
 
         $profileName = trim(collect([
@@ -91,6 +92,10 @@ class HandleInertiaRequests extends Middleware
                 'id' => $user->church->id,
                 'name' => $user->church->name,
             ] : null,
+            'chapel' => $user->chapel ? [
+                'id' => $user->chapel->id,
+                'name' => $user->chapel->name,
+            ] : null,
         ];
     }
 
@@ -101,6 +106,7 @@ class HandleInertiaRequests extends Middleware
                 'diocese_id' => null,
                 'deanery_id' => null,
                 'church_id' => null,
+                'chapel_id' => null,
                 'full_access' => [],
             ];
         }
@@ -109,6 +115,7 @@ class HandleInertiaRequests extends Middleware
             'diocese_id' => $user->diocese_id,
             'deanery_id' => $user->deanery_id,
             'church_id' => $user->church_id,
+            'chapel_id' => $user->chapel_id,
             'full_access' => $user->getAllPermissions()
                 ->pluck('name')
                 ->filter(fn (string $permission): bool => str_ends_with($permission, '.scope.all'))

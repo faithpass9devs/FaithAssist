@@ -1,7 +1,8 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Download, Filter, Pencil, Plus, RotateCcw, Search, Trash2, Users } from 'lucide-vue-next';
+import { Download, Filter, Pencil, Plus, RotateCcw, QrCode, Search, Trash2, Users, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import QRCode from 'qrcode';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
@@ -34,6 +35,8 @@ const selectedChurch = ref(props.filters.church_id);
 const selectedMunicipality = ref(props.filters.municipality_id);
 const selectedCommunity = ref(props.filters.community_id);
 const selectedLevel = ref(props.filters.level_id);
+const qrChild = ref(null);
+const qrDataUrl = ref('');
 const selectedStatus = ref(props.filters.status);
 let debounce = null;
 
@@ -129,6 +132,19 @@ const exportChildren = () => {
 const destroyChild = (child) => {
   if (!confirm(`Eliminar el registro de ${child.full_name}?`)) return;
   router.delete(`/children/${child.id}`, { preserveScroll: true });
+};
+
+const openQr = async (child) => {
+  qrChild.value = child;
+  qrDataUrl.value = await QRCode.toDataURL(child.code, {
+    width: 256,
+    margin: 2,
+  });
+};
+
+const closeQr = () => {
+  qrChild.value = null;
+  qrDataUrl.value = '';
 };
 </script>
 
@@ -266,7 +282,7 @@ const destroyChild = (child) => {
             <th class="px-4 py-3 font-semibold">Comunidad</th>
             <th class="px-4 py-3 font-semibold">Nacimiento</th>
             <th class="px-4 py-3 font-semibold">Estado</th>
-            <th v-if="canUpdate || canDelete" class="px-4 py-3 text-right font-semibold">Acciones</th>
+            <th class="px-4 py-3 text-right font-semibold">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -311,8 +327,16 @@ const destroyChild = (child) => {
                 {{ statusLabels[child.status] ?? child.status }}
               </span>
             </td>
-            <td v-if="canUpdate || canDelete" class="px-4 py-3 text-right">
+            <td class="px-4 py-3 text-right">
               <div class="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                  title="Mostrar QR"
+                  @click="openQr(child)"
+                >
+                  <QrCode class="h-3.5 w-3.5" />
+                </button>
                 <Link
                   v-if="canUpdate"
                   :href="`/children/${child.id}/edit`"
@@ -336,7 +360,7 @@ const destroyChild = (child) => {
 
           <tr v-if="children.data.length === 0">
             <td
-              :colspan="(canUpdate || canDelete) ? 8 : 7"
+              colspan="8"
               class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500"
             >
               <span v-if="activeFilters"
@@ -355,5 +379,23 @@ const destroyChild = (child) => {
       :to="children.to"
       :total="children.total"
     />
+
+    <div
+      v-if="qrChild"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+      @click.self="closeQr"
+    >
+      <div class="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-slate-900">
+        <h2 class="text-lg font-black text-slate-800 dark:text-slate-100">{{ qrChild.full_name }}</h2>
+        <p class="mt-1 font-mono text-xs text-slate-500">{{ qrChild.code }}</p>
+        <img v-if="qrDataUrl" :src="qrDataUrl" :alt="`QR ${qrChild.code}`" class="mx-auto my-5 h-64 w-64" />
+        <p class="text-xs text-slate-400">
+          Este QR contiene únicamente el código único del niño.
+        </p>
+        <button type="button" class="btn btn-primary btn-sm mt-5" @click="closeQr">
+          Cerrar
+        </button>
+      </div>
+    </div>
   </AppShell>
 </template>

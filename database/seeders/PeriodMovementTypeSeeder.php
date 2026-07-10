@@ -4,16 +4,19 @@ namespace Database\Seeders;
 
 use App\Globals\Status;
 use App\Models\Operation\PeriodMovementType;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class PeriodMovementTypeSeeder extends Seeder
 {
     public function run(): void
     {
+        $superadmin = User::query()->where('email', 'superadmin@faithassistqr.test')->first();
+
         $types = [
             [
                 'name' => 'PREINSCRIPCIONES',
-                'description' => 'Movimientos previos al registro definitivo del periodo.',
+                'description' => 'Movimientos de preinscripción previos al periodo.',
                 'status' => Status::ACTIVE,
             ],
             [
@@ -31,7 +34,11 @@ class PeriodMovementTypeSeeder extends Seeder
         foreach ($types as $type) {
             PeriodMovementType::query()->updateOrCreate(
                 ['name' => $type['name']],
-                $type,
+                [
+                    ...$type,
+                    'created_by' => $superadmin?->id,
+                    'updated_by' => $superadmin?->id,
+                ],
             );
         }
     }

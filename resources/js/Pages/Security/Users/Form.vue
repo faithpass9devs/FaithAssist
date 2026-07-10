@@ -13,12 +13,14 @@ const props = defineProps({
   dioceses:            { type: Array,  default: () => [] },
   deaneries:           { type: Array,  default: () => [] },
   churches:            { type: Array,  default: () => [] },
+  chapels:             { type: Array,  default: () => [] },
   selectedRole:        { type: Number, default: null },
   selectedPermissions: { type: Array,  default: () => [] },
   selectedDiocese:     { type: Number, default: null },
   selectedDeanery:     { type: Number, default: null },
   selectedChurch:      { type: Number, default: null },
-  editorScope:         { type: Object, default: () => ({ diocese_id: null, deanery_id: null, church_id: null }) },
+  selectedChapel:      { type: Number, default: null },
+  editorScope:         { type: Object, default: () => ({ diocese_id: null, deanery_id: null, church_id: null, chapel_id: null }) },
   selectedCountryCode: { type: String, default: '521' },
   countryCodes:        { type: Array,  default: () => [] },
 });
@@ -58,6 +60,9 @@ const form = useForm({
   church_id:             scopeLocked.value && !props.user
     ? props.editorScope.church_id
     : (props.selectedChurch ?? null),
+  chapel_id:             scopeLocked.value && !props.user
+    ? props.editorScope.chapel_id
+    : (props.selectedChapel ?? null),
   permissions:           [...props.selectedPermissions],
   password:              '',
   password_confirmation: '',
@@ -96,7 +101,8 @@ const selectedRoleObj = computed(() => props.roles.find((r) => r.id === form.rol
 const totalPermissions = computed(() => form.permissions.length);
 const hasDiocese = computed(() => form.diocese_id !== null);
 const hasDeanery = computed(() => form.deanery_id !== null);
-const hasScopeSet = computed(() => hasDiocese.value || hasDeanery.value || form.church_id !== null);
+const hasChurch = computed(() => form.church_id !== null);
+const hasScopeSet = computed(() => hasDiocese.value || hasDeanery.value || hasChurch.value || form.chapel_id !== null);
 
 /** Decanatos filtrados según la diócesis seleccionada. */
 const filteredDeaneries = computed(() => {
@@ -108,6 +114,12 @@ const filteredDeaneries = computed(() => {
 const filteredChurches = computed(() => {
   if (form.deanery_id === null) return props.churches;
   return props.churches.filter((c) => c.deanery_id === form.deanery_id);
+});
+
+/** Capillas filtradas según la parroquia seleccionada. */
+const filteredChapels = computed(() => {
+  if (form.church_id === null) return props.chapels;
+  return props.chapels.filter((c) => c.church_id === form.church_id);
 });
 
 /** Al cambiar diócesis, limpiar decanato e iglesia si ya no aplican. */
@@ -136,6 +148,16 @@ watch(
     if (form.church_id === null) return;
     const churchValid = filteredChurches.value.some((c) => c.id === form.church_id);
     if (!churchValid) form.church_id = null;
+  },
+);
+
+/** Al cambiar parroquia, limpiar capilla si ya no pertenece a la parroquia. */
+watch(
+  () => form.church_id,
+  () => {
+    if (form.chapel_id === null) return;
+    const chapelValid = filteredChapels.value.some((c) => c.id === form.chapel_id);
+    if (!chapelValid) form.chapel_id = null;
   },
 );
 
@@ -216,7 +238,7 @@ const submit = () => {
                     v-if="s.key === 'alcance' && hasScopeSet"
                     class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
                   >
-                    {{ [hasDiocese, hasDeanery, form.church_id !== null].filter(Boolean).length }}
+                    {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
                   </span>
                   <span
                     v-if="s.key === 'roles' && selectedRoleObj"
@@ -318,7 +340,7 @@ const submit = () => {
               <span>El alcance se hereda de tu perfil y no puede modificarse.</span>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <!-- Diócesis -->
               <div>
                 <label class="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -394,6 +416,35 @@ const submit = () => {
                     </option>
                   </select>
                   <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">{{ form.errors.church_id }}</p>
+                </template>
+              </div>
+
+              <!-- Capilla -->
+              <div>
+                <label
+                  class="mb-1.5 flex items-center gap-2 text-sm font-medium"
+                  :class="hasChurch ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'"
+                >
+                  <Church class="h-4 w-4" :class="hasChurch ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'" />
+                  Capilla
+                </label>
+
+                <div v-if="!hasChurch" class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+                  Selecciona primero una parroquia
+                </div>
+                <template v-else>
+                  <select
+                    v-model="form.chapel_id"
+                    class="select select-bordered w-full"
+                    :class="{ 'select-error': form.errors.chapel_id }"
+                    :disabled="scopeLocked"
+                  >
+                    <option :value="null">— Toda la parroquia —</option>
+                    <option v-for="chapel in filteredChapels" :key="chapel.id" :value="chapel.id">
+                      {{ chapel.name }}
+                    </option>
+                  </select>
+                  <p v-if="form.errors.chapel_id" class="mt-1 text-xs text-red-500">{{ form.errors.chapel_id }}</p>
                 </template>
               </div>
             </div>
