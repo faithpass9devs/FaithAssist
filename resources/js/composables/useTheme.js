@@ -906,7 +906,8 @@ export function applyPalette(paletteId, theme = 'light', customColor = null) {
     paletteId === CUSTOM_PALETTE_ID
       ? customPalette
       : PALETTE_OPTIONS.find((palette) => palette.id === paletteId);
-  const normalizedPalette = selectedPalette ?? PALETTE_OPTIONS[0];
+  const normalizedPalette =
+    selectedPalette ?? PALETTE_OPTIONS.find((palette) => palette.id === DEFAULT_PALETTE) ?? customPalette;
   const mode = theme === 'dark' ? 'dark' : 'light';
   const tokens = normalizedPalette[mode];
   const [accentR, accentG, accentB] = hexToRgb(normalizedPalette.swatch);
