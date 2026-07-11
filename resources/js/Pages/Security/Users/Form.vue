@@ -172,11 +172,28 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="Configuracion de cuenta y permisos del usuario"
-      back-href="/usuarios"
-    />
+    <form @submit.prevent="submit">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Configuracion de cuenta y permisos del usuario"
+        back-href="/usuarios"
+      >
+        <template #actions>
+          <Link
+            href="/usuarios"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing || !canSubmit"
+          >
+            {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
+          </button>
+        </template>
+      </CatalogHeader>
 
     <!-- User identity header (edit mode) -->
     <div
@@ -185,7 +202,7 @@ const submit = () => {
     >
       <div class="flex items-center gap-4">
         <span
-          v-if="user.photo_url"
+            v-if="user.photo_url"
           class="h-16 w-16 overflow-hidden rounded-full border-2 border-rose-200 shadow"
         >
           <img :src="user.photo_url" :alt="user.full_name" class="h-full w-full object-cover" />
@@ -212,7 +229,6 @@ const submit = () => {
       </div>
     </div>
 
-    <form @submit.prevent="submit">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         <!-- Sidebar nav -->
@@ -235,17 +251,17 @@ const submit = () => {
                     {{ s.label }}
                   </span>
                   <span
-                    v-if="s.key === 'alcance' && hasScopeSet"
-                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                  >
-                    {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
-                  </span>
-                  <span
-                    v-if="s.key === 'roles' && selectedRoleObj"
-                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                  >
-                    1
-                  </span>
+                      v-if="s.key === 'alcance' && hasScopeSet"
+                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                    >
+                      {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
+                    </span>
+                    <span
+                      v-if="s.key === 'roles' && selectedRoleObj"
+                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                    >
+                      1
+                    </span>
                   <span
                     v-if="s.key === 'permisos' && totalPermissions > 0"
                     class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
@@ -479,6 +495,7 @@ const submit = () => {
                   <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">Sin rol</span>
                   <span class="block text-xs text-slate-400">No asignar ningun rol</span>
                 </span>
+                    1
               </button>
 
               <button
@@ -615,16 +632,6 @@ const submit = () => {
           </div>
 
         </div>
-      </div>
-
-      <!-- Form Actions -->
-      <div class="mt-6 flex items-center justify-end gap-3">
-        <Link href="/usuarios" class="btn btn-ghost btn-sm">
-          Cancelar
-        </Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing || !canSubmit">
-          {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
-        </button>
       </div>
     </form>
   </AppShell>

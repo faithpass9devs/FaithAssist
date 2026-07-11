@@ -101,6 +101,8 @@ class RoleController extends Controller
         return match ($key) {
             'regions'      => 'Regiones',
             'ecclesiastes' => 'Eclesiasticos',
+            'catechism'    => 'Catecismo',
+            'masses'       => 'Misas',
             'security'     => 'Seguridad',
             'whatsapp'     => 'WhatsApp',
             'operation'    => 'Operación',

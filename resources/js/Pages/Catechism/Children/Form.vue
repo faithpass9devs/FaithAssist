@@ -136,14 +136,30 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="Datos del niño y su asignación de catecismo"
-      back-href="/children"
-      :icon="User"
-    />
-
     <form @submit.prevent="submit">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Datos del niño y su asignación de catecismo"
+        back-href="/children"
+        :icon="User"
+      >
+        <template #actions>
+          <Link
+            href="/children"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing"
+          >
+            {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar niño' : 'Crear niño' }}
+          </button>
+        </template>
+      </CatalogHeader>
+
       <div
         class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
       >
@@ -377,13 +393,6 @@ const submit = () => {
             </div>
           </UnderlineSection>
         </div>
-      </div>
-
-      <div class="mx-auto mt-6 flex max-w-6xl items-center justify-end gap-3">
-        <Link href="/children" class="btn btn-ghost btn-sm">Cancelar</Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing">
-          {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar niño' : 'Crear niño' }}
-        </button>
       </div>
     </form>
   </AppShell>

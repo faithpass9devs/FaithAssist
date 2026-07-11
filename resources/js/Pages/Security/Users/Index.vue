@@ -134,7 +134,10 @@ const destroyUser = async (user) => {
         </button>
       </label>
 
-      <Link href="/usuarios/create" class="btn btn-primary btn-sm gap-1.5">
+      <Link
+        href="/usuarios/create"
+        class="btn btn-sm gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800"
+      >
         <Plus class="h-4 w-4" />
         Nuevo usuario
       </Link>

@@ -3,6 +3,8 @@ import { computed } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { CalendarDays } from 'lucide-vue-next';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
+import UnderlineField from '../../../components/forms/UnderlineField.vue';
+import UnderlineSection from '../../../components/forms/UnderlineSection.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
 
 const props = defineProps({
@@ -14,9 +16,20 @@ const isEditing = computed(() => !!props.weekend);
 const pageTitle = computed(() =>
   isEditing.value ? 'Editar fin de semana de misas' : 'Nuevo fin de semana de misas',
 );
+const churchOptions = computed(() =>
+  props.churches.map((church) => ({
+    value: church.id,
+    label: church.name,
+  })),
+);
+const statusOptions = [
+  { value: 'upcoming', label: 'Próximo' },
+  { value: 'in_progress', label: 'En curso' },
+  { value: 'completed', label: 'Terminado' },
+];
 
 const form = useForm({
-  church_id: props.weekend?.church_id ?? props.churches[0]?.id ?? '',
+  church_id: props.weekend?.church_id ?? null,
   name: props.weekend?.name ?? '',
   starts_at: props.weekend?.starts_at ?? '',
   ends_at: props.weekend?.ends_at ?? '',
@@ -49,101 +62,80 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
+    <form @submit.prevent="submit">
     <CatalogHeader
       :title="pageTitle"
       subtitle="El rango se guarda de sábado 00:00 a domingo 23:59"
       back-href="/fines-semana-misas"
       :icon="CalendarDays"
-    />
-
-    <form class="space-y-6" @submit.prevent="submit">
-      <section
-        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-      >
-        <div class="grid gap-4 md:grid-cols-2">
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Parroquia <span class="text-red-500">*</span></span
-            >
-            <select
-              v-model="form.church_id"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.church_id }"
-            >
-              <option value="" disabled>Selecciona una parroquia</option>
-              <option v-for="church in churches" :key="church.id" :value="church.id">
-                {{ church.name }}
-              </option>
-            </select>
-            <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">
-              {{ form.errors.church_id }}
-            </p>
-          </label>
-
-          <label>
-            <span class="mb-1.5 block text-sm font-medium">Nombre</span>
-            <input
-              v-model="form.name"
-              type="text"
-              class="input input-bordered w-full"
-              :class="{ 'input-error': form.errors.name }"
-            />
-            <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">{{ form.errors.name }}</p>
-          </label>
-
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Sábado <span class="text-red-500">*</span></span
-            >
-            <input
-              v-model="form.starts_at"
-              type="date"
-              class="input input-bordered w-full"
-              :class="{ 'input-error': form.errors.starts_at }"
-            />
-            <p v-if="form.errors.starts_at" class="mt-1 text-xs text-red-500">
-              {{ form.errors.starts_at }}
-            </p>
-          </label>
-
-          <label>
-            <span class="mb-1.5 block text-sm font-medium">Domingo calculado</span>
-            <input
-              :value="computedEndsAt"
-              type="date"
-              class="input input-bordered w-full"
-              disabled
-            />
-            <p v-if="form.errors.ends_at" class="mt-1 text-xs text-red-500">
-              {{ form.errors.ends_at }}
-            </p>
-          </label>
-
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Estatus <span class="text-red-500">*</span></span
-            >
-            <select
-              v-model="form.status"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.status }"
-            >
-              <option value="upcoming">Próximo</option>
-              <option value="in_progress">En curso</option>
-              <option value="completed">Terminado</option>
-            </select>
-            <p v-if="form.errors.status" class="mt-1 text-xs text-red-500">
-              {{ form.errors.status }}
-            </p>
-          </label>
-        </div>
-      </section>
-
-      <div class="flex justify-end gap-3">
-        <Link href="/fines-semana-misas" class="btn btn-ghost btn-sm">Cancelar</Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing">
+    >
+      <template #actions>
+        <Link
+          href="/fines-semana-misas"
+          class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+        >
+          Cancelar
+        </Link>
+        <button
+          type="submit"
+          class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="form.processing"
+        >
           {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear' }}
         </button>
+      </template>
+    </CatalogHeader>
+
+      <div
+        class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
+      >
+        <div class="space-y-9">
+          <UnderlineSection title="Fin de semana">
+            <div class="grid gap-x-9 gap-y-7 md:grid-cols-2">
+              <UnderlineField
+                v-model="form.church_id"
+                label="Parroquia"
+                as="select"
+                placeholder="Selecciona una parroquia"
+                :options="churchOptions"
+                :error="form.errors.church_id"
+                number-value
+                required
+              />
+
+              <UnderlineField
+                v-model="form.name"
+                label="Nombre"
+                :error="form.errors.name"
+              />
+
+              <UnderlineField
+                v-model="form.starts_at"
+                label="Sábado"
+                type="date"
+                :error="form.errors.starts_at"
+                required
+              />
+
+              <UnderlineField
+                :model-value="computedEndsAt"
+                label="Domingo calculado"
+                type="date"
+                :error="form.errors.ends_at"
+                disabled
+              />
+
+              <UnderlineField
+                v-model="form.status"
+                label="Estatus"
+                as="select"
+                :options="statusOptions"
+                :error="form.errors.status"
+                required
+              />
+            </div>
+          </UnderlineSection>
+        </div>
       </div>
     </form>
   </AppShell>

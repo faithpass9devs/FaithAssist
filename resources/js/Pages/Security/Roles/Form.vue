@@ -31,13 +31,29 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="Gestiona el nombre, descripcion y permisos del rol"
-      back-href="/roles"
-    />
-
     <form @submit.prevent="submit" class="space-y-6">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Gestiona el nombre, descripcion y permisos del rol"
+        back-href="/roles"
+      >
+        <template #actions>
+          <Link
+            href="/roles"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing"
+          >
+            {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar rol' : 'Crear rol') }}
+          </button>
+        </template>
+      </CatalogHeader>
+
       <!-- Basic info card -->
       <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
@@ -90,20 +106,6 @@ const submit = () => {
       <p v-if="form.errors.permissions" class="text-sm text-red-500">
         {{ form.errors.permissions }}
       </p>
-
-      <!-- Actions -->
-      <div class="flex items-center justify-end gap-3">
-        <Link href="/roles" class="btn btn-ghost btn-sm">
-          Cancelar
-        </Link>
-        <button
-          type="submit"
-          class="btn btn-primary btn-sm"
-          :disabled="form.processing"
-        >
-          {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar rol' : 'Crear rol') }}
-        </button>
-      </div>
     </form>
   </AppShell>
 </template>
