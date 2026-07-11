@@ -103,8 +103,8 @@
   .ui-btn-enter:focus-visible {
     box-shadow:
       0 12px 20px -12px rgb(15 23 42 / 0.36),
-      0 0 0 3px rgb(59 130 246 / 0.08),
-      0 0 12px 0 rgb(59 130 246 / 0.12);
+      0 0 0 3px rgb(var(--ui-palette-rgb) / 0.1),
+      0 0 12px 0 rgb(var(--ui-palette-rgb) / 0.18);
     filter: brightness(1.015);
   }
 
