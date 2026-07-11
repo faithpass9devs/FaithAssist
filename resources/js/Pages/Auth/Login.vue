@@ -111,14 +111,14 @@ const sortedPaletteOptions = computed(() => {
   return paletteOptions.value
     .filter((option) => option.id !== 'custom' && option.id !== 'neutral')
     .sort((a, b) => {
-    const aGroup = groupOrder[a.id] ?? 99;
-    const bGroup = groupOrder[b.id] ?? 99;
+      const aGroup = groupOrder[a.id] ?? 99;
+      const bGroup = groupOrder[b.id] ?? 99;
 
-    if (aGroup !== bGroup) {
-      return aGroup - bGroup;
-    }
+      if (aGroup !== bGroup) {
+        return aGroup - bGroup;
+      }
 
-    return a.label.localeCompare(b.label, 'es');
+      return a.label.localeCompare(b.label, 'es');
     });
 });
 
