@@ -1,11 +1,14 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeftRight, Filter, Search, X } from 'lucide-vue-next';
+import { ArrowLeftRight, Download, Filter, RotateCcw, Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const page = usePage();
 const canCreate = computed(() =>
   (page.props.auth?.permissions ?? []).includes('reinscripciones.create'),
+);
+const canExport = computed(() =>
+  (page.props.auth?.permissions ?? []).includes('reinscripciones.export'),
 );
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -14,28 +17,51 @@ import AppShell from '../../../components/layouts/AppShell.vue';
 const props = defineProps({
   children: { type: Object, required: true },
   search: { type: String, default: '' },
+  filters: { type: Object, default: () => ({ community_id: null, level_id: null }) },
+  communityOptions: { type: Array, default: () => [] },
+  levelOptions: { type: Array, default: () => [] },
 });
 
 const searchTerm = ref(props.search);
+const selectedCommunity = ref(props.filters.community_id);
+const selectedLevel = ref(props.filters.level_id);
 const debounce = ref(null);
 
-const activeFilters = computed(() => !!searchTerm.value);
+const activeFilters = computed(() => !!searchTerm.value || !!selectedCommunity.value || !!selectedLevel.value);
 
 const reload = () => {
   router.get(
     '/reinscripciones',
-    { search: searchTerm.value || undefined },
+    {
+      search: searchTerm.value || undefined,
+      community_id: selectedCommunity.value || undefined,
+      level_id: selectedLevel.value || undefined,
+    },
     { preserveState: true, replace: true },
   );
 };
 
-watch(searchTerm, () => {
+watch([searchTerm, selectedCommunity, selectedLevel], () => {
   clearTimeout(debounce.value);
   debounce.value = setTimeout(reload, 400);
 });
 
 const clearFilters = () => {
   searchTerm.value = '';
+  selectedCommunity.value = null;
+  selectedLevel.value = null;
+};
+
+const exportReinscriptions = () => {
+  if (!canExport.value) return;
+
+  const url = new URL('/reinscripciones/export', window.location.origin);
+
+  if (searchTerm.value) url.searchParams.set('search', searchTerm.value);
+  if (selectedCommunity.value) url.searchParams.set('community_id', selectedCommunity.value);
+  if (selectedLevel.value) url.searchParams.set('level_id', selectedLevel.value);
+
+  window.location.assign(url.toString());
 };
 </script>
 
@@ -47,12 +73,24 @@ const clearFilters = () => {
       back-href="/"
       :count="children.total"
       :icon="ArrowLeftRight"
-    />
+    >
+      <template #actions>
+        <button
+          v-if="canExport"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5"
+          @click="exportReinscriptions"
+        >
+          <Download class="h-4 w-4" />
+          Exportar Excel
+        </button>
+      </template>
+    </CatalogHeader>
 
     <section
-      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-3 flex items-center justify-between gap-3">
+      <div class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2
           class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
         >
@@ -62,25 +100,49 @@ const clearFilters = () => {
         <button
           v-if="activeFilters"
           type="button"
-          class="btn btn-ghost btn-xs gap-1"
+          class="inline-flex items-center gap-1.5 self-start rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 sm:self-auto dark:border-sky-900/60 dark:bg-sky-900/30 dark:text-sky-200 dark:hover:bg-sky-900/50"
           @click="clearFilters"
         >
-          <X class="h-3.5 w-3.5" />
-          Limpiar
+          <RotateCcw class="h-3.5 w-3.5" />
+          Limpiar filtros
         </button>
       </div>
 
-      <label
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
-      >
-        <Search class="h-4 w-4 shrink-0 text-slate-400" />
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por código, nombre o parroquia..."
-          class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-        />
-      </label>
+      <div class="grid gap-4">
+        <label
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+        >
+          <Search class="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            v-model="searchTerm"
+            type="text"
+            placeholder="Buscar por código, nombre o parroquia..."
+            class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+          />
+        </label>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <select
+            v-model="selectedCommunity"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white pr-10 dark:bg-slate-950"
+          >
+            <option :value="null">Todas las comunidades</option>
+            <option v-for="community in communityOptions" :key="community.id" :value="community.id">
+              {{ community.name }}
+            </option>
+          </select>
+
+          <select
+            v-model="selectedLevel"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+          >
+            <option :value="null">Todos los niveles</option>
+            <option v-for="level in levelOptions" :key="level.id" :value="level.id">
+              {{ level.name }}
+            </option>
+          </select>
+        </div>
+      </div>
     </section>
 
     <div

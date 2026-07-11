@@ -36,6 +36,15 @@ class ChildControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->component('Catechism/Children/Index'));
     }
 
+    public function test_user_without_export_permission_gets_403_on_export(): void
+    {
+        $user = $this->makeGlobalUser('children.read');
+
+        $this->actingAs($user)
+            ->get('/children/export')
+            ->assertForbidden();
+    }
+
     public function test_create_returns_children_form_options(): void
     {
         $chain = $this->createChain();
@@ -252,6 +261,21 @@ class ChildControllerTest extends TestCase
         $this->assertSame('nuevo@example.com', $child->email);
         $this->assertSame('5500000000', $child->phone);
         $this->assertSame(Status::INACTIVE, $child->status);
+    }
+
+    public function test_export_returns_xlsx_for_authorized_user(): void
+    {
+        $chain = $this->createChain();
+        Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('children.read', 'children.export');
+
+        $response = $this->actingAs($user)->get('/children/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $response->headers->get('Content-Type') ?? ''
+        );
     }
 
     private function payload(array $chain, array $overrides = []): array

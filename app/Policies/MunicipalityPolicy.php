@@ -55,4 +55,9 @@ class MunicipalityPolicy extends BasePermissionPolicy
 
         return $scope->isGlobal() || $scope->municipalityIds()->contains($municipality->id);
     }
+
+    public function export(User $user): bool
+    {
+        return $this->can($user, 'export');
+    }
 }

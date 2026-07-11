@@ -47,6 +47,11 @@ class ModuleSeeder extends Seeder
                 'description' => 'Módulo para la gestión de catecismo.',
                 'key' => 'catechism',
             ],
+            [
+                'name' => 'Misas',
+                'description' => 'Módulo para la gestión de misas y asistencias.',
+                'key' => 'masses',
+            ],
         ];
 
         foreach ($modules as $module) {

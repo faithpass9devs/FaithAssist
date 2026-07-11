@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Search, Users, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import AppShell from '../../../components/layouts/AppShell.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import AppPagination from '../../../components/AppPagination.vue';
@@ -13,8 +14,21 @@ const props = defineProps({
 
 const formatScope = (name) => name ?? 'Acceso total';
 
+const page = usePage();
+const rows = ref([...props.users.data]);
 const searchTerm = ref(props.search);
 let debounce = null;
+
+const canDelete = computed(() => (page.props.auth?.permissions ?? []).includes('usuarios.delete'));
+
+const getCsrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+watch(
+  () => props.users.data,
+  (newData) => {
+    rows.value = [...newData];
+  },
+);
 
 watch(searchTerm, (val) => {
   clearTimeout(debounce);
@@ -22,6 +36,70 @@ watch(searchTerm, (val) => {
     router.get('/usuarios', { search: val }, { preserveState: true, replace: true });
   }, 400);
 });
+
+const destroyUser = async (user) => {
+  const result = await Swal.fire({
+    toast: true,
+    title: 'Confirmar eliminación de usuario',
+    text: '¿Esta usted seguro que quiere continuar con esta acción?',
+    icon: 'warning',
+    position: 'top-end',
+    width: 460,
+    backdrop: false,
+    showConfirmButton: true,
+    showCancelButton: true,
+    buttonsStyling: false,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Confirmar',
+    cancelButtonText: 'Cancelar',
+    customClass: {
+      popup: 'swal-delete-banner',
+      actions: 'swal-delete-banner-actions',
+      confirmButton: 'btn btn-error btn-xs',
+      cancelButton: 'btn btn-ghost btn-xs',
+    },
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const response = await fetch(`/usuarios/${user.id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-TOKEN': getCsrf(),
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+
+    const json = await response.json();
+
+    if (!response.ok) {
+      throw new Error(json?.message ?? 'Ocurrió un error al intentar eliminar el usuario.');
+    }
+
+    rows.value = rows.value.filter((row) => row.id !== user.id);
+
+    router.get('/usuarios', { search: searchTerm.value || undefined }, { preserveScroll: true, replace: true });
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: json?.message ?? 'Usuario eliminado correctamente.',
+      showConfirmButton: false,
+      timer: 2200,
+      timerProgressBar: true,
+    });
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'No se pudo eliminar',
+      text: error?.message ?? 'Ocurrió un error al intentar eliminar el usuario.',
+    });
+  }
+};
 </script>
 
 <template>
@@ -72,12 +150,13 @@ watch(searchTerm, (val) => {
             <th class="px-4 py-3 font-semibold">Rol</th>
             <th class="px-4 py-3 font-semibold">Diócesis</th>
             <th class="px-4 py-3 font-semibold">Parroquia</th>
+            <th class="px-4 py-3 font-semibold">Capilla</th>
             <th class="px-4 py-3 text-right font-semibold">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="user in users.data"
+            v-for="user in rows"
             :key="user.id"
             class="border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40"
           >
@@ -126,20 +205,35 @@ watch(searchTerm, (val) => {
               {{ formatScope(user.church) }}
             </td>
 
+            <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+              {{ user.chapel ?? '—' }}
+            </td>
+
             <!-- Actions -->
             <td class="px-4 py-3 text-right">
-              <Link
-                :href="`/usuarios/${user.id}/edit`"
-                class="btn btn-ghost btn-xs text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:text-sky-400 dark:hover:bg-sky-950/40"
-                title="Editar usuario"
-              >
-                <Pencil class="h-3.5 w-3.5" />
-              </Link>
+              <div class="inline-flex items-center gap-1">
+                <Link
+                  :href="`/usuarios/${user.id}/edit`"
+                  class="btn btn-ghost btn-xs text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:text-sky-400 dark:hover:bg-sky-950/40"
+                  title="Editar usuario"
+                >
+                  <Pencil class="h-3.5 w-3.5" />
+                </Link>
+                <button
+                  v-if="canDelete"
+                  type="button"
+                  class="btn btn-ghost btn-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
+                  title="Eliminar usuario"
+                  @click="destroyUser(user)"
+                >
+                  <Trash2 class="h-3.5 w-3.5" />
+                </button>
+              </div>
             </td>
           </tr>
 
-          <tr v-if="users.data.length === 0">
-            <td colspan="6" class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+          <tr v-if="rows.length === 0">
+            <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
               <span v-if="searchTerm">
                 No se encontraron usuarios para
                 <strong class="text-slate-600 dark:text-slate-300">"{{ searchTerm }}"</strong>.
@@ -159,3 +253,27 @@ watch(searchTerm, (val) => {
     />
   </AppShell>
 </template>
+
+<style>
+.swal2-popup.swal-delete-banner {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 18%);
+  padding: 0.9rem 0.95rem;
+}
+
+.swal2-popup.swal-delete-banner .swal2-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.swal2-popup.swal-delete-banner .swal2-html-container {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.swal-delete-banner-actions {
+  margin-top: 0.7rem;
+  gap: 0.4rem;
+}
+</style>

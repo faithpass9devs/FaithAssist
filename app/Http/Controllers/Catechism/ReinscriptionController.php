@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Catechism;
 
+use App\Exports\Catechism\ReinscriptionsExport;
 use App\Globals\Status;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Catechism\ReinscriptionRequest;
@@ -9,6 +10,7 @@ use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
 use App\Models\Catechism\ChildReinscription;
 use App\Models\Operation\Level;
+use App\Models\Regions\Community;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReinscriptionController extends Controller
 {
@@ -25,6 +29,9 @@ class ReinscriptionController extends Controller
         abort_unless($request->user()->can('reinscripciones.read'), 403);
 
         $search = $request->input('search', '');
+        $communityId = $request->integer('community_id') ?: null;
+        $levelId = $request->integer('level_id') ?: null;
+        $scope = new UserScopeService($request->user());
 
         $query = $this->eligibleChildrenQuery($request)
             ->when($search !== '', function ($query) use ($search) {
@@ -37,6 +44,11 @@ class ReinscriptionController extends Controller
                         ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"));
                 });
             })
+            ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
+            ->when($levelId, fn ($query) => $query->whereHas(
+                'activeLevelAssignments',
+                fn ($assignment) => $assignment->where('level_id', $levelId)
+            ))
             ->orderBy('paterno')
             ->orderBy('materno')
             ->orderBy('name');
@@ -49,6 +61,22 @@ class ReinscriptionController extends Controller
         return Inertia::render('Catechism/Reinscriptions/Index', [
             'children' => $children,
             'search' => $search,
+            'filters' => [
+                'community_id' => $communityId,
+                'level_id' => $levelId,
+            ],
+            'communityOptions' => Community::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->values(),
+            'levelOptions' => Level::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('diocese_id', $scope->dioceseIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->values(),
         ]);
     }
 
@@ -128,6 +156,25 @@ class ReinscriptionController extends Controller
 
         return redirect()->route('reinscripciones.index')
             ->with('success', 'Reinscripción registrada correctamente.');
+    }
+
+    public function export(Request $request)
+    {
+        abort_unless($request->user()->can('reinscripciones.export'), 403);
+
+        $filters = [
+            'search' => $request->input('search', ''),
+            'community_id' => $request->integer('community_id') ?: null,
+            'level_id' => $request->integer('level_id') ?: null,
+        ];
+
+        $fileName = 'reinscripciones_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(
+            new ReinscriptionsExport($request->user(), $filters),
+            $fileName,
+            ExcelWriter::XLSX
+        );
     }
 
     private function eligibleChildrenQuery(Request $request): Builder

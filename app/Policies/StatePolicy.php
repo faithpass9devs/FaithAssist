@@ -36,4 +36,9 @@ class StatePolicy extends BasePermissionPolicy
     {
         return $this->can($user, 'delete');
     }
+
+    public function export(User $user): bool
+    {
+        return $this->can($user, 'export');
+    }
 }

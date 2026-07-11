@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Church, KeyRound, MapPinned, ShieldCheck, User, Users } from 'lucide-vue-next';
+import { CalendarDays, Check, Church, Eye, EyeOff, KeyRound, MapPinned, ShieldCheck, User, Users, X } from 'lucide-vue-next';
 import AppShell from '../../../components/layouts/AppShell.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import PermissionSelector from '../../../components/security/PermissionSelector.vue';
@@ -13,12 +13,14 @@ const props = defineProps({
   dioceses:            { type: Array,  default: () => [] },
   deaneries:           { type: Array,  default: () => [] },
   churches:            { type: Array,  default: () => [] },
+  chapels:             { type: Array,  default: () => [] },
   selectedRole:        { type: Number, default: null },
   selectedPermissions: { type: Array,  default: () => [] },
   selectedDiocese:     { type: Number, default: null },
   selectedDeanery:     { type: Number, default: null },
   selectedChurch:      { type: Number, default: null },
-  editorScope:         { type: Object, default: () => ({ diocese_id: null, deanery_id: null, church_id: null }) },
+  selectedChapel:      { type: Number, default: null },
+  editorScope:         { type: Object, default: () => ({ diocese_id: null, deanery_id: null, church_id: null, chapel_id: null }) },
   selectedCountryCode: { type: String, default: '521' },
   countryCodes:        { type: Array,  default: () => [] },
 });
@@ -30,6 +32,8 @@ const pageTitle = computed(() => (isEditing.value ? `Editar Usuario` : 'Nuevo Us
 const scopeLocked = computed(() => props.editorScope.diocese_id !== null);
 
 const activeSection = ref('general');
+const showPassword = ref(false);
+const showPasswordConfirmation = ref(false);
 
 const sections = [
   { key: 'general',    label: 'Datos Generales', icon: User },
@@ -56,9 +60,40 @@ const form = useForm({
   church_id:             scopeLocked.value && !props.user
     ? props.editorScope.church_id
     : (props.selectedChurch ?? null),
+  chapel_id:             scopeLocked.value && !props.user
+    ? props.editorScope.chapel_id
+    : (props.selectedChapel ?? null),
   permissions:           [...props.selectedPermissions],
   password:              '',
   password_confirmation: '',
+});
+
+const passwordRules = computed(() => [
+  {
+    label: 'Mínimo 8 caracteres',
+    valid: form.password.length >= 8,
+  },
+  {
+    label: 'Una mayúscula',
+    valid: /[A-ZÁÉÍÓÚÑ]/u.test(form.password),
+  },
+  {
+    label: 'Una minúscula',
+    valid: /[a-záéíóúñ]/u.test(form.password),
+  },
+  {
+    label: 'Un número',
+    valid: /\d/.test(form.password),
+  },
+]);
+
+const passwordChecklistPassed = computed(() => passwordRules.value.every((rule) => rule.valid));
+const canSubmit = computed(() => {
+  if (isEditing.value && form.password.length === 0) {
+    return true;
+  }
+
+  return passwordChecklistPassed.value;
 });
 
 const selectedRoleObj = computed(() => props.roles.find((r) => r.id === form.role_id));
@@ -66,7 +101,8 @@ const selectedRoleObj = computed(() => props.roles.find((r) => r.id === form.rol
 const totalPermissions = computed(() => form.permissions.length);
 const hasDiocese = computed(() => form.diocese_id !== null);
 const hasDeanery = computed(() => form.deanery_id !== null);
-const hasScopeSet = computed(() => hasDiocese.value || hasDeanery.value || form.church_id !== null);
+const hasChurch = computed(() => form.church_id !== null);
+const hasScopeSet = computed(() => hasDiocese.value || hasDeanery.value || hasChurch.value || form.chapel_id !== null);
 
 /** Decanatos filtrados según la diócesis seleccionada. */
 const filteredDeaneries = computed(() => {
@@ -78,6 +114,12 @@ const filteredDeaneries = computed(() => {
 const filteredChurches = computed(() => {
   if (form.deanery_id === null) return props.churches;
   return props.churches.filter((c) => c.deanery_id === form.deanery_id);
+});
+
+/** Capillas filtradas según la parroquia seleccionada. */
+const filteredChapels = computed(() => {
+  if (form.church_id === null) return props.chapels;
+  return props.chapels.filter((c) => c.church_id === form.church_id);
 });
 
 /** Al cambiar diócesis, limpiar decanato e iglesia si ya no aplican. */
@@ -106,6 +148,16 @@ watch(
     if (form.church_id === null) return;
     const churchValid = filteredChurches.value.some((c) => c.id === form.church_id);
     if (!churchValid) form.church_id = null;
+  },
+);
+
+/** Al cambiar parroquia, limpiar capilla si ya no pertenece a la parroquia. */
+watch(
+  () => form.church_id,
+  () => {
+    if (form.chapel_id === null) return;
+    const chapelValid = filteredChapels.value.some((c) => c.id === form.chapel_id);
+    if (!chapelValid) form.chapel_id = null;
   },
 );
 
@@ -186,7 +238,7 @@ const submit = () => {
                     v-if="s.key === 'alcance' && hasScopeSet"
                     class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
                   >
-                    {{ [hasDiocese, hasDeanery, form.church_id !== null].filter(Boolean).length }}
+                    {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
                   </span>
                   <span
                     v-if="s.key === 'roles' && selectedRoleObj"
@@ -288,7 +340,7 @@ const submit = () => {
               <span>El alcance se hereda de tu perfil y no puede modificarse.</span>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <!-- Diócesis -->
               <div>
                 <label class="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -364,6 +416,35 @@ const submit = () => {
                     </option>
                   </select>
                   <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">{{ form.errors.church_id }}</p>
+                </template>
+              </div>
+
+              <!-- Capilla -->
+              <div>
+                <label
+                  class="mb-1.5 flex items-center gap-2 text-sm font-medium"
+                  :class="hasChurch ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'"
+                >
+                  <Church class="h-4 w-4" :class="hasChurch ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'" />
+                  Capilla
+                </label>
+
+                <div v-if="!hasChurch" class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+                  Selecciona primero una parroquia
+                </div>
+                <template v-else>
+                  <select
+                    v-model="form.chapel_id"
+                    class="select select-bordered w-full"
+                    :class="{ 'select-error': form.errors.chapel_id }"
+                    :disabled="scopeLocked"
+                  >
+                    <option :value="null">— Toda la parroquia —</option>
+                    <option v-for="chapel in filteredChapels" :key="chapel.id" :value="chapel.id">
+                      {{ chapel.name }}
+                    </option>
+                  </select>
+                  <p v-if="form.errors.chapel_id" class="mt-1 text-xs text-red-500">{{ form.errors.chapel_id }}</p>
                 </template>
               </div>
             </div>
@@ -446,37 +527,89 @@ const submit = () => {
               {{ isEditing ? 'Deja los campos vacios para mantener la contrasena actual.' : 'Define la contrasena de acceso.' }}
             </p>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
+            <div class="grid gap-5 lg:grid-cols-2">
+              <div class="space-y-1.5">
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   {{ isEditing ? 'Nueva contrasena' : 'Contrasena' }}
                   <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
-                <input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="?"
-                  autocomplete="new-password"
-                  class="input input-bordered w-full"
-                  :class="{ 'input-error': form.errors.password }"
-                />
+                <div class="relative">
+                  <input
+                    v-model="form.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    placeholder="?"
+                    autocomplete="new-password"
+                    class="input input-bordered w-full pr-11"
+                    :class="{ 'input-error': form.errors.password }"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                    :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    @click="showPassword = !showPassword"
+                  >
+                    <EyeOff v-if="showPassword" class="h-4 w-4" />
+                    <Eye v-else class="h-4 w-4" />
+                  </button>
+                </div>
+
                 <p v-if="form.errors.password" class="mt-1 text-xs text-red-500">{{ form.errors.password }}</p>
               </div>
 
-              <div>
+              <div class="space-y-1.5">
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Confirmar contrasena
                   <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
-                <input
-                  v-model="form.password_confirmation"
-                  type="password"
-                  placeholder=""
-                  autocomplete="new-password"
-                  class="input input-bordered w-full"
-                  :class="{ 'input-error': form.errors.password_confirmation }"
-                />
+                <div class="relative">
+                  <input
+                    v-model="form.password_confirmation"
+                    :type="showPasswordConfirmation ? 'text' : 'password'"
+                    placeholder=""
+                    autocomplete="new-password"
+                    class="input input-bordered w-full pr-11"
+                    :class="{ 'input-error': form.errors.password_confirmation }"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                    :aria-label="showPasswordConfirmation ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'"
+                    @click="showPasswordConfirmation = !showPasswordConfirmation"
+                  >
+                    <EyeOff v-if="showPasswordConfirmation" class="h-4 w-4" />
+                    <Eye v-else class="h-4 w-4" />
+                  </button>
+                </div>
                 <p v-if="form.errors.password_confirmation" class="mt-1 text-xs text-red-500">{{ form.errors.password_confirmation }}</p>
+              </div>
+            </div>
+
+            <div class="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950/40">
+              <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div
+                  v-for="rule in passwordRules"
+                  :key="rule.label"
+                  class="flex items-center gap-2 text-sm font-medium"
+                  :class="
+                    rule.valid
+                      ? 'text-emerald-600 dark:text-emerald-300'
+                      : 'text-slate-500 dark:text-slate-400'
+                  "
+                >
+                  <span
+                    class="flex h-5 w-5 items-center justify-center rounded-full"
+                    :class="
+                      rule.valid
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    "
+                  >
+                    <Check v-if="rule.valid" class="h-3.5 w-3.5" />
+                    <X v-else class="h-3.5 w-3.5" />
+                  </span>
+
+                  {{ rule.label }}
+                </div>
               </div>
             </div>
           </div>
@@ -489,7 +622,7 @@ const submit = () => {
         <Link href="/usuarios" class="btn btn-ghost btn-sm">
           Cancelar
         </Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing">
+        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing || !canSubmit">
           {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
         </button>
       </div>

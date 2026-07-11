@@ -8,6 +8,11 @@ use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
+use App\Http\Controllers\Masses\IncidenceTypeController;
+use App\Http\Controllers\Masses\MassAttendanceController;
+use App\Http\Controllers\Masses\MassAttendanceIncidentController;
+use App\Http\Controllers\Masses\MassController;
+use App\Http\Controllers\Masses\WeekendController;
 use App\Http\Controllers\Operation\LevelController;
 use App\Http\Controllers\Operation\PeriodController;
 use App\Http\Controllers\Operation\PeriodMovementController;
@@ -67,9 +72,13 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['estados' => 'estado']);
 
+    Route::get('/estados/export', [StateController::class, 'export'])->name('estados.export');
+
     Route::resource('municipios', MunicipalityController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['municipios' => 'municipio']);
+
+    Route::get('/municipios/export', [MunicipalityController::class, 'export'])->name('municipios.export');
 
     Route::resource('comunidades', CommunityController::class)
         ->only(['index', 'store', 'update', 'destroy'])
@@ -111,14 +120,39 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['niveles' => 'nivel']);
 
+    // Misas
+    Route::resource('fines-semana-misas', WeekendController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['fines-semana-misas' => 'weekend']);
+
+    Route::resource('misas', MassController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['misas' => 'misa']);
+
+    Route::get('misas/{misa}/asistencias', [MassAttendanceController::class, 'index'])
+        ->name('misas.asistencias.index');
+    Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
+        ->name('misas.asistencias.scan');
+
+    Route::resource('tipos-incidencias', IncidenceTypeController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['tipos-incidencias' => 'incidenceType']);
+
+    Route::resource('incidencias-asistencia', MassAttendanceIncidentController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['incidencias-asistencia' => 'attendanceIncident']);
+
     // Catechism
     Route::resource('children', ChildController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+
+    Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
     Route::resource('reinscripciones', ReinscriptionController::class)
         ->only(['index', 'store']);
+    Route::get('/reinscripciones/export', [ReinscriptionController::class, 'export'])->name('reinscripciones.export');
 
     // Seguridad
     Route::resource('modulos', ModuleController::class)
@@ -132,7 +166,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('roles', RoleController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
     Route::resource('usuarios', UserController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update'])
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['usuarios' => 'usuario']);
 
     if (app()->environment('local')) {

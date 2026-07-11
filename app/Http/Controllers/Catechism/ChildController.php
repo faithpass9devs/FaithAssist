@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Catechism;
 
+use App\Exports\Catechism\ChildrenExport;
 use App\Globals\BloodType;
 use App\Globals\Sex;
 use App\Globals\Status;
@@ -24,6 +25,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ChildController extends Controller
 {
@@ -37,7 +40,9 @@ class ChildController extends Controller
         $search = $request->input('search', '');
         $churchId = $request->integer('church_id') ?: null;
         $municipalityId = $request->integer('municipality_id') ?: null;
+        $communityId = $request->integer('community_id') ?: null;
         $levelId = $request->integer('level_id') ?: null;
+        $status = $request->input('status');
         $scope = new UserScopeService($request->user());
 
         $query = Child::query()
@@ -56,10 +61,12 @@ class ChildController extends Controller
                 });
             })
             ->when($churchId, fn ($query) => $query->where('church_id', $churchId))
+            ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
             ->when($levelId, fn ($query) => $query->whereHas(
                 'activeLevelAssignments',
                 fn ($assignment) => $assignment->where('level_id', $levelId)
             ))
+            ->when($status, fn ($query) => $query->where('status', $status))
             ->when($municipalityId, function ($query) use ($municipalityId) {
                 $query->where(function ($builder) use ($municipalityId) {
                     $builder->whereHas('church', fn ($church) => $church->where('municipality_id', $municipalityId))
@@ -83,11 +90,15 @@ class ChildController extends Controller
             'filters' => [
                 'church_id' => $churchId,
                 'municipality_id' => $municipalityId,
+                'community_id' => $communityId,
                 'level_id' => $levelId,
+                'status' => $status,
             ],
             'churches' => $filterOptions['churches'],
             'municipalities' => $filterOptions['municipalities'],
+            'communities' => $filterOptions['communities'],
             'levels' => $filterOptions['levels'],
+            'statuses' => $this->options($this->statusLabels()),
             'statusLabels' => $this->statusLabels(),
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
@@ -192,6 +203,28 @@ class ChildController extends Controller
             ->with('success', 'Niño eliminado correctamente.');
     }
 
+    public function export(Request $request)
+    {
+        $this->authorize('export', Child::class);
+
+        $filters = [
+            'search' => $request->input('search', ''),
+            'church_id' => $request->integer('church_id') ?: null,
+            'municipality_id' => $request->integer('municipality_id') ?: null,
+            'community_id' => $request->integer('community_id') ?: null,
+            'level_id' => $request->integer('level_id') ?: null,
+            'status' => $request->input('status'),
+        ];
+
+        $fileName = 'ninos_'.now()->format('Ymd_His').'.xlsx';
+
+        return Excel::download(
+            new ChildrenExport($request->user(), $filters),
+            $fileName,
+            ExcelWriter::XLSX
+        );
+    }
+
     private function formOptions(Request $request): array
     {
         $filterOptions = $this->filterOptions($request);
@@ -274,6 +307,11 @@ class ChildController extends Controller
                 ->where('status', Status::ACTIVE)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'communities' => Community::query()
+                ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
+                ->where('status', Status::ACTIVE)
+                ->orderBy('name')
+                ->get(['id', 'municipality_id', 'name']),
             'levels' => Level::query()
                 ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('diocese_id', $scope->dioceseIds()))
                 ->where('status', Status::ACTIVE)

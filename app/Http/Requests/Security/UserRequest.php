@@ -4,7 +4,7 @@ namespace App\Http\Requests\Security;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class UserRequest extends FormRequest
@@ -27,11 +27,11 @@ class UserRequest extends FormRequest
             'whatsapp_country_code' => ['required', 'string', Rule::exists('ladas', 'code')->where('status', 'active')],
             'whatsapp_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9\s\-\(\)]{7,15}$/'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
-            'diocese_id' => ['nullable', 'integer', Rule::exists('dioceses', 'id'), 'required_with:deanery_id,church_id'],
+            'diocese_id' => ['nullable', 'integer', Rule::exists('dioceses', 'id'), 'required_with:deanery_id,church_id,chapel_id'],
             'deanery_id' => [
                 'nullable',
                 'integer',
-                'required_with:church_id',
+                'required_with:church_id,chapel_id',
                 Rule::exists('deaneries', 'id'),
                 Rule::when(
                     filled($this->input('deanery_id')) && filled($this->input('diocese_id')),
@@ -41,17 +41,27 @@ class UserRequest extends FormRequest
             'church_id' => [
                 'nullable',
                 'integer',
+                'required_with:chapel_id',
                 Rule::exists('churches', 'id'),
                 Rule::when(
                     filled($this->input('church_id')) && filled($this->input('deanery_id')),
                     Rule::exists('churches', 'id')->where('deanery_id', $this->input('deanery_id'))
                 ),
             ],
+            'chapel_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('chapels', 'id'),
+                Rule::when(
+                    filled($this->input('chapel_id')) && filled($this->input('church_id')),
+                    Rule::exists('chapels', 'id')->where('church_id', $this->input('church_id'))
+                ),
+            ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['integer', 'exists:permissions,id'],
             'password' => $isUpdate
-                ? ['nullable', 'confirmed', Password::defaults()]
-                : ['required', 'confirmed', Password::defaults()],
+                ? ['nullable', 'string', 'min:8', 'regex:/[A-ZÁÉÍÓÚÑ]/u', 'regex:/[a-záéíóúñ]/u', 'regex:/[0-9]/', 'confirmed']
+                : ['required', 'string', 'min:8', 'regex:/[A-ZÁÉÍÓÚÑ]/u', 'regex:/[a-záéíóúñ]/u', 'regex:/[0-9]/', 'confirmed'],
         ];
     }
 
@@ -64,12 +74,29 @@ class UserRequest extends FormRequest
                     return;
                 }
 
-                $editorPermissionIds = $editor->getAllPermissions()->pluck('id')->toArray();
+                $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+                $assignablePermissionIds = $editorPermissionIds;
+
+                if ($editor->hasRole('Superadmin')) {
+                    $assignablePermissionIds = $assignablePermissionIds->merge(
+                        Permission::query()
+                            ->whereIn('name', [
+                                'estados.export',
+                                'municipios.export',
+                                'comunidades.export',
+                                'children.export',
+                                'reinscripciones.export',
+                            ])
+                            ->pluck('id')
+                    );
+                }
+
+                $assignablePermissionIds = $assignablePermissionIds->unique()->toArray();
 
                 // Validate submitted permissions are within the editor's own set
                 $submittedIds = array_filter((array) $this->input('permissions', []));
                 foreach ($submittedIds as $permId) {
-                    if (! in_array((int) $permId, $editorPermissionIds)) {
+                    if (! in_array((int) $permId, $assignablePermissionIds)) {
                         $validator->errors()->add(
                             'permissions',
                             'No puedes asignar permisos que no posees.'
@@ -85,7 +112,7 @@ class UserRequest extends FormRequest
                     $role = Role::with('permissions:id')->find($roleId);
                     if ($role) {
                         $hasUnallowed = $role->permissions->contains(
-                            fn ($p) => ! in_array($p->id, $editorPermissionIds)
+                            fn ($p) => ! in_array($p->id, $assignablePermissionIds)
                         );
 
                         if ($hasUnallowed) {
@@ -105,6 +132,11 @@ class UserRequest extends FormRequest
         return [
             'deanery_id.exists' => 'El decanato seleccionado no pertenece a la diócesis asignada.',
             'church_id.exists' => 'La parroquia seleccionada no pertenece al decanato asignado.',
+            'chapel_id.exists' => 'La capilla seleccionada no pertenece a la parroquia asignada.',
+            'password.required' => 'Ingresa una contraseña.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'password.regex' => 'La contraseña debe incluir mayúscula, minúscula y número.',
+            'password.confirmed' => 'La confirmación de contraseña no coincide.',
         ];
     }
 }
