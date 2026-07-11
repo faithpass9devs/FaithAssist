@@ -386,7 +386,7 @@ watch(
         class="mb-3 w-[20rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
       >
         <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-          PERZONALIZAR AMBIENTE
+          PERSONALIZAR AMBIENTE
         </p>
 
         <div
