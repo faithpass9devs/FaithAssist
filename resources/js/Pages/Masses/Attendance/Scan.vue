@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
     <CatalogHeader
       title="Asistencia a misa"
       :subtitle="`${mass.name} · ${mass.location} · ${mass.starts_at} - ${mass.ends_at ?? 'sin fin'}`"
-      back-href="/misas"
+      back-href="/"
       :icon="QrCode"
     />
 
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
     />
 
     <div class="mt-6">
-      <Link href="/misas" class="btn btn-ghost btn-sm">Volver a misas</Link>
+      <Link href="/" class="btn btn-ghost btn-sm">Volver al inicio</Link>
     </div>
   </AppShell>
 </template>

@@ -9,6 +9,8 @@ use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Services\MassAttendanceService;
+use App\Services\UserScopeService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,6 +18,31 @@ use Inertia\Response;
 
 class MassAttendanceController extends Controller
 {
+    public function landing(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $canRead = $user->can('mass_attendance.read');
+        $canScan = $user->can('mass_attendance.scan');
+
+        abort_unless($canRead || $canScan, 403);
+
+        $scope = new UserScopeService($user);
+
+        $mass = $scope->applyMassScope(
+            Mass::query()
+                ->select(['id', 'attendance_status', 'starts_at'])
+                ->orderByRaw("case attendance_status when 'in_progress' then 0 when 'upcoming' then 1 when 'completed' then 2 else 3 end")
+                ->orderByDesc('starts_at')
+        )->first();
+
+        if (! $mass) {
+            return redirect()->route('misas.index')
+                ->with('warning', 'No hay misas disponibles para registrar asistencias.');
+        }
+
+        return redirect()->route('misas.asistencias.index', $mass);
+    }
+
     public function index(Request $request, Mass $misa): Response
     {
         $user = $request->user();

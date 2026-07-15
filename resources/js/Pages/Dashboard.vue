@@ -153,7 +153,7 @@ const modules = computed(() =>
         {
           label: 'Asistencias',
           icon: QrCode,
-          href: '/misas',
+          href: '/asistencias',
           moduleKey: 'mass_attendance',
         },
         {

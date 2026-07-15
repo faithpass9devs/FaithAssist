@@ -129,6 +129,9 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
+    Route::get('asistencias', [MassAttendanceController::class, 'landing'])
+        ->name('asistencias.index');
+
     Route::get('misas/{misa}/asistencias', [MassAttendanceController::class, 'index'])
         ->name('misas.asistencias.index');
     Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
