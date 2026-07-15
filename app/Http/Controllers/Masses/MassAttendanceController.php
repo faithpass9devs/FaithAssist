@@ -26,14 +26,7 @@ class MassAttendanceController extends Controller
 
         abort_unless($canRead || $canScan, 403);
 
-        $scope = new UserScopeService($user);
-
-        $mass = $scope->applyMassScope(
-            Mass::query()
-                ->select(['id', 'attendance_status', 'starts_at'])
-                ->orderByRaw("case attendance_status when 'in_progress' then 0 when 'upcoming' then 1 when 'completed' then 2 else 3 end")
-                ->orderByDesc('starts_at')
-        )->first();
+        $mass = $this->availableAttendanceMasses($request)->first();
 
         if (! $mass) {
             return redirect()->route('misas.index')
@@ -71,6 +64,7 @@ class MassAttendanceController extends Controller
         return Inertia::render('Masses/Attendance/Scan', [
             'mass' => $this->serializeMass($misa),
             'attendances' => $attendances,
+            'weekendOptions' => $this->attendanceWeekendOptions($request),
             'canScan' => $canScan,
         ]);
     }
@@ -102,15 +96,85 @@ class MassAttendanceController extends Controller
     {
         return [
             'id' => $mass->id,
+            'weekend_id' => $mass->weekend_id,
             'name' => $mass->name,
-            'starts_at' => $mass->starts_at?->format('Y-m-d H:i'),
-            'ends_at' => $mass->ends_at?->format('Y-m-d H:i'),
+            'starts_at' => $mass->starts_at?->format('Y-m-d h:i A'),
+            'ends_at' => $mass->ends_at?->format('Y-m-d h:i A'),
             'attendance_status' => $mass->attendance_status,
             'church' => $mass->church?->name,
             'chapel' => $mass->chapel?->name,
             'location' => $mass->chapel?->name ?: $mass->church?->name,
             'weekend' => $mass->weekend?->name ?: $mass->weekend?->starts_at?->format('Y-m-d'),
         ];
+    }
+
+    private function availableAttendanceMasses(Request $request)
+    {
+        $scope = new UserScopeService($request->user());
+        $now = now();
+        $nowTimestamp = $now->getTimestamp();
+
+        return $scope->applyMassScope(
+            Mass::query()->with(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name'])
+        )
+            ->get()
+            ->sortBy(function (Mass $mass) use ($nowTimestamp): string {
+                $startTimestamp = $mass->starts_at?->getTimestamp()
+                    ?? $mass->weekend?->starts_at?->getTimestamp()
+                    ?? PHP_INT_MAX;
+                $endTimestamp = $mass->ends_at?->getTimestamp()
+                    ?? $mass->weekend?->ends_at?->getTimestamp()
+                    ?? $startTimestamp;
+
+                if ($mass->attendance_status === 'in_progress' || ($startTimestamp <= $nowTimestamp && $endTimestamp >= $nowTimestamp)) {
+                    $priority = 0;
+                    $distance = 0;
+                } elseif ($startTimestamp >= $nowTimestamp) {
+                    $priority = 1;
+                    $distance = $startTimestamp - $nowTimestamp;
+                } else {
+                    $priority = 2;
+                    $distance = $nowTimestamp - $endTimestamp;
+                }
+
+                return sprintf('%d-%020d-%020d', $priority, $distance, $startTimestamp);
+            })
+            ->values();
+    }
+
+    private function attendanceWeekendOptions(Request $request): array
+    {
+        return $this->availableAttendanceMasses($request)
+            ->groupBy('weekend_id')
+            ->map(function ($masses) {
+                $firstMass = $masses->first();
+                $weekend = $firstMass?->weekend;
+
+                return [
+                    'id' => $firstMass?->weekend_id,
+                    'label' => $weekend?->name ?: $weekend?->starts_at?->format('Y-m-d') ?: 'Sin fin de semana',
+                    'starts_at' => $weekend?->starts_at?->format('Y-m-d h:i A'),
+                    'masses' => $masses->map(function (Mass $mass): array {
+                        $location = $mass->chapel?->name ?: $mass->church?->name;
+                        $schedule = collect([
+                            $mass->starts_at?->format('Y-m-d h:i A'),
+                            $mass->ends_at?->format('Y-m-d h:i A'),
+                        ])->filter()->implode(' - ');
+
+                        return [
+                            'id' => $mass->id,
+                            'short_label' => $schedule,
+                            'label' => collect([
+                                $schedule,
+                                $location,
+                            ])->filter()->implode(' · '),
+                            'location' => $location,
+                        ];
+                    })->values()->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function serializeAttendance(MassAttendance $attendance): array

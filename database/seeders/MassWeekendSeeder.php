@@ -7,6 +7,7 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\Weekend;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class MassWeekendSeeder extends Seeder
 {
@@ -20,51 +21,60 @@ class MassWeekendSeeder extends Seeder
             return;
         }
 
-        $churches = Church::query()
-            ->whereIn('name', [
-                'PARROQUIA NUESTRA SENORA DE LA ASUNCION',
-                'PARROQUIA SAN FRANCISCO DE ASIS',
-                'PARROQUIA CRISTO REY',
-                'PARROQUIA SAN MIGUEL ARCANGEL DE ZUMPAHUACAN',
-            ])
+        $church = Church::query()
+            ->where('name', 'PARROQUIA NUESTRA SENORA DE LA ASUNCION')
             ->where('status', Status::ACTIVE)
-            ->orderBy('id')
-            ->get();
+            ->first();
 
-        if ($churches->isEmpty()) {
-            $this->command?->warn('No se encontraron parroquias activas para crear fines de semana de misas.');
+        if (! $church) {
+            $this->command?->warn('No se encontro la parroquia objetivo para crear fines de semana de misas.');
 
             return;
         }
 
-        $baseSaturday = now()->startOfWeek()->addDays(5)->startOfDay();
-        $templates = [
-            ['offset_weeks' => -2, 'status' => Status::COMPLETED],
-            ['offset_weeks' => -1, 'status' => Status::COMPLETED],
-            ['offset_weeks' => 0, 'status' => Status::IN_PROGRESS],
-            ['offset_weeks' => 1, 'status' => Status::UPCOMING],
-        ];
+        $baseSaturday = Carbon::create(2026, 5, 2, 0, 0, 0);
+        $lastSaturday = $baseSaturday->copy()->addWeeks(11);
+        $desiredStarts = [];
 
-        foreach ($churches as $churchIndex => $church) {
-            foreach ($templates as $template) {
-                $startsAt = $baseSaturday->copy()->addWeeks($template['offset_weeks']);
-                $endsAt = $startsAt->copy()->addDay()->setTime(23, 59);
+        $weekNumber = 1;
+        for ($startsAt = $baseSaturday->copy(); $startsAt->lessThanOrEqualTo($lastSaturday); $startsAt->addWeek()) {
+            $weekStart = $startsAt->copy();
+            $endsAt = $weekStart->copy()->addDay()->setTime(23, 59);
+            $desiredStarts[] = $weekStart->format('Y-m-d H:i:s');
 
-                Weekend::query()->updateOrCreate(
-                    [
-                        'church_id' => $church->id,
-                        'starts_at' => $startsAt->format('Y-m-d H:i:s'),
-                    ],
-                    [
-                        'name' => sprintf('FDS MISA %s #%d', $startsAt->format('Ymd'), $churchIndex + 1),
-                        'ends_at' => $endsAt->format('Y-m-d H:i:s'),
-                        'status' => $template['status'],
-                        'created_by' => $superadmin->id,
-                        'updated_by' => $superadmin->id,
-                    ]
-                );
-            }
+            $status = match (true) {
+                now()->lt($weekStart) => Status::UPCOMING,
+                now()->between($weekStart, $endsAt) => Status::IN_PROGRESS,
+                default => Status::COMPLETED,
+            };
+
+            Weekend::query()->updateOrCreate(
+                [
+                    'church_id' => $church->id,
+                    'starts_at' => $weekStart->format('Y-m-d H:i:s'),
+                ],
+                [
+                    'name' => 'SEMANA '.$weekNumber,
+                    'ends_at' => $endsAt->format('Y-m-d H:i:s'),
+                    'status' => $status,
+                    'created_by' => $superadmin->id,
+                    'updated_by' => $superadmin->id,
+                ]
+            );
+
+            $weekNumber++;
         }
+
+        // Keep only generated weekends for the target parish.
+        Weekend::query()
+            ->where('church_id', $church->id)
+            ->whereNotIn('starts_at', $desiredStarts)
+            ->delete();
+
+        // Keep weekends active only for the target parish.
+        Weekend::query()
+            ->where('church_id', '!=', $church->id)
+            ->delete();
 
         $this->command?->info('Fines de semana de misas creados exitosamente.');
     }

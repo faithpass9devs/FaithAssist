@@ -34,12 +34,24 @@ class MassAttendanceSeeder extends Seeder
             return;
         }
 
+        $globalActiveChildren = Child::query()
+            ->where('status', Status::ACTIVE)
+            ->orderBy('id')
+            ->get();
+
         foreach ($weekends as $weekend) {
+            $weekNumber = $this->extractWeekNumber($weekend->name);
+            $forceCompletedAttendance = $weekNumber !== null && $weekNumber >= 1 && $weekNumber <= 11;
+
             $children = Child::query()
                 ->where('church_id', $weekend->church_id)
                 ->where('status', Status::ACTIVE)
                 ->orderBy('id')
                 ->get();
+
+            if ($children->isEmpty() && $forceCompletedAttendance) {
+                $children = $globalActiveChildren;
+            }
 
             if ($children->isEmpty()) {
                 continue;
@@ -58,6 +70,10 @@ class MassAttendanceSeeder extends Seeder
                     ? $children->where('community_id', $chapelCommunityId)->values()
                     : $children->values();
 
+                if ($massChildren->isEmpty() && $forceCompletedAttendance) {
+                    $massChildren = $children->values();
+                }
+
                 if ($massChildren->isEmpty()) {
                     continue;
                 }
@@ -70,9 +86,16 @@ class MassAttendanceSeeder extends Seeder
                     $checkOutAt = null;
                     $notes = null;
 
-                    if ($weekend->status === Status::UPCOMING) {
+                    if ($forceCompletedAttendance) {
+                        $status = Status::CHECK_OUT;
+                        $checkInAt = $mass->starts_at?->copy()->subMinutes(15);
+                        $checkOutAt = $mass->starts_at?->copy()->addMinutes(50);
+                        $notes = 'Asistencia completa generada para semanas 1 a 11.';
+                    }
+
+                    if (! $forceCompletedAttendance && $weekend->status === Status::UPCOMING) {
                         $notes = 'Asistencia pendiente para misa proxima.';
-                    } elseif ($weekend->status === Status::COMPLETED || $weekend->status === Status::IN_PROGRESS) {
+                    } elseif (! $forceCompletedAttendance && ($weekend->status === Status::COMPLETED || $weekend->status === Status::IN_PROGRESS)) {
                         $pattern = ($childIndex + $massIndex) % 3;
 
                         if ($pattern === 0) {
@@ -111,5 +134,18 @@ class MassAttendanceSeeder extends Seeder
         }
 
         $this->command?->info('Asistencias de prueba creadas exitosamente.');
+    }
+
+    private function extractWeekNumber(?string $name): ?int
+    {
+        if (! $name) {
+            return null;
+        }
+
+        if (preg_match('/SEMANA\s+(\d+)/i', $name, $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
     }
 }

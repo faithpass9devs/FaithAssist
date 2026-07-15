@@ -106,8 +106,8 @@ class WeekendController extends Controller
             'church_id' => $weekend->church_id,
             'church' => $weekend->church?->name,
             'name' => $weekend->name,
-            'starts_at' => $weekend->starts_at?->format($forForm ? 'Y-m-d' : 'Y-m-d H:i'),
-            'ends_at' => $weekend->ends_at?->format($forForm ? 'Y-m-d' : 'Y-m-d H:i'),
+            'starts_at' => $weekend->starts_at?->format($forForm ? 'Y-m-d' : 'Y-m-d h:i A'),
+            'ends_at' => $weekend->ends_at?->format($forForm ? 'Y-m-d' : 'Y-m-d h:i A'),
             'status' => $weekend->status,
         ];
     }

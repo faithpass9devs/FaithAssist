@@ -41,7 +41,7 @@ class MassController extends Controller
                 })
                 ->orderByDesc('starts_at')
         )
-            ->paginate(15)
+            ->paginate(72)
             ->withQueryString()
             ->through(fn (Mass $mass): array => $this->serializeMass($mass));
 
@@ -117,8 +117,8 @@ class MassController extends Controller
                 'id' => $weekend->id,
                 'church_id' => $weekend->church_id,
                 'name' => $weekend->name ?: $weekend->starts_at?->format('Y-m-d'),
-                'starts_at' => $weekend->starts_at?->format('Y-m-d H:i'),
-                'ends_at' => $weekend->ends_at?->format('Y-m-d H:i'),
+                'starts_at' => $weekend->starts_at?->format('Y-m-d h:i A'),
+                'ends_at' => $weekend->ends_at?->format('Y-m-d h:i A'),
                 'status' => $weekend->status,
                 'church' => $weekend->church?->name,
             ])
@@ -162,8 +162,8 @@ class MassController extends Controller
             'church_id' => $mass->church_id,
             'chapel_id' => $mass->chapel_id,
             'name' => $mass->name,
-            'starts_at' => $mass->starts_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d H:i'),
-            'ends_at' => $mass->ends_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d H:i'),
+            'starts_at' => $mass->starts_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d h:i A'),
+            'ends_at' => $mass->ends_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d h:i A'),
             'status' => $mass->status,
             'attendance_status' => $mass->attendance_status,
             'notes' => $mass->notes,

@@ -1,7 +1,7 @@
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue';
-import { Link } from '@inertiajs/vue3';
-import { Camera, LogIn, LogOut, QrCode, Square } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { Camera, Home, LogIn, LogOut, QrCode, Square } from 'lucide-vue-next';
 import { Html5Qrcode } from 'html5-qrcode';
 import Swal from 'sweetalert2';
 import AppPagination from '../../../components/AppPagination.vue';
@@ -11,14 +11,42 @@ import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 const props = defineProps({
   mass: { type: Object, required: true },
   attendances: { type: Object, required: true },
+  weekendOptions: { type: Array, default: () => [] },
   canScan: { type: Boolean, default: false },
 });
+
+const selectedWeekendId = ref(props.mass.weekend_id);
+const selectedMassId = ref(props.mass.id);
+
+const availableMasses = computed(
+  () =>
+    props.weekendOptions.find((weekend) => String(weekend.id) === String(selectedWeekendId.value))
+      ?.masses ?? [],
+);
+
+const selectedMassLabel = computed(
+  () => availableMasses.value.find((massOption) => String(massOption.id) === String(selectedMassId.value))?.label ?? '',
+);
+
+const selectedMassShortLabel = computed(
+  () =>
+    availableMasses.value.find((massOption) => String(massOption.id) === String(selectedMassId.value))
+      ?.short_label ?? '',
+);
 
 const rows = ref([]);
 watch(
   () => props.attendances.data,
   (data) => {
     rows.value = [...data];
+  },
+  { immediate: true },
+);
+watch(
+  () => props.mass,
+  (mass) => {
+    selectedWeekendId.value = mass.weekend_id;
+    selectedMassId.value = mass.id;
   },
   { immediate: true },
 );
@@ -32,6 +60,31 @@ const scannerError = ref('');
 const lastScan = ref({ code: '', at: 0 });
 const qrRegionId = 'mass-attendance-qr-reader';
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+const openAttendance = (massId) => {
+  if (!massId || String(massId) === String(props.mass.id)) return;
+
+  router.get(`/misas/${massId}/asistencias`, {}, { preserveScroll: true });
+};
+
+const onWeekendChange = (event) => {
+  const weekendId = event.target.value;
+  selectedWeekendId.value = weekendId;
+
+  const weekend = props.weekendOptions.find((item) => String(item.id) === String(weekendId));
+  const firstMassId = weekend?.masses?.[0]?.id;
+
+  if (!firstMassId) return;
+
+  selectedMassId.value = firstMassId;
+  openAttendance(firstMassId);
+};
+
+const onMassChange = (event) => {
+  const massId = event.target.value;
+  selectedMassId.value = massId;
+  openAttendance(massId);
+};
 
 const scan = async (action, code = childCode.value) => {
   if (!props.canScan) return;
@@ -147,20 +200,79 @@ onBeforeUnmount(() => {
       :subtitle="`${mass.name} · ${mass.location} · ${mass.starts_at} - ${mass.ends_at ?? 'sin fin'}`"
       back-href="/"
       :icon="QrCode"
-    />
+    >
+      <template #actions>
+        <Link
+          href="/"
+          class="btn btn-sm gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800"
+        >
+          <Home class="h-4 w-4" />
+          Regresar al inicio
+        </Link>
+      </template>
+    </CatalogHeader>
 
     <section
       class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="badge badge-outline">{{ mass.weekend }}</span>
-        <span
-          class="badge"
-          :class="mass.attendance_status === 'in_progress' ? 'badge-warning' : 'badge-ghost'"
-        >
-          Captura: {{ mass.attendance_status }}
-        </span>
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+          Seleccion de misa
+        </h2>
+        <p class="mt-1 text-xs text-slate-400">
+          Elige el fin de semana y la misa que usaras para registrar asistencias.
+        </p>
       </div>
+
+      <div class="grid gap-3 md:grid-cols-2">
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Fin de semana
+          </span>
+          <select
+            :value="selectedWeekendId"
+            class="select select-bordered w-full"
+            @change="onWeekendChange"
+          >
+            <option v-for="weekend in weekendOptions" :key="weekend.id" :value="weekend.id">
+              {{ weekend.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Misa
+          </span>
+          <select
+            :value="selectedMassId"
+            class="select select-bordered w-full text-xs sm:text-sm"
+            @change="onMassChange"
+          >
+            <option v-for="massOption in availableMasses" :key="massOption.id" :value="massOption.id">
+              {{ massOption.short_label || massOption.label }}
+            </option>
+          </select>
+          <p v-if="selectedMassShortLabel" class="mt-2 text-xs font-medium text-slate-700 md:hidden">
+            {{ selectedMassShortLabel }}
+          </p>
+          <p v-if="selectedMassLabel" class="mt-2 text-xs leading-5 text-slate-500 md:hidden wrap-break-word">
+            {{ selectedMassLabel }}
+          </p>
+        </label>
+      </div>
+
+      <p class="mt-4 text-xs text-slate-400">
+        Al entrar desde el módulo de asistencias se carga automáticamente la misa del fin de semana más próximo disponible.
+      </p>
+    </section>
+
+    <section
+      class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
+      <h2 class="mb-4 text-sm font-semibold text-red-600 dark:text-red-400">
+        ¿No puedes escanear el QR? Registra manualmente.
+      </h2>
 
       <div v-if="!canScan" class="alert alert-warning mb-4 text-sm">
         No tienes permiso para capturar códigos QR en esta misa.
@@ -174,7 +286,7 @@ onBeforeUnmount(() => {
           v-model="childCode"
           class="input input-bordered w-full font-mono"
           :class="{ 'input-error': errors.child_code }"
-          placeholder="Escanea o escribe el código del QR"
+          placeholder="Escribe el código del QR"
           autocomplete="off"
           autofocus
           :disabled="!canScan"
@@ -206,42 +318,83 @@ onBeforeUnmount(() => {
     <section
       class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div class="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+        <div class="min-w-0 text-center lg:text-left">
           <h2
             class="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-200"
           >
             Scanner QR con cámara
           </h2>
-          <p class="mt-1 text-xs text-slate-400">
+          <p class="mx-auto mt-1 max-w-xl text-xs leading-5 text-slate-500 dark:text-slate-400 lg:mx-0">
             Selecciona si la lectura registrará entrada o salida antes de escanear.
           </p>
+          <span
+            class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+            :class="
+              mass.attendance_status === 'in_progress'
+                ? 'bg-amber-100 text-amber-800'
+                : mass.attendance_status === 'completed'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-sky-100 text-sky-800'
+            "
+          >
+            Captura: {{ mass.attendance_status }}
+          </span>
         </div>
-        <select v-model="selectedAction" class="select select-bordered select-sm">
-          <option value="check_in">Entrada</option>
-          <option value="check_out">Salida</option>
-        </select>
+        <div class="w-full lg:max-w-55">
+          <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            Tipo de lectura
+          </label>
+          <select
+            v-model="selectedAction"
+            class="select h-11 w-full rounded-xl border text-sm font-medium shadow-sm transition-colors"
+            :class="
+              selectedAction === 'check_in'
+                ? 'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-900/40 dark:text-orange-100'
+                : 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100'
+            "
+          >
+            <option class="bg-white text-slate-900" value="check_in">Entrada</option>
+            <option class="bg-white text-slate-900" value="check_out">Salida</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-200 pt-5 dark:border-slate-800">
+        <div
+          id="mass-attendance-qr-reader"
+          class="mx-auto max-w-md overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
+        ></div>
+
+        <p class="mt-3 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
+          Coloca el código QR dentro del recuadro y mantén la cámara estable para una lectura más rápida.
+        </p>
       </div>
 
       <div
-        id="mass-attendance-qr-reader"
-        class="mx-auto max-w-md overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
-      ></div>
+        v-if="scannerError"
+        class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+      >
+        {{ scannerError }}
+      </div>
 
-      <p v-if="scannerError" class="mt-3 text-sm text-red-500">{{ scannerError }}</p>
-
-      <div class="mt-4 flex justify-center gap-3">
+      <div class="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <button
           v-if="!scannerRunning"
           type="button"
-          class="btn btn-primary btn-sm gap-1.5"
+          class="btn btn-primary gap-1.5 rounded-xl px-5 sm:btn-sm"
           :disabled="loading || !canScan"
           @click="startCamera"
         >
           <Camera class="h-4 w-4" />
           Iniciar cámara
         </button>
-        <button v-else type="button" class="btn btn-outline btn-sm gap-1.5" @click="stopCamera">
+        <button
+          v-else
+          type="button"
+          class="btn btn-outline gap-1.5 rounded-xl px-5 sm:btn-sm"
+          @click="stopCamera"
+        >
           <Square class="h-4 w-4" />
           Detener cámara
         </button>
@@ -307,8 +460,5 @@ onBeforeUnmount(() => {
       :total="attendances.total"
     />
 
-    <div class="mt-6">
-      <Link href="/" class="btn btn-ghost btn-sm">Volver al inicio</Link>
-    </div>
   </AppShell>
 </template>
