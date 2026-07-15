@@ -48,6 +48,21 @@ class UserService
     {
         $user = $this->users->loadUserFormRelations($user);
         $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $allPermissionIds = $user->getAllPermissions()->pluck('id');
+        $directManualAttendancePermissionIds = $user->getDirectPermissions()
+            ->filter(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
+            ->pluck('id');
+
+        $selectedPermissionIds = $allPermissionIds
+            ->diff(
+                $user->getAllPermissions()
+                    ->filter(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
+                    ->pluck('id')
+            )
+            ->merge($directManualAttendancePermissionIds)
+            ->intersect($editorPermissionIds)
+            ->values()
+            ->toArray();
 
         return [
             'user' => [
@@ -65,11 +80,7 @@ class UserService
             ],
             ...$this->formOptions($editor),
             'selectedRole' => $user->roles->first()?->id,
-            'selectedPermissions' => $user->getAllPermissions()
-                ->pluck('id')
-                ->intersect($editorPermissionIds)
-                ->values()
-                ->toArray(),
+            'selectedPermissions' => $selectedPermissionIds,
             'selectedDiocese' => $user->diocese_id,
             'selectedDeanery' => $user->deanery_id,
             'selectedChurch' => $user->church_id,
@@ -220,10 +231,15 @@ class UserService
         $safeIds = $this->safeSubmittedPermissionIds($editor, $data);
         $rolePermissionIds = $user->getPermissionsViaRoles()->pluck('id');
         $mustRemainDirectIds = $this->users->mustRemainDirectPermissionIds();
+        $manualAttendancePermissionIds = $this->users
+            ->permissionsByIds($safeIds)
+            ->filter(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
+            ->pluck('id');
 
         $directIds = $safeIds
             ->diff($rolePermissionIds)
             ->merge($safeIds->intersect($mustRemainDirectIds))
+            ->merge($manualAttendancePermissionIds)
             ->unique();
 
         return $this->users->permissionsByIds($directIds);
@@ -239,9 +255,15 @@ class UserService
             ->filter(fn (Permission $p) => ! $editorPermissionIds->contains($p->id));
 
         $safeIds = $this->safeSubmittedPermissionIds($editor, $data);
+        $manualAttendancePermissionIds = $this->users
+            ->permissionsByIds($safeIds)
+            ->filter(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
+            ->pluck('id');
+
         $directIds = $safeIds
             ->diff($rolePermissionIds)
             ->merge($safeIds->intersect($mustRemainDirectIds))
+            ->merge($manualAttendancePermissionIds)
             ->unique();
 
         return $preservedPerms

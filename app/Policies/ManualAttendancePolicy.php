@@ -12,23 +12,30 @@ class ManualAttendancePolicy extends BasePermissionPolicy
         return 'asistencias_manuales';
     }
 
+    private function canDirect(User $user, string $action): bool
+    {
+        return $user->getDirectPermissions()
+            ->pluck('name')
+            ->contains($this->permissionModule().'.'.$action);
+    }
+
     public function viewAny(User $user): bool
     {
-        return $this->can($user, 'read');
+        return $this->canDirect($user, 'read');
     }
 
     public function create(User $user): bool
     {
-        return $this->can($user, 'create');
+        return $this->canDirect($user, 'create');
     }
 
     public function update(User $user, ManualAttendance $manualAttendance): bool
     {
-        return $this->can($user, 'update');
+        return $this->canDirect($user, 'update');
     }
 
     public function delete(User $user, ManualAttendance $manualAttendance): bool
     {
-        return $this->can($user, 'delete');
+        return $this->canDirect($user, 'delete');
     }
 }
