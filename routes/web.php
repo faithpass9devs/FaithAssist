@@ -9,6 +9,7 @@ use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
 use App\Http\Controllers\Masses\IncidenceTypeController;
+use App\Http\Controllers\Masses\ManualAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceIncidentController;
 use App\Http\Controllers\Masses\MassController;
@@ -131,6 +132,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('asistencias', [MassAttendanceController::class, 'landing'])
         ->name('asistencias.index');
+
+    Route::resource('asistencias-manuales', ManualAttendanceController::class)
+        ->only(['index', 'store'])
+        ->parameters(['asistencias-manuales' => 'manualAttendance']);
 
     Route::get('misas/{misa}/asistencias', [MassAttendanceController::class, 'index'])
         ->name('misas.asistencias.index');

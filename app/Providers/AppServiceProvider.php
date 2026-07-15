@@ -8,6 +8,7 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
 use App\Models\Masses\IncidenceType;
+use App\Models\Masses\ManualAttendance;
 use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
@@ -28,6 +29,7 @@ use App\Policies\CommunityPolicy;
 use App\Policies\DeaneryPolicy;
 use App\Policies\DiocesePolicy;
 use App\Policies\IncidenceTypePolicy;
+use App\Policies\ManualAttendancePolicy;
 use App\Policies\LevelPolicy;
 use App\Policies\MassAttendanceIncidentPolicy;
 use App\Policies\MassAttendancePolicy;
@@ -78,6 +80,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Weekend::class, WeekendPolicy::class);
         Gate::policy(Mass::class, MassPolicy::class);
         Gate::policy(MassAttendance::class, MassAttendancePolicy::class);
+        Gate::policy(ManualAttendance::class, ManualAttendancePolicy::class);
         Gate::policy(IncidenceType::class, IncidenceTypePolicy::class);
         Gate::policy(MassAttendanceIncident::class, MassAttendanceIncidentPolicy::class);
     }

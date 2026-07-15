@@ -54,6 +54,7 @@ const permissionResourceMetaByModule = {
     weekends: { singular: 'fin de semana de misa', plural: 'fines de semana de misas', gender: 'm' },
     masses: { singular: 'misa', plural: 'misas', gender: 'f' },
     mass_attendance: { singular: 'asistencia de misa', plural: 'asistencias de misa', gender: 'f' },
+    asistencias_manuales: { singular: 'asistencia manual', plural: 'asistencias manuales', gender: 'f' },
     tipos_incidencias: { singular: 'tipo de incidencia', plural: 'tipos de incidencias', gender: 'm' },
     incidencias_asistencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
     incidencias_asitencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
@@ -244,7 +245,7 @@ const allFilteredSelected = computed(() =>
       </span>
     </div>
 
-    <div class="flex min-h-[420px] divide-x divide-slate-200 dark:divide-slate-800">
+    <div class="flex min-h-105 divide-x divide-slate-200 dark:divide-slate-800">
       <!-- Left: Modules panel -->
       <aside class="flex w-56 shrink-0 flex-col">
         <div class="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
@@ -371,7 +372,7 @@ const allFilteredSelected = computed(() =>
 
           <div
             v-else-if="currentGroup"
-            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
             <span v-if="permissionSearch">
               Sin permisos para
@@ -382,7 +383,7 @@ const allFilteredSelected = computed(() =>
 
           <div
             v-else
-            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
             Selecciona un módulo
           </div>

@@ -186,6 +186,40 @@ const stopCamera = async () => {
   scannerRunning.value = false;
 };
 
+const formatAttendanceTime = (value) => {
+  if (!value) return '—';
+
+  if (typeof value === 'string' && /\b(AM|PM)\b/i.test(value)) {
+    return value;
+  }
+
+  const normalized = String(value).trim();
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (match) {
+    const [, date, hourStr, minute] = match;
+    const hour = Number(hourStr);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+
+    return `${date} ${String(hour12).padStart(2, '0')}:${minute} ${period}`;
+  }
+
+  const date = new Date(normalized.replace(' ', 'T'));
+  if (!Number.isNaN(date.getTime())) {
+    return new Intl.DateTimeFormat('es-MX', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(date);
+  }
+
+  return normalized;
+};
+
 onBeforeUnmount(() => {
   if (scanner.value && scannerRunning.value) {
     scanner.value.stop();
@@ -423,8 +457,8 @@ onBeforeUnmount(() => {
             <td class="font-mono text-xs">{{ attendance.child_code }}</td>
             <td>{{ attendance.child_name }}</td>
             <td>{{ attendance.location }}</td>
-            <td>{{ attendance.check_in_at ?? '—' }}</td>
-            <td>{{ attendance.check_out_at ?? '—' }}</td>
+            <td>{{ formatAttendanceTime(attendance.check_in_at) }}</td>
+            <td>{{ formatAttendanceTime(attendance.check_out_at) }}</td>
             <td>
               <span
                 class="badge badge-sm"

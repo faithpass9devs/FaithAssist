@@ -103,6 +103,7 @@ class RoleController extends Controller
             'ecclesiastes' => 'Eclesiasticos',
             'catechism'    => 'Catecismo',
             'masses'       => 'Misas',
+            'asistencias_manuales' => 'Asistencia manual',
             'security'     => 'Seguridad',
             'whatsapp'     => 'WhatsApp',
             'operation'    => 'Operación',
