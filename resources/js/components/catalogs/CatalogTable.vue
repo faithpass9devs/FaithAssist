@@ -19,6 +19,8 @@ const props = defineProps({
   exportUrl: { type: String, default: null },
   exportPermission: { type: String, default: null },
   exportLabel: { type: String, default: 'Exportar Excel' },
+  filterDefinitions: { type: Array, default: () => [] },
+  initialFilters: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits([
@@ -31,6 +33,7 @@ const page = usePage();
 
 const rows = ref([...props.pagination.data]);
 const searchTerm = ref(props.search);
+const filterValues = ref({ ...props.initialFilters });
 const editingId = ref(null);
 const isAdding = ref(false);
 
@@ -52,20 +55,42 @@ const {
 
 let debounce = null;
 
-watch(searchTerm, (val) => {
+const queryParams = computed(() => {
+  const params = {
+    search: searchTerm.value || undefined,
+    page: 1,
+  };
+
+  Object.entries(filterValues.value).forEach(([key, value]) => {
+    params[key] = value || undefined;
+  });
+
+  return params;
+});
+
+watch([searchTerm, filterValues], () => {
   clearTimeout(debounce);
 
   debounce = setTimeout(() => {
     router.get(
       props.baseUrl,
-      { search: val, page: 1 },
+      queryParams.value,
       {
         preserveState: true,
+        preserveScroll: true,
         replace: true,
       }
     );
   }, 400);
-});
+}, { deep: true });
+
+watch(
+  () => props.initialFilters,
+  (newFilters) => {
+    filterValues.value = { ...newFilters };
+  },
+  { deep: true }
+);
 
 watch(
   () => props.pagination.data,
@@ -120,6 +145,12 @@ const exportTable = () => {
   if (searchTerm.value) {
     url.searchParams.set('search', searchTerm.value);
   }
+
+  Object.entries(filterValues.value).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
 
   window.location.assign(url.toString());
 };
@@ -246,29 +277,51 @@ const handleDelete = async (row) => {
 
 <template>
   <div>
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <label
-        class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:w-80 dark:border-slate-700 dark:bg-slate-900"
-      >
-        <Search class="h-4 w-4 shrink-0 text-slate-400" />
-
-        <input
-          v-model="searchTerm"
-          type="text"
-          :placeholder="searchPlaceholder"
-          class="w-full bg-transparent text-sm outline-none"
-        />
-
-        <button
-          v-if="searchTerm"
-          type="button"
-          @click="searchTerm = ''"
+    <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <label
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:w-80 dark:border-slate-700 dark:bg-slate-900"
         >
-          <X class="h-3.5 w-3.5" />
-        </button>
-      </label>
+          <Search class="h-4 w-4 shrink-0 text-slate-400" />
 
-      <div class="flex items-center gap-2">
+          <input
+            v-model="searchTerm"
+            type="text"
+            :placeholder="searchPlaceholder"
+            class="w-full bg-transparent text-sm outline-none"
+          />
+
+          <button
+            v-if="searchTerm"
+            type="button"
+            @click="searchTerm = ''"
+          >
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </label>
+
+        <div
+          v-for="filter in filterDefinitions"
+          :key="filter.key"
+          class="sm:w-72"
+        >
+          <select
+            v-model="filterValues[filter.key]"
+            class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-900"
+          >
+            <option :value="null">{{ filter.placeholder ?? `Todos` }}</option>
+            <option
+              v-for="option in filter.options ?? []"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:justify-end">
         <button
           v-if="canExport"
           class="btn btn-outline btn-sm gap-1.5"

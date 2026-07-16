@@ -25,11 +25,13 @@ class CommunityController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $municipalityId = $request->integer('municipality_id') ?: null;
         $scope = new UserScopeService($request->user());
 
         $communities = Community::query()
             ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('municipality_id', $scope->municipalityIds()))
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->when($municipalityId, fn ($q) => $q->where('municipality_id', $municipalityId))
             ->orderBy('name')
             ->paginate(15, ['id', 'municipality_id', 'name', 'status'])
             ->withQueryString();
@@ -44,6 +46,9 @@ class CommunityController extends Controller
             'communities' => $communities,
             'municipalities' => $municipalities,
             'search' => $search,
+            'filters' => [
+                'municipality_id' => $municipalityId,
+            ],
         ]);
     }
 
@@ -84,11 +89,12 @@ class CommunityController extends Controller
         $this->authorize('export', Community::class);
 
         $search = $request->input('search', '');
+        $municipalityId = $request->integer('municipality_id') ?: null;
 
         $fileName = 'comunidades_'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
-            new CommunitiesExport($request->user(), $search),
+            new CommunitiesExport($request->user(), $search, $municipalityId),
             $fileName,
             ExcelWriter::XLSX
         );

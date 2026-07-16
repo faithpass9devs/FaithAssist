@@ -47,7 +47,7 @@ class UserService
     public function editFormData(User $editor, User $user): array
     {
         $user = $this->users->loadUserFormRelations($user);
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
         $allPermissionIds = $user->getAllPermissions()->pluck('id');
         $directManualAttendancePermissionIds = $user->getDirectPermissions()
             ->filter(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
@@ -247,7 +247,7 @@ class UserService
 
     private function directPermissionsForUpdate(User $editor, User $user, array $data): Collection
     {
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
         $rolePermissionIds = $user->getPermissionsViaRoles()->pluck('id');
         $mustRemainDirectIds = $this->users->mustRemainDirectPermissionIds();
 
@@ -273,10 +273,31 @@ class UserService
 
     private function safeSubmittedPermissionIds(User $editor, array $data): Collection
     {
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
         $submittedIds = collect(array_filter((array) ($data['permissions'] ?? [])));
 
         return $submittedIds->intersect($editorPermissionIds);
+    }
+
+    private function assignablePermissionIds(User $editor): Collection
+    {
+        $permissionIds = $editor->getAllPermissions()->pluck('id');
+
+        if ($editor->hasRole('Superadmin')) {
+            $permissionIds = $permissionIds->merge(
+                Permission::query()
+                    ->whereIn('name', [
+                        'estados.export',
+                        'municipios.export',
+                        'comunidades.export',
+                        'children.export',
+                        'reinscripciones.export',
+                    ])
+                    ->pluck('id')
+            );
+        }
+
+        return $permissionIds->unique()->values();
     }
 
     /**
@@ -287,6 +308,22 @@ class UserService
         $scope = new UserScopeService($editor);
 
         if (! $scope->isGlobal()) {
+            if ($editor->church_id !== null && $editor->chapel_id === null) {
+                $requestedChapelId = isset($data['chapel_id']) ? (int) $data['chapel_id'] : null;
+                $allowedChapelIds = $scope->chapelIds();
+
+                $chapelId = $requestedChapelId !== null && $allowedChapelIds->contains($requestedChapelId)
+                    ? $requestedChapelId
+                    : null;
+
+                return [
+                    $editor->diocese_id,
+                    $editor->deanery_id,
+                    $editor->church_id,
+                    $chapelId,
+                ];
+            }
+
             return [
                 $editor->diocese_id,
                 $editor->deanery_id,

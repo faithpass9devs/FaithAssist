@@ -30,6 +30,9 @@ const pageTitle = computed(() => (isEditing.value ? `Editar Usuario` : 'Nuevo Us
 
 /** El editor tiene scope restringido (no es global): no puede cambiar el alcance. */
 const scopeLocked = computed(() => props.editorScope.diocese_id !== null);
+const canSelectChapelInLockedScope = computed(
+  () => scopeLocked.value && props.editorScope.church_id !== null && props.editorScope.chapel_id === null,
+);
 
 const activeSection = ref('general');
 const showPassword = ref(false);
@@ -353,7 +356,11 @@ const submit = () => {
               class="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-400"
             >
               <MapPinned class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>El alcance se hereda de tu perfil y no puede modificarse.</span>
+              <span>
+                {{ canSelectChapelInLockedScope
+                  ? 'El alcance se hereda de tu perfil. Puedes asignar una capilla de tu parroquia.'
+                  : 'El alcance se hereda de tu perfil y no puede modificarse.' }}
+              </span>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -453,7 +460,7 @@ const submit = () => {
                     v-model="form.chapel_id"
                     class="select select-bordered w-full"
                     :class="{ 'select-error': form.errors.chapel_id }"
-                    :disabled="scopeLocked"
+                    :disabled="scopeLocked && !canSelectChapelInLockedScope"
                   >
                     <option :value="null">— Toda la parroquia —</option>
                     <option v-for="chapel in filteredChapels" :key="chapel.id" :value="chapel.id">

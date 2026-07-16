@@ -98,8 +98,10 @@ class UserRepository
 
     public function permissionsForEditor(User $editor): Collection
     {
+        $assignablePermissionIds = $this->assignablePermissionIds($editor);
+
         return Permission::query()
-            ->whereIn('id', $editor->getAllPermissions()->pluck('id'))
+            ->whereIn('id', $assignablePermissionIds)
             ->orderBy('module_key')
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'module_key']);
@@ -107,7 +109,7 @@ class UserRepository
 
     public function allowedRoles(User $editor): Collection
     {
-        $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
 
         return Role::with('permissions:id')
             ->orderBy('name')
@@ -124,6 +126,27 @@ class UserRepository
                 'permissions' => $role->permissions->pluck('id')->values(),
             ])
             ->values();
+    }
+
+    private function assignablePermissionIds(User $editor): Collection
+    {
+        $permissionIds = $editor->getAllPermissions()->pluck('id');
+
+        if ($editor->hasRole('Superadmin')) {
+            $permissionIds = $permissionIds->merge(
+                Permission::query()
+                    ->whereIn('name', [
+                        'estados.export',
+                        'municipios.export',
+                        'comunidades.export',
+                        'children.export',
+                        'reinscripciones.export',
+                    ])
+                    ->pluck('id')
+            );
+        }
+
+        return $permissionIds->unique()->values();
     }
 
     public function mustRemainDirectPermissionIds(): Collection
