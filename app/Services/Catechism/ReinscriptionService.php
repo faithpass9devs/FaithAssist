@@ -40,8 +40,27 @@ class ReinscriptionService
             ->orderBy('materno')
             ->orderBy('name');
 
+        $paginator = $query->paginate(15)->withQueryString();
+
+        // Transform children to expected shape for the Vue component
+        $paginator->through(fn (Child $child): array => [
+            'id' => $child->id,
+            'code' => $child->code,
+            'full_name' => trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' ')),
+            'community' => $child->community?->name,
+            'church' => $child->church?->name,
+            'levels' => $child->activeLevelAssignments
+                ->map(fn ($assignment): array => [
+                    'id' => $assignment->level?->id,
+                    'name' => $assignment->level?->name,
+                ])
+                ->filter(fn (array $level): bool => $level['id'] !== null)
+                ->values()
+                ->all(),
+        ]);
+
         return [
-            'children' => $query->paginate(15)->withQueryString(),
+            'children' => $paginator,
             'search' => $search,
             'filters' => [
                 'community_id' => $communityId,
@@ -62,11 +81,38 @@ class ReinscriptionService
         ];
     }
 
-    public function getChildForReinscription(User $user, Child $child): Child
+    public function getChildForReinscription(User $user, Child $child): array
     {
-        return $this->eligibleChildrenQuery($user)
+        $child = $this->eligibleChildrenQuery($user)
             ->whereKey($child->id)
             ->firstOrFail();
+
+        return $this->serializeChildForForm($child);
+    }
+
+    private function serializeChildForForm(Child $child): array
+    {
+        return [
+            'id' => $child->id,
+            'code' => $child->code,
+            'full_name' => trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' ')),
+            'church' => $child->church?->name,
+            'community' => $child->community?->name,
+            'diocese_id' => $child->church?->deanery?->diocese_id,
+            'birthdate' => $child->birthdate?->format('Y-m-d'),
+            'email' => $child->email,
+            'phone' => $child->phone,
+            'emergency_phone' => $child->emergency_phone,
+            'levels' => $child->activeLevelAssignments
+                ->map(fn ($assignment): array => [
+                    'assignment_id' => $assignment->id,
+                    'id' => $assignment->level?->id,
+                    'name' => $assignment->level?->name,
+                ])
+                ->filter(fn (array $level): bool => $level['id'] !== null)
+                ->values()
+                ->all(),
+        ];
     }
 
     public function getFormData(User $user): array
