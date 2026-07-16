@@ -6,8 +6,7 @@ use App\Exports\Regions\CommunitiesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Regions\CommunityRequest;
 use App\Models\Regions\Community;
-use App\Models\Regions\Municipality;
-use App\Services\UserScopeService;
+use App\Services\Regions\CommunityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,7 +16,7 @@ use Maatwebsite\Excel\Excel as ExcelWriter;
 
 class CommunityController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly CommunityService $communities)
     {
         $this->authorizeResource(Community::class, 'comunidad');
     }
@@ -26,57 +25,31 @@ class CommunityController extends Controller
     {
         $search = $request->input('search', '');
         $municipalityId = $request->integer('municipality_id') ?: null;
-        $scope = new UserScopeService($request->user());
 
-        $communities = Community::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('municipality_id', $scope->municipalityIds()))
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-            ->when($municipalityId, fn ($q) => $q->where('municipality_id', $municipalityId))
-            ->orderBy('name')
-            ->paginate(15, ['id', 'municipality_id', 'name', 'status'])
-            ->withQueryString();
-
-        $municipalities = Municipality::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->municipalityIds()))
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        return Inertia::render('Regions/Communities/Index', [
-            'communities' => $communities,
-            'municipalities' => $municipalities,
-            'search' => $search,
-            'filters' => [
-                'municipality_id' => $municipalityId,
-            ],
-        ]);
+        return Inertia::render('Regions/Communities/Index', $this->communities->indexData($request->user(), $search, $municipalityId));
     }
 
     public function store(CommunityRequest $request): JsonResponse
     {
-        $community = Community::create($request->validated());
-
         return response()->json([
             'success' => true,
-            'data' => $community->only(['id', 'municipality_id', 'name', 'status']),
+            'data' => $this->communities->createCommunity($request->validated()),
             'message' => 'Comunidad creada correctamente.',
         ], 201);
     }
 
     public function update(CommunityRequest $request, Community $comunidad): JsonResponse
     {
-        $comunidad->update($request->validated());
-
         return response()->json([
             'success' => true,
-            'data' => $comunidad->fresh()->only(['id', 'municipality_id', 'name', 'status']),
+            'data' => $this->communities->updateCommunity($comunidad, $request->validated()),
             'message' => 'Comunidad actualizada correctamente.',
         ]);
     }
 
     public function destroy(Community $comunidad): JsonResponse
     {
-        $comunidad->delete();
+        $this->communities->deleteCommunity($comunidad);
 
         return response()->json([
             'success' => true,

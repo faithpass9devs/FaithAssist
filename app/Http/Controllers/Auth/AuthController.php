@@ -5,15 +5,16 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangeOwnPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\Auth\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly AuthService $auth) {}
+
     public function showLoginForm(): Response
     {
         return Inertia::render('Auth/Login', [
@@ -24,23 +25,17 @@ class AuthController extends Controller
     public function login(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
         $theme = $request->validated('theme');
-
-        if ($theme && $request->user()?->ui_theme !== $theme) {
-            $request->user()->forceFill([
-                'ui_theme' => $theme,
-            ])->save();
-        }
+        $this->auth->login($request->validated(), $theme);
 
         return redirect()->intended(route('home', absolute: false));
     }
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::guard('web')->logout();
+        $this->auth->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -57,11 +52,11 @@ class AuthController extends Controller
 
     public function updatePassword(ChangeOwnPasswordRequest $request): RedirectResponse
     {
-        Auth::logoutOtherDevices($request->validated('current_password'));
-
-        $request->user()->forceFill([
-            'password' => Hash::make($request->validated('password')),
-        ])->save();
+        $this->auth->updatePassword(
+            $request->user(),
+            $request->validated('current_password'),
+            $request->validated('password')
+        );
 
         return redirect()
             ->route('profile.password.edit')

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Security;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Security\ModuleRequest;
 use App\Models\Module;
+use App\Services\Security\ModuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class ModuleController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly ModuleService $modules)
     {
         $this->authorizeResource(Module::class, 'modulo');
     }
@@ -21,44 +22,30 @@ class ModuleController extends Controller
     {
         $search = $request->input('search', '');
 
-        $modules = Module::query()
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")
-                ->orWhere('key', 'like', "%{$search}%"))
-            ->orderBy('name')
-            ->paginate(15, ['id', 'name', 'description', 'key'])
-            ->withQueryString();
-
-        return Inertia::render('Security/Modules/Index', [
-            'modules' => $modules,
-            'search'  => $search,
-        ]);
+        return Inertia::render('Security/Modules/Index', $this->modules->indexData($search));
     }
 
     public function store(ModuleRequest $request): JsonResponse
     {
-        $module = Module::create($request->validated());
-
         return response()->json([
             'success' => true,
-            'data'    => $module->only(['id', 'name', 'description', 'key']),
+            'data' => $this->modules->createModule($request->validated()),
             'message' => 'Modulo creado correctamente.',
         ], 201);
     }
 
     public function update(ModuleRequest $request, Module $modulo): JsonResponse
     {
-        $modulo->update($request->validated());
-
         return response()->json([
             'success' => true,
-            'data'    => $modulo->fresh()->only(['id', 'name', 'description', 'key']),
+            'data' => $this->modules->updateModule($modulo, $request->validated()),
             'message' => 'Modulo actualizado correctamente.',
         ]);
     }
 
     public function destroy(Module $modulo): JsonResponse
     {
-        $modulo->delete();
+        $this->modules->deleteModule($modulo);
 
         return response()->json([
             'success' => true,

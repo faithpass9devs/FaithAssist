@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Ecclesiastes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ecclesiastes\ChapelRequest;
 use App\Models\Ecclesiastes\Chapel;
-use App\Models\Ecclesiastes\Church;
-use App\Models\Regions\Community;
-use App\Services\UserScopeService;
+use App\Services\Ecclesiastes\ChapelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +13,7 @@ use Inertia\Response;
 
 class ChapelController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly ChapelService $chapels)
     {
         $this->authorizeResource(Chapel::class, 'capilla');
     }
@@ -23,61 +21,31 @@ class ChapelController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
-        $scope = new UserScopeService($request->user());
 
-        $chapels = $scope->applyChapelScope(
-            Chapel::query()
-                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-        )
-            ->paginate(15, ['id', 'community_id', 'church_id', 'name', 'address', 'status'])
-            ->withQueryString();
-
-        $communities = Community::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        $churches = Church::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->churchIds()))
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        return Inertia::render('Ecclesiastes/Chapels/Index', [
-            'chapels' => $chapels,
-            'communities' => $communities,
-            'churches' => $churches,
-            'search' => $search,
-        ]);
+        return Inertia::render('Ecclesiastes/Chapels/Index', $this->chapels->indexData($request->user(), $search));
     }
 
     public function store(ChapelRequest $request): JsonResponse
     {
-        $chapel = Chapel::create($request->validated());
-
         return response()->json([
             'success' => true,
-            'data' => $chapel->only(['id', 'community_id', 'church_id', 'name', 'address', 'status']),
+            'data' => $this->chapels->createChapel($request->validated()),
             'message' => 'Capilla creada correctamente.',
         ], 201);
     }
 
     public function update(ChapelRequest $request, Chapel $capilla): JsonResponse
     {
-        $capilla->update($request->validated());
-
         return response()->json([
             'success' => true,
-            'data' => $capilla->fresh()->only(['id', 'community_id', 'church_id', 'name', 'address', 'status']),
+            'data' => $this->chapels->updateChapel($capilla, $request->validated()),
             'message' => 'Capilla actualizada correctamente.',
         ]);
     }
 
     public function destroy(Chapel $capilla): JsonResponse
     {
-        $capilla->delete();
+        $this->chapels->deleteChapel($capilla);
 
         return response()->json([
             'success' => true,
