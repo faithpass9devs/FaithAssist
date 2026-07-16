@@ -35,6 +35,12 @@ class ManualAttendanceDataService
             ? $this->manualAttendance->getMasses($user, $weekendId)
             : [];
 
+        // Check if manual attendance capture is currently active
+        $isManualAttendanceActive = $this->manualAttendance->isManualAttendanceCaptureActive($user);
+        $activeMovement = $isManualAttendanceActive
+            ? $this->manualAttendance->getActiveManualAttendanceMovementInfo($user)
+            : null;
+
         return [
             'children' => $children,
             'weekends' => $weekends,
@@ -51,6 +57,23 @@ class ManualAttendanceDataService
                 'child_id' => $childId,
                 'weekend_id' => $weekendId,
             ],
+            // Movement validation info for frontend
+            'movement' => [
+                'is_active' => $isManualAttendanceActive,
+                'active_movement' => $activeMovement,
+                'message' => $isManualAttendanceActive
+                    ? "Movimiento activo: {$activeMovement['type_name']} ({$activeMovement['period_name']})"
+                    : 'No hay movimiento activo de asistencia manual. Por favor, contacte al administrador.',
+            ],
         ];
+    }
+
+    /**
+     * Check if manual attendance capture is currently active.
+     * This method validates if a manual attendance movement is active and available for use.
+     */
+    public function isManualAttendanceCaptureActive(User $user): bool
+    {
+        return $this->manualAttendance->isManualAttendanceCaptureActive($user);
     }
 }

@@ -75,4 +75,26 @@ class PeriodMovementRepository
     {
         $movement->delete();
     }
+
+    /**
+     * Get active manual attendance movement for current date.
+     * Returns the currently active PeriodMovement of type ASISTENCIA MANUAL.
+     */
+    public function getActiveManualAttendanceMovement(?Period $period = null): ?PeriodMovement
+    {
+        $now = now()->toDateString();
+
+        $query = PeriodMovement::query()
+            ->with(['periodMovementType:id,name', 'period:id,name'])
+            ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
+            ->where('status', Status::IN_PROGRESS)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now);
+
+        if ($period) {
+            $query->where('period_id', $period->id);
+        }
+
+        return $query->first();
+    }
 }

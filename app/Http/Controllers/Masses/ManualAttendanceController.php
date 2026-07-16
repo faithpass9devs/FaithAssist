@@ -45,6 +45,14 @@ class ManualAttendanceController extends Controller
 
     public function store(ManualAttendanceRequest $request): JsonResponse
     {
+        // Validate that manual attendance movement is currently active
+        if (! $this->dataService->isManualAttendanceCaptureActive($request->user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
+            ], 409);
+        }
+
         $attendances = $this->manualAttendance->register($request->validated(), $request->user());
         $count = $attendances->count();
 

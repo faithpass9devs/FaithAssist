@@ -72,7 +72,7 @@ class ManualAttendanceRepository
             ->all();
     }
 
-    public function getWeekends(User $user, int $limit = null): array
+    public function getWeekends(User $user, ?int $limit = null): array
     {
         $scope = new UserScopeService($user);
 
@@ -172,6 +172,68 @@ class ManualAttendanceRepository
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * Check if there's an active manual attendance movement available.
+     * Used to validate if manual attendance registration is allowed.
+     */
+    public function isManualAttendanceCaptureActive(User $user): bool
+    {
+        // Get a period to check for active movements
+        // We'll check if ANY active manual attendance movement exists within the user's scope
+        $scope = new UserScopeService($user);
+
+        $now = now()->toDateString();
+
+        // Count active manual attendance movements
+        return \App\Models\Operation\PeriodMovement::query()
+            ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
+            ->where('status', \App\Globals\Status::IN_PROGRESS)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->whereHas('period', fn ($q) => $scope->isGlobal()
+                ? $q
+                : $q->whereIn('diocese_id', $scope->dioceseIds())
+            )
+            ->exists();
+    }
+
+    /**
+     * Get the currently active manual attendance movement details.
+     * Returns movement info or null if no active movement exists.
+     */
+    public function getActiveManualAttendanceMovementInfo(User $user): ?array
+    {
+        $scope = new UserScopeService($user);
+
+        $now = now()->toDateString();
+
+        $movement = \App\Models\Operation\PeriodMovement::query()
+            ->with(['periodMovementType:id,name', 'period:id,diocese_id,name,years'])
+            ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
+            ->where('status', \App\Globals\Status::IN_PROGRESS)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->whereHas('period', fn ($q) => $scope->isGlobal()
+                ? $q
+                : $q->whereIn('diocese_id', $scope->dioceseIds())
+            )
+            ->first(['id', 'period_id', 'period_movement_type_id', 'status', 'start_date', 'end_date']);
+
+        if (! $movement) {
+            return null;
+        }
+
+        return [
+            'id' => $movement->id,
+            'period_id' => $movement->period_id,
+            'period_name' => $movement->period?->name,
+            'type_name' => $movement->periodMovementType?->name,
+            'status' => $movement->status,
+            'start_date' => $movement->start_date->format('Y-m-d'),
+            'end_date' => $movement->end_date->format('Y-m-d'),
         ];
     }
 }
