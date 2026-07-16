@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Standalone;
 
 use App\Models\Lada;
 use App\Models\WhatsappMessage;
+use App\Services\WhatsappService;
 use Throwable;
 
 class WhatsappMessageService
