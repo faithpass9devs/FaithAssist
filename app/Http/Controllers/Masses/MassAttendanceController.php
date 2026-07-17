@@ -68,6 +68,7 @@ class MassAttendanceController extends Controller
             $request->string('action')->toString(),
             $request->user()
         );
+        $incident = $attendance->activeIncident();
 
         return response()->json([
             'success' => true,
@@ -87,9 +88,9 @@ class MassAttendanceController extends Controller
                 'check_out_at' => $attendance->check_out_at?->format('Y-m-d H:i:s'),
                 'status' => $attendance->status,
                 'valid' => $attendance->isValidAttendance(),
-                'justified' => $attendance->hasActiveIncident(),
-                'incidence_type' => $attendance->activeIncident()?->incidenceType?->name,
-                'incidence_description' => $attendance->activeIncident()?->description,
+                'justified' => $incident !== null,
+                'incidence_type' => $incident?->incidenceType?->name,
+                'incidence_description' => $incident?->description,
             ],
             'message' => $attendance->isValidAttendance()
                 ? 'Salida registrada. La asistencia ya es válida.'
