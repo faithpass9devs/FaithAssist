@@ -92,6 +92,8 @@ class HandleInertiaRequests extends Middleware
             'initials' => $this->resolveInitials($user),
             'photo_url' => $user->profile_photo_path,
             'ui_theme' => $user->ui_theme,
+            'ui_palette' => $user->ui_palette,
+            'ui_custom_color' => $user->ui_custom_color,
             'profile' => $user->profile ? [
                 'name' => $user->profile->name,
                 'paterno' => $user->profile->paterno,

@@ -17,7 +17,20 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'profile_photo_path', 'whatsapp_phone', 'ui_theme', 'diocese_id', 'deanery_id', 'church_id', 'chapel_id'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'profile_photo_path',
+    'whatsapp_phone',
+    'ui_theme',
+    'ui_palette',
+    'ui_custom_color',
+    'diocese_id',
+    'deanery_id',
+    'church_id',
+    'chapel_id',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
