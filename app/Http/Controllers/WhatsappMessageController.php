@@ -18,6 +18,22 @@ class WhatsappMessageController extends Controller
         return Inertia::render('Whatsapp/Index', $this->whatsappMessages->getIndexData());
     }
 
+    public function history()
+    {
+        return $this->index();
+    }
+
+    public function historyJson()
+    {
+        $this->authorize('viewAny', WhatsappMessage::class);
+
+        return response()->json(
+            WhatsappMessage::query()
+                ->latest()
+                ->get(['id', 'to_phone', 'status', 'created_at'])
+        );
+    }
+
     public function send(SendWhatsappMessageRequest $request)
     {
         $this->authorize('create', WhatsappMessage::class);
