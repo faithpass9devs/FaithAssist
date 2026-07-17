@@ -502,7 +502,6 @@ const submit = () => {
                   <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">Sin rol</span>
                   <span class="block text-xs text-slate-400">No asignar ningun rol</span>
                 </span>
-                    1
               </button>
 
               <button
