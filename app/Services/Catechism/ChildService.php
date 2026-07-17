@@ -20,6 +20,7 @@ class ChildService
     public function __construct(
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
+        private readonly ChildQrWhatsappService $qrWhatsappService,
     ) {}
 
     public function indexData(
@@ -147,6 +148,16 @@ class ChildService
 
             throw new \RuntimeException('Unable to generate a unique child code.');
         });
+
+        // Enviar gafete por WhatsApp de forma asíncrona (no bloquea si falla)
+        try {
+            $this->qrWhatsappService->sendChildQrBadge($child);
+        } catch (\Throwable $e) {
+            // Log ya registrado en el servicio, simplemente continuamos
+            \Illuminate\Support\Facades\Log::warning('QR WhatsApp envío diferido', [
+                'child_id' => $child->id,
+            ]);
+        }
 
         return $child;
     }

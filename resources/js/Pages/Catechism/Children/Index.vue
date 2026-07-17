@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Download, Filter, Pencil, Plus, RotateCcw, QrCode, Search, Trash2, Users, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -37,6 +38,7 @@ const selectedCommunity = ref(props.filters.community_id);
 const selectedLevel = ref(props.filters.level_id);
 const qrChild = ref(null);
 const qrDataUrl = ref('');
+const isSendingQr = ref(false);
 const selectedStatus = ref(props.filters.status);
 let debounce = null;
 
@@ -146,6 +148,56 @@ const closeQr = () => {
   qrChild.value = null;
   qrDataUrl.value = '';
 };
+
+const toast = (icon, title) => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon,
+    title,
+    showConfirmButton: false,
+    timer: 2500,
+    timerProgressBar: true,
+  });
+};
+
+const sendQrWhatsapp = async () => {
+  if (!qrChild.value) return;
+
+  isSendingQr.value = true;
+  try {
+    const response = await fetch(`/children/${qrChild.value.id}/send-qr-whatsapp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+      },
+    });
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      console.error('No se pudo parsear respuesta JSON:', response.statusText);
+      data = { message: 'Error del servidor. Revisa la consola.' };
+    }
+
+    if (!response.ok) {
+      console.error('Respuesta del servidor:', response.status, data);
+      toast('error', data.message || `Error: No se pudo enviar el QR`);
+      return;
+    }
+
+    toast('success', data.message || 'QR enviado exitosamente por WhatsApp');
+    closeQr();
+  } catch (error) {
+    console.error('Error enviando QR:', error);
+    toast('error', error.message || 'Error al enviar el QR por WhatsApp. Intenta de nuevo');
+  } finally {
+    isSendingQr.value = false;
+  }
+};
+
 </script>
 
 <template>
@@ -396,9 +448,24 @@ const closeQr = () => {
         <p class="text-xs text-slate-400">
           Este QR contiene únicamente el código único del niño.
         </p>
-        <button type="button" class="btn btn-primary btn-sm mt-5" @click="closeQr">
-          Cerrar
-        </button>
+        <div class="mt-5 flex gap-3">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm flex-1 rounded-2xl border border-slate-300 dark:border-slate-600"
+            @click="closeQr"
+          >
+            Cerrar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm flex-1 rounded-2xl"
+            :disabled="isSendingQr"
+            @click="sendQrWhatsapp"
+          >
+            <span v-if="isSendingQr" class="loading loading-spinner loading-sm"></span>
+            <span v-else>Enviar QR</span>
+          </button>
+        </div>
       </div>
     </div>
   </AppShell>

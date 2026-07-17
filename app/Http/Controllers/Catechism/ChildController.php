@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
 use App\Services\Catechism\ChildService;
+use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\CatechismPeriodMovementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,5 +94,46 @@ class ChildController extends Controller
             $fileName,
             ExcelWriter::XLSX
         );
+    }
+
+    public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
+    {
+        // El binding automático de {child} ya verifica que el modelo existe
+        // No necesitamos autorización adicional aquí
+
+        try {
+            // Validar que el niño tiene teléfono configurado
+            if (!$child->phone || !$child->phone_lada) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El niño no tiene un teléfono registrado. Por favor, completa los datos de contacto.',
+                ], 422);
+            }
+
+            // Validar que WhatsApp está configurado
+            if (!config('meta.whatsapp.token') || !config('meta.whatsapp.phone_number_id')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'WhatsApp no está configurado en el sistema.',
+                ], 500);
+            }
+
+            $qrService->sendChildQrBadge($child);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'QR enviado exitosamente por WhatsApp',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error enviando QR por WhatsApp', [
+                'child_id' => $child->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar el QR por WhatsApp. Por favor, intenta más tarde.',
+            ], 500);
+        }
     }
 }

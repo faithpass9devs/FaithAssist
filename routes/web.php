@@ -155,6 +155,7 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+    Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
