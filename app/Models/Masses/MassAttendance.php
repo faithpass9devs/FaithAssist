@@ -89,17 +89,17 @@ class MassAttendance extends Model
      */
     public function activeIncident(): ?MassAttendanceIncident
     {
-        // Get the weekend_id from the related mass
         $weekendId = $this->mass?->weekend_id;
 
         if (! $weekendId) {
             return null;
         }
 
-        // Find incident for this child in the same weekend
         return MassAttendanceIncident::query()
+            ->with('incidenceType:id,name')
             ->where('weekend_id', $weekendId)
             ->where('child_id', $this->child_id)
+            ->where('status', \App\Globals\Status::ACTIVE)
             ->first();
     }
 }
