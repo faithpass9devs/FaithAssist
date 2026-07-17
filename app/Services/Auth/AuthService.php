@@ -10,11 +10,7 @@ class AuthService
 {
     public function login(array $validated, ?string $theme = null): void
     {
-        Auth::attempt([
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-        ]);
-
+        // El login ya ocurre en LoginRequest::authenticate(); aquí solo aplicamos efectos posteriores (p.ej. tema UI).
         if ($theme && Auth::user()?->ui_theme !== $theme) {
             Auth::user()->forceFill([
                 'ui_theme' => $theme,
