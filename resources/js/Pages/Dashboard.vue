@@ -153,8 +153,14 @@ const modules = computed(() =>
         {
           label: 'Asistencias',
           icon: QrCode,
-          href: '/misas',
+          href: '/asistencias',
           moduleKey: 'mass_attendance',
+        },
+        {
+          label: 'Asistencia manual',
+          icon: ClipboardCheck,
+          href: '/asistencias-manuales',
+          moduleKey: 'asistencias_manuales',
         },
         {
           label: 'Tipos de incidencias',

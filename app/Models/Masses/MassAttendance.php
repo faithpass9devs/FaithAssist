@@ -73,4 +73,33 @@ class MassAttendance extends Model
     {
         return $this->check_in_at !== null && $this->check_out_at !== null;
     }
+
+    /**
+     * Check if this attendance has an active incident (justification).
+     * Returns true if there's an incident record for this child in the same weekend.
+     */
+    public function hasActiveIncident(): bool
+    {
+        return $this->activeIncident() !== null;
+    }
+
+    /**
+     * Get the active incident (justification) for this attendance.
+     * Returns the MassAttendanceIncident if one exists for this child in the same weekend.
+     */
+    public function activeIncident(): ?MassAttendanceIncident
+    {
+        $weekendId = $this->mass?->weekend_id;
+
+        if (! $weekendId) {
+            return null;
+        }
+
+        return MassAttendanceIncident::query()
+            ->with('incidenceType:id,name')
+            ->where('weekend_id', $weekendId)
+            ->where('child_id', $this->child_id)
+            ->where('status', \App\Globals\Status::ACTIVE)
+            ->first();
+    }
 }

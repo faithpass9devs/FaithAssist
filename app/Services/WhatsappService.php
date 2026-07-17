@@ -49,6 +49,89 @@ class WhatsappService
         return $response->json('id');
     }
 
+    public function uploadImage(string $storagePath): string
+    {
+        $this->assertConfigured();
+
+        if (!Storage::exists($storagePath)) {
+            throw new RuntimeException('No se encontró la imagen seleccionada.');
+        }
+
+        $absolutePath = Storage::path($storagePath);
+
+        $response = Http::withToken($this->token)
+            ->attach(
+                'file',
+                file_get_contents($absolutePath),
+                basename($absolutePath),
+                ['Content-Type' => 'image/png']
+            )
+            ->post($this->endpoint("/{$this->phoneNumberId}/media"), [
+                'messaging_product' => 'whatsapp',
+                'type' => 'image/png',
+            ]);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('No se pudo subir la imagen a WhatsApp.');
+        }
+
+        return $response->json('id');
+    }
+
+    public function sendImage(
+        string $toPhone,
+        string $mediaId,
+        ?string $caption = null
+    ): array {
+        $this->assertConfigured();
+
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'to' => $this->normalizePhone($toPhone),
+            'type' => 'image',
+            'image' => [
+                'id' => $mediaId,
+            ],
+        ];
+
+        if ($caption) {
+            $payload['image']['caption'] = $caption;
+        }
+
+        $response = Http::withToken($this->token)
+            ->asJson()
+            ->post($this->endpoint("/{$this->phoneNumberId}/messages"), $payload);
+
+        if (!$response->successful()) {
+            throw new RuntimeException($this->friendlyMessageFromResponse($response->body()));
+        }
+
+        return [
+            'payload' => $payload,
+            'response' => $response->json(),
+        ];
+    }
+
+    public function uploadAndSendImage(
+        string $toPhone,
+        string $storagePath,
+        ?string $caption = null
+    ): array {
+        $mediaId = $this->uploadImage($storagePath);
+
+        $sendResult = $this->sendImage(
+            toPhone: $toPhone,
+            mediaId: $mediaId,
+            caption: $caption
+        );
+
+        return [
+            'media_id' => $mediaId,
+            'payload' => $sendResult['payload'],
+            'response' => $sendResult['response'],
+        ];
+    }
+
     public function sendPdfDocument(
         string $toPhone,
         string $mediaId,

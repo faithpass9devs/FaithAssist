@@ -71,7 +71,7 @@ const destroyWeekend = (weekend) => {
       <Link
         v-if="canCreate"
         href="/fines-semana-misas/create"
-        class="btn btn-primary btn-sm gap-1.5"
+        class="btn btn-sm gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800"
       >
         <Plus class="h-4 w-4" />
         Nuevo

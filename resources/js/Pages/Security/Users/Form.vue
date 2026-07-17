@@ -30,6 +30,9 @@ const pageTitle = computed(() => (isEditing.value ? `Editar Usuario` : 'Nuevo Us
 
 /** El editor tiene scope restringido (no es global): no puede cambiar el alcance. */
 const scopeLocked = computed(() => props.editorScope.diocese_id !== null);
+const canSelectChapelInLockedScope = computed(
+  () => scopeLocked.value && props.editorScope.church_id !== null && props.editorScope.chapel_id === null,
+);
 
 const activeSection = ref('general');
 const showPassword = ref(false);
@@ -172,11 +175,28 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="Configuracion de cuenta y permisos del usuario"
-      back-href="/usuarios"
-    />
+    <form @submit.prevent="submit">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Configuracion de cuenta y permisos del usuario"
+        back-href="/usuarios"
+      >
+        <template #actions>
+          <Link
+            href="/usuarios"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing || !canSubmit"
+          >
+            {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
+          </button>
+        </template>
+      </CatalogHeader>
 
     <!-- User identity header (edit mode) -->
     <div
@@ -185,7 +205,7 @@ const submit = () => {
     >
       <div class="flex items-center gap-4">
         <span
-          v-if="user.photo_url"
+            v-if="user.photo_url"
           class="h-16 w-16 overflow-hidden rounded-full border-2 border-rose-200 shadow"
         >
           <img :src="user.photo_url" :alt="user.full_name" class="h-full w-full object-cover" />
@@ -212,7 +232,6 @@ const submit = () => {
       </div>
     </div>
 
-    <form @submit.prevent="submit">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         <!-- Sidebar nav -->
@@ -235,17 +254,17 @@ const submit = () => {
                     {{ s.label }}
                   </span>
                   <span
-                    v-if="s.key === 'alcance' && hasScopeSet"
-                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                  >
-                    {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
-                  </span>
-                  <span
-                    v-if="s.key === 'roles' && selectedRoleObj"
-                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                  >
-                    1
-                  </span>
+                      v-if="s.key === 'alcance' && hasScopeSet"
+                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                    >
+                      {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
+                    </span>
+                    <span
+                      v-if="s.key === 'roles' && selectedRoleObj"
+                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                    >
+                      1
+                    </span>
                   <span
                     v-if="s.key === 'permisos' && totalPermissions > 0"
                     class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
@@ -337,7 +356,11 @@ const submit = () => {
               class="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-400"
             >
               <MapPinned class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>El alcance se hereda de tu perfil y no puede modificarse.</span>
+              <span>
+                {{ canSelectChapelInLockedScope
+                  ? 'El alcance se hereda de tu perfil. Puedes asignar una capilla de tu parroquia.'
+                  : 'El alcance se hereda de tu perfil y no puede modificarse.' }}
+              </span>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -437,7 +460,7 @@ const submit = () => {
                     v-model="form.chapel_id"
                     class="select select-bordered w-full"
                     :class="{ 'select-error': form.errors.chapel_id }"
-                    :disabled="scopeLocked"
+                    :disabled="scopeLocked && !canSelectChapelInLockedScope"
                   >
                     <option :value="null">— Toda la parroquia —</option>
                     <option v-for="chapel in filteredChapels" :key="chapel.id" :value="chapel.id">
@@ -615,16 +638,6 @@ const submit = () => {
           </div>
 
         </div>
-      </div>
-
-      <!-- Form Actions -->
-      <div class="mt-6 flex items-center justify-end gap-3">
-        <Link href="/usuarios" class="btn btn-ghost btn-sm">
-          Cancelar
-        </Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing || !canSubmit">
-          {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
-        </button>
       </div>
     </form>
   </AppShell>

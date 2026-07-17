@@ -19,7 +19,8 @@ class CommunitiesExport implements FromQuery, WithHeadings, WithMapping, WithSty
 {
     public function __construct(
         private readonly User $user,
-        private readonly string $search = ''
+        private readonly string $search = '',
+        private readonly ?int $municipalityId = null
     ) {
     }
 
@@ -31,6 +32,7 @@ class CommunitiesExport implements FromQuery, WithHeadings, WithMapping, WithSty
             ->with(['municipality:id,name'])
             ->when(! $scope->isGlobal(), fn (Builder $query) => $query->whereIn('municipality_id', $scope->municipalityIds()))
             ->when($this->search !== '', fn (Builder $query) => $query->where('name', 'like', "%{$this->search}%"))
+            ->when($this->municipalityId, fn (Builder $query) => $query->where('municipality_id', $this->municipalityId))
             ->select(['id', 'municipality_id', 'name', 'status'])
             ->orderBy('name');
     }

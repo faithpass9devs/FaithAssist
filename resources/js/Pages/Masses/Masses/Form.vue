@@ -3,6 +3,8 @@ import { computed, watch } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { Church } from 'lucide-vue-next';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
+import UnderlineField from '../../../components/forms/UnderlineField.vue';
+import UnderlineSection from '../../../components/forms/UnderlineSection.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
 
 const props = defineProps({
@@ -14,10 +16,33 @@ const props = defineProps({
 
 const isEditing = computed(() => !!props.mass);
 const pageTitle = computed(() => (isEditing.value ? 'Editar misa' : 'Nueva misa'));
+const weekendOptions = computed(() =>
+  props.weekends.map((weekend) => ({
+    value: weekend.id,
+    label: `${weekend.name} · ${weekend.church}`,
+  })),
+);
+const churchOptions = computed(() =>
+  props.churches.map((church) => ({
+    value: church.id,
+    label: church.name,
+  })),
+);
+const chapelOptions = computed(() =>
+  filteredChapels.value.map((chapel) => ({
+    value: chapel.id,
+    label: chapel.name,
+  })),
+);
+const statusOptions = [
+  { value: 'upcoming', label: 'Próxima' },
+  { value: 'in_progress', label: 'En curso' },
+  { value: 'completed', label: 'Terminada' },
+];
 
 const form = useForm({
-  weekend_id: props.mass?.weekend_id ?? props.weekends[0]?.id ?? '',
-  church_id: props.mass?.church_id ?? props.weekends[0]?.church_id ?? props.churches[0]?.id ?? '',
+  weekend_id: props.mass?.weekend_id ?? null,
+  church_id: props.mass?.church_id ?? null,
   chapel_id: props.mass?.chapel_id ?? '',
   name: props.mass?.name ?? '',
   starts_at: props.mass?.starts_at ?? '',
@@ -65,167 +90,119 @@ const submit = () => {
 
 <template>
   <AppShell :page-title="pageTitle">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="Captura el inicio y fin de la misa dentro del fin de semana seleccionado"
-      back-href="/misas"
-      :icon="Church"
-    />
-
-    <form class="space-y-6" @submit.prevent="submit">
-      <section
-        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    <form @submit.prevent="submit">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Captura el inicio y fin de la misa dentro del fin de semana seleccionado"
+        back-href="/misas"
+        :icon="Church"
       >
-        <div class="grid gap-4 md:grid-cols-2">
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Fin de semana <span class="text-red-500">*</span></span
-            >
-            <select
-              v-model="form.weekend_id"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.weekend_id }"
-            >
-              <option value="" disabled>Selecciona un fin de semana</option>
-              <option v-for="weekend in weekends" :key="weekend.id" :value="weekend.id">
-                {{ weekend.name }} · {{ weekend.church }}
-              </option>
-            </select>
-            <p v-if="form.errors.weekend_id" class="mt-1 text-xs text-red-500">
-              {{ form.errors.weekend_id }}
-            </p>
-          </label>
+        <template #actions>
+          <Link
+            href="/misas"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing"
+          >
+            {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear' }}
+          </button>
+        </template>
+      </CatalogHeader>
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Parroquia <span class="text-red-500">*</span></span
-            >
-            <select
-              v-model="form.church_id"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.church_id }"
-            >
-              <option value="" disabled>Selecciona una parroquia</option>
-              <option v-for="church in churches" :key="church.id" :value="church.id">
-                {{ church.name }}
-              </option>
-            </select>
-            <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">
-              {{ form.errors.church_id }}
-            </p>
-          </label>
+      <div
+        class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
+      >
+        <div class="space-y-9">
+          <UnderlineSection title="Programación de misa">
+            <div class="grid gap-x-9 gap-y-7 md:grid-cols-2">
+              <UnderlineField
+                v-model="form.weekend_id"
+                label="Fin de semana"
+                as="select"
+                placeholder="Selecciona un fin de semana"
+                :options="weekendOptions"
+                :error="form.errors.weekend_id"
+                number-value
+                required
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium">Capilla</span>
-            <select
-              v-model="form.chapel_id"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.chapel_id }"
-            >
-              <option value="">En parroquia</option>
-              <option v-for="chapel in filteredChapels" :key="chapel.id" :value="chapel.id">
-                {{ chapel.name }}
-              </option>
-            </select>
-            <p v-if="form.errors.chapel_id" class="mt-1 text-xs text-red-500">
-              {{ form.errors.chapel_id }}
-            </p>
-          </label>
+              <UnderlineField
+                v-model="form.church_id"
+                label="Parroquia"
+                as="select"
+                placeholder="Selecciona una parroquia"
+                :options="churchOptions"
+                :error="form.errors.church_id"
+                number-value
+                required
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Nombre <span class="text-red-500">*</span></span
-            >
-            <input
-              v-model="form.name"
-              type="text"
-              class="input input-bordered w-full"
-              :class="{ 'input-error': form.errors.name }"
-            />
-            <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">{{ form.errors.name }}</p>
-          </label>
+              <UnderlineField
+                v-model="form.chapel_id"
+                label="Capilla"
+                as="select"
+                placeholder="En parroquia"
+                :options="chapelOptions"
+                :error="form.errors.chapel_id"
+                number-value
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Inicia <span class="text-red-500">*</span></span
-            >
-            <input
-              v-model="form.starts_at"
-              type="datetime-local"
-              class="input input-bordered w-full"
-              :class="{ 'input-error': form.errors.starts_at }"
-            />
-            <p v-if="form.errors.starts_at" class="mt-1 text-xs text-red-500">
-              {{ form.errors.starts_at }}
-            </p>
-          </label>
+              <UnderlineField
+                v-model="form.name"
+                label="Nombre"
+                :error="form.errors.name"
+                required
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium"
-              >Termina <span class="text-red-500">*</span></span
-            >
-            <input
-              v-model="form.ends_at"
-              type="datetime-local"
-              class="input input-bordered w-full"
-              :class="{ 'input-error': form.errors.ends_at }"
-            />
-            <p v-if="form.errors.ends_at" class="mt-1 text-xs text-red-500">
-              {{ form.errors.ends_at }}
-            </p>
-          </label>
+              <UnderlineField
+                v-model="form.starts_at"
+                label="Inicia"
+                type="datetime-local"
+                :error="form.errors.starts_at"
+                required
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium">Estatus</span>
-            <select
-              v-model="form.status"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.status }"
-            >
-              <option value="upcoming">Próxima</option>
-              <option value="in_progress">En curso</option>
-              <option value="completed">Terminada</option>
-            </select>
-            <p v-if="form.errors.status" class="mt-1 text-xs text-red-500">
-              {{ form.errors.status }}
-            </p>
-          </label>
+              <UnderlineField
+                v-model="form.ends_at"
+                label="Termina"
+                type="datetime-local"
+                :error="form.errors.ends_at"
+                required
+              />
 
-          <label>
-            <span class="mb-1.5 block text-sm font-medium">Captura de asistencia</span>
-            <select
-              v-model="form.attendance_status"
-              class="select select-bordered w-full"
-              :class="{ 'select-error': form.errors.attendance_status }"
-            >
-              <option value="upcoming">Próxima</option>
-              <option value="in_progress">En curso</option>
-              <option value="completed">Terminada</option>
-            </select>
-            <p v-if="form.errors.attendance_status" class="mt-1 text-xs text-red-500">
-              {{ form.errors.attendance_status }}
-            </p>
-          </label>
+              <UnderlineField
+                v-model="form.status"
+                label="Estatus"
+                as="select"
+                :options="statusOptions"
+                :error="form.errors.status"
+              />
 
-          <label class="md:col-span-2">
-            <span class="mb-1.5 block text-sm font-medium">Notas</span>
-            <textarea
+              <UnderlineField
+                v-model="form.attendance_status"
+                label="Captura de asistencia"
+                as="select"
+                :options="statusOptions"
+                :error="form.errors.attendance_status"
+              />
+            </div>
+          </UnderlineSection>
+
+          <UnderlineSection title="Notas">
+            <UnderlineField
               v-model="form.notes"
-              class="textarea textarea-bordered min-h-28 w-full"
-              :class="{ 'textarea-error': form.errors.notes }"
+              label="Observaciones"
+              as="textarea"
+              placeholder="Notas logísticas o pastorales"
+              :error="form.errors.notes"
             />
-            <p v-if="form.errors.notes" class="mt-1 text-xs text-red-500">
-              {{ form.errors.notes }}
-            </p>
-          </label>
+          </UnderlineSection>
         </div>
-      </section>
-
-      <div class="flex justify-end gap-3">
-        <Link href="/misas" class="btn btn-ghost btn-sm">Cancelar</Link>
-        <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing">
-          {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear' }}
-        </button>
       </div>
     </form>
   </AppShell>

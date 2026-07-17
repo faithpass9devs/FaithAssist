@@ -50,6 +50,14 @@ const permissionResourceMetaByModule = {
     tipos_movimientos_periodo: { singular: 'tipo de movimiento de período', plural: 'tipos de movimiento de período', gender: 'm' },
     niveles: { singular: 'nivel', plural: 'niveles', gender: 'm' },
   },
+  masses: {
+    weekends: { singular: 'fin de semana de misa', plural: 'fines de semana de misas', gender: 'm' },
+    masses: { singular: 'misa', plural: 'misas', gender: 'f' },
+    mass_attendance: { singular: 'asistencia de misa', plural: 'asistencias de misa', gender: 'f' },
+    asistencias_manuales: { singular: 'asistencia manual', plural: 'asistencias manuales', gender: 'f' },
+    tipos_incidencias: { singular: 'tipo de incidencia', plural: 'tipos de incidencias', gender: 'm' },
+    incidencias_asistencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
+  },
   regions: {
     estados: { singular: 'estado', plural: 'estados', gender: 'm' },
     municipios: { singular: 'municipio', plural: 'municipios', gender: 'm' },
@@ -70,6 +78,25 @@ const capitalize = (value) =>
   value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
 const parsePermission = (permissionName) => {
+  if (permissionName.includes('.')) {
+    const parts = permissionName.split('.');
+    return {
+      resource: parts[0] ?? '',
+      action: parts.slice(1).join('.'),
+    };
+  }
+
+  const suffixes = ['scope_all', 'create', 'read', 'update', 'delete', 'show', 'export', 'send', 'scan'];
+  const matchedSuffix = suffixes.find((suffix) => permissionName.endsWith(`_${suffix}`));
+
+  if (matchedSuffix) {
+    const normalizedAction = matchedSuffix === 'scope_all' ? 'scope.all' : matchedSuffix;
+    return {
+      resource: permissionName.slice(0, -(matchedSuffix.length + 1)),
+      action: normalizedAction,
+    };
+  }
+
   const parts = permissionName.split('.');
   return {
     resource: parts[0] ?? '',
@@ -115,6 +142,8 @@ const getPermissionDisplayName = (perm) => {
       return `Exportar ${capitalize(meta.plural)}`;
     case 'send':
       return `Enviar ${capitalize(meta.plural)}`;
+    case 'scan':
+      return `Escanear ${capitalize(meta.plural)}`;
     case 'scope.all':
       return `Ver ${capitalize(getScopeAllText(meta.plural, meta.gender))}`;
     default:
@@ -141,6 +170,8 @@ const getPermissionDisplayDescription = (perm) => {
       return `Permite exportar ${meta.plural}`;
     case 'send':
       return `Permite enviar ${meta.plural}`;
+    case 'scan':
+      return `Permite escanear ${meta.plural}`;
     case 'scope.all':
       return `Permite ver ${getScopeAllText(meta.plural, meta.gender)}`;
     default:
@@ -351,7 +382,7 @@ const allFilteredSelected = computed(() =>
 
           <div
             v-else
-            class="flex h-full min-h-[200px] items-center justify-center text-sm text-slate-400 dark:text-slate-500"
+            class="flex h-full min-h-50 items-center justify-center text-sm text-slate-400 dark:text-slate-500"
           >
             Selecciona un módulo
           </div>

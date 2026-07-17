@@ -34,16 +34,33 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => function () use ($request): array {
                 $authUser = $request->user()?->fresh();
+                $resolvedPermissions = $authUser ? $this->resolvedAuthPermissions($authUser) : collect();
 
                 return [
                     'user' => $this->buildAuthUserPayload($authUser),
-                    'permissions' => $authUser?->getAllPermissions()->pluck('name')->values()->all() ?? [],
+                    'permissions' => $resolvedPermissions->values()->all(),
                     'direct_permissions' => $authUser?->getDirectPermissions()->pluck('name')->values()->all() ?? [],
                     'roles' => $authUser?->getRoleNames()->values()->all() ?? [],
-                    'scope' => $this->buildScopePayload($authUser),
+                    'scope' => $this->buildScopePayload($authUser, $resolvedPermissions->all()),
                 ];
             },
         ];
+    }
+
+    private function resolvedAuthPermissions(User $user)
+    {
+        $manualPrefix = 'asistencias_manuales.';
+
+        $all = $user->getAllPermissions()->pluck('name');
+        $directManual = $user->getDirectPermissions()
+            ->pluck('name')
+            ->filter(fn (string $permission): bool => str_starts_with($permission, $manualPrefix));
+
+        return $all
+            ->reject(fn (string $permission): bool => str_starts_with($permission, $manualPrefix))
+            ->merge($directManual)
+            ->unique()
+            ->values();
     }
 
     private function buildAuthUserPayload(?User $user): ?array
@@ -101,7 +118,7 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-    private function buildScopePayload(?User $user): array
+    private function buildScopePayload(?User $user, ?array $resolvedPermissions = null): array
     {
         if (! $user) {
             return [
@@ -113,13 +130,14 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        $permissionNames = collect($resolvedPermissions ?? $user->getAllPermissions()->pluck('name')->all());
+
         return [
             'diocese_id' => $user->diocese_id,
             'deanery_id' => $user->deanery_id,
             'church_id' => $user->church_id,
             'chapel_id' => $user->chapel_id,
-            'full_access' => $user->getAllPermissions()
-                ->pluck('name')
+            'full_access' => $permissionNames
                 ->filter(fn (string $permission): bool => str_ends_with($permission, '.scope.all'))
                 ->mapWithKeys(fn (string $permission): array => [
                     str($permission)->before('.scope.all')->toString() => true,

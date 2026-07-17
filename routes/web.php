@@ -9,6 +9,7 @@ use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
 use App\Http\Controllers\Masses\IncidenceTypeController;
+use App\Http\Controllers\Masses\ManualAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceIncidentController;
 use App\Http\Controllers\Masses\MassController;
@@ -129,6 +130,13 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
+    Route::get('asistencias', [MassAttendanceController::class, 'landing'])
+        ->name('asistencias.index');
+
+    Route::resource('asistencias-manuales', ManualAttendanceController::class)
+        ->only(['index', 'store'])
+        ->parameters(['asistencias-manuales' => 'manualAttendance']);
+
     Route::get('misas/{misa}/asistencias', [MassAttendanceController::class, 'index'])
         ->name('misas.asistencias.index');
     Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
@@ -147,6 +155,7 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+    Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');

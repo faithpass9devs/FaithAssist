@@ -34,6 +34,10 @@ class DatabaseSeeder extends Seeder
             LevelSeeder::class,
             PeriodSeeder::class,
             CatechismSeeder::class,
+            MassWeekendSeeder::class,
+            MassSeeder::class,
+            MassAttendanceSeeder::class,
+            MassAttendanceIncidentSeeder::class,
         ]);
     }
 }

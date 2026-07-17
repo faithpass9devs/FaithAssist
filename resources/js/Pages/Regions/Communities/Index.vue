@@ -9,6 +9,7 @@ const props = defineProps({
   communities: { type: Object, required: true },
   municipalities: { type: Array, default: () => [] },
   search: { type: String, default: '' },
+  filters: { type: Object, default: () => ({ municipality_id: null }) },
 });
 
 const municipalityOptions = computed(() =>
@@ -60,6 +61,14 @@ const columns = computed(() => [
       :columns="columns"
       :pagination="communities"
       :search="search"
+      :filter-definitions="[
+        {
+          key: 'municipality_id',
+          placeholder: 'Todos los municipios',
+          options: municipalityOptions,
+        },
+      ]"
+      :initial-filters="filters"
       :create-requires-full-scope="true"
       export-url="/comunidades/export"
       export-permission="comunidades.export"

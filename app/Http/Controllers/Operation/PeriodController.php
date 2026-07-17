@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Operation;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operation\PeriodRequest;
-use App\Models\Ecclesiastes\Diocese;
 use App\Models\Operation\Period;
-use App\Services\UserScopeService;
+use App\Services\Operation\PeriodService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +13,7 @@ use Inertia\Response;
 
 class PeriodController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly PeriodService $periods)
     {
         $this->authorizeResource(Period::class, 'periodo');
     }
@@ -22,81 +21,35 @@ class PeriodController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
-        $scope = new UserScopeService($request->user());
 
-        $periods = Period::query()
-            ->with('diocese:id,name')
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('diocese_id', $scope->dioceseIds()))
-            ->when($search, function ($query) use ($search) {
-                $query->where(function ($builder) use ($search) {
-                    $builder
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('years', 'like', "%{$search}%")
-                        ->orWhereHas('diocese', fn ($dioceseQuery) => $dioceseQuery->where('name', 'like', "%{$search}%"));
-                });
-            })
-            ->orderByDesc('start_date')
-            ->paginate(15, ['id', 'diocese_id', 'name', 'start_date', 'end_date', 'years', 'status'])
-            ->withQueryString();
-
-        $dioceses = Diocese::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->dioceseIds()))
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        return Inertia::render('Operation/Periods/Index', [
-            'periods' => $periods,
-            'dioceses' => $dioceses,
-            'search' => $search,
-        ]);
+        return Inertia::render('Operation/Periods/Index', $this->periods->indexData($request->user(), $search));
     }
 
     public function store(PeriodRequest $request): JsonResponse
     {
-        $data = $request->validated();
-        $data['years'] = $this->resolveYears($data['start_date'], $data['end_date']);
-
-        $period = Period::create($data);
-
         return response()->json([
             'success' => true,
-            'data' => $period->only(['id', 'diocese_id', 'name', 'start_date', 'end_date', 'years', 'status']),
+            'data' => $this->periods->createPeriod($request->validated()),
             'message' => 'Periodo creado correctamente.',
         ], 201);
     }
 
     public function update(PeriodRequest $request, Period $periodo): JsonResponse
     {
-        $data = $request->validated();
-        $data['years'] = $this->resolveYears($data['start_date'], $data['end_date']);
-
-        $periodo->update($data);
-
         return response()->json([
             'success' => true,
-            'data' => $periodo->fresh()->only(['id', 'diocese_id', 'name', 'start_date', 'end_date', 'years', 'status']),
+            'data' => $this->periods->updatePeriod($periodo, $request->validated()),
             'message' => 'Periodo actualizado correctamente.',
         ]);
     }
 
     public function destroy(Period $periodo): JsonResponse
     {
-        $periodo->delete();
+        $this->periods->deletePeriod($periodo);
 
         return response()->json([
             'success' => true,
             'message' => 'Periodo eliminado correctamente.',
         ]);
-    }
-
-    private function resolveYears(string $startDate, string $endDate): string
-    {
-        $startYear = (int) date('Y', strtotime($startDate));
-        $endYear = (int) date('Y', strtotime($endDate));
-
-        return $startYear === $endYear
-            ? (string) $startYear
-            : "{$startYear}-{$endYear}";
     }
 }
