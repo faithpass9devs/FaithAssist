@@ -57,7 +57,6 @@ const permissionResourceMetaByModule = {
     asistencias_manuales: { singular: 'asistencia manual', plural: 'asistencias manuales', gender: 'f' },
     tipos_incidencias: { singular: 'tipo de incidencia', plural: 'tipos de incidencias', gender: 'm' },
     incidencias_asistencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
-    incidencias_asitencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
   },
   regions: {
     estados: { singular: 'estado', plural: 'estados', gender: 'm' },
