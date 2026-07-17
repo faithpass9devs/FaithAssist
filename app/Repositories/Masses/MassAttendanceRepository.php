@@ -80,6 +80,8 @@ class MassAttendanceRepository
             $attendance->child?->materno,
         ])->filter()->implode(' '));
 
+        $incident = $attendance->activeIncident();
+
         return [
             'id' => $attendance->id,
             'child_id' => $attendance->child_id,
@@ -92,9 +94,9 @@ class MassAttendanceRepository
             'check_out_at' => $attendance->check_out_at?->format('Y-m-d H:i:s'),
             'status' => $attendance->status,
             'valid' => $attendance->isValidAttendance(),
-            'justified' => $attendance->hasActiveIncident(),
-            'incidence_type' => $attendance->activeIncident()?->incidenceType?->name,
-            'incidence_description' => $attendance->activeIncident()?->description,
+            'justified' => $incident !== null,
+            'incidence_type' => $incident?->incidenceType?->name,
+            'incidence_description' => $incident?->description,
         ];
     }
 
