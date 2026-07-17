@@ -244,7 +244,7 @@ const allFilteredSelected = computed(() =>
       </span>
     </div>
 
-    <div class="flex min-h-105 divide-x divide-slate-200 dark:divide-slate-800">
+    <div class="flex min-h-[420px] divide-x divide-slate-200 dark:divide-slate-800">
       <!-- Left: Modules panel -->
       <aside class="flex w-56 shrink-0 flex-col">
         <div class="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
