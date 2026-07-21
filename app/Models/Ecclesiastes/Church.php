@@ -4,6 +4,7 @@ namespace App\Models\Ecclesiastes;
 
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Regions\Municipality;
+use App\Models\Settings\ChurchSetting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -62,9 +64,14 @@ class Church extends Model
         return $this->belongsTo(Deanery::class, 'deanery_id');
     }
 
-    public function users(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function users(): HasMany
     {
         return $this->hasMany(User::class, 'church_id');
+    }
+
+    public function settings(): HasMany
+    {
+        return $this->hasMany(ChurchSetting::class, 'church_id');
     }
 
     public function creator(): BelongsTo

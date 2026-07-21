@@ -63,6 +63,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'weekends',
                 'masses',
                 'mass_attendance',
+                'configuraciones',
             ], $allActions),
             $this->permissionsForModules(['asistencias_manuales'], $allActions),
             [
@@ -75,6 +76,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'mass_attendance.scope.all',
                 'mass_attendance.scan',
                 'asistencias_manuales.scope.all',
+                'configuraciones.scope.all',
             ]
         ));
 

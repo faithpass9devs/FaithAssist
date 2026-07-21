@@ -36,6 +36,7 @@ class PermissionsSeeder extends Seeder
             'incidencias_asistencia' => 'masses',
             'roles' => 'security',
             'usuarios' => 'security',
+            'configuraciones' => 'settings',
         ];
 
         $actions = ['create', 'read', 'update', 'delete', 'show'];
@@ -75,6 +76,7 @@ class PermissionsSeeder extends Seeder
             ['name' => 'incidencias_asistencia.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las incidencias de asistencia'],
             ['name' => 'reinscripciones.export', 'module_key' => 'catechism', 'description' => 'Permite exportar reinscripciones a Excel'],
             ['name' => 'whatsapp.send', 'module_key' => 'whatsapp', 'description' => 'Permite enviar mensajes por WhatsApp'],
+            ['name' => 'configuraciones.scope.all', 'module_key' => 'settings', 'description' => 'Permite configurar todas las parroquias'],
         ] as $permission) {
             Permission::query()->updateOrCreate(
                 [

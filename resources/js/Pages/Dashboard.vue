@@ -17,6 +17,7 @@ import {
   MessageCircle,
   QrCode,
   ShieldCheck,
+  SlidersHorizontal,
   Tags,
   Users,
 } from 'lucide-vue-next';
@@ -204,6 +205,19 @@ const modules = computed(() =>
           icon: Users,
           href: '/usuarios',
           moduleKey: 'usuarios',
+        },
+      ],
+    },
+    {
+      name: 'Configuración',
+      accent: 'from-slate-300 via-slate-100 to-slate-50',
+      titleClass: 'text-sky-700',
+      items: [
+        {
+          label: 'Configuraciones',
+          icon: SlidersHorizontal,
+          href: '/configuraciones',
+          moduleKey: 'configuraciones',
         },
       ],
     },

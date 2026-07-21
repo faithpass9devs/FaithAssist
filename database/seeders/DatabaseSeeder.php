@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             MassSeeder::class,
             MassAttendanceSeeder::class,
             MassAttendanceIncidentSeeder::class,
+            SettingDefinitionSeeder::class,
         ]);
     }
 }

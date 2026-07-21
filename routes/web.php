@@ -25,6 +25,7 @@ use App\Http\Controllers\Security\ModuleController;
 use App\Http\Controllers\Security\PermissionController;
 use App\Http\Controllers\Security\RoleController;
 use App\Http\Controllers\Security\UserController;
+use App\Http\Controllers\Settings\ChurchSettingController;
 use App\Http\Controllers\UserThemeController;
 use App\Http\Controllers\WhatsappMessageController;
 use Illuminate\Support\Facades\Route;
@@ -177,6 +178,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('usuarios', UserController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['usuarios' => 'usuario']);
+
+    // Configuracion
+    Route::get('/configuraciones', [ChurchSettingController::class, 'index'])->name('configuraciones.index');
+    Route::put('/configuraciones/{church}', [ChurchSettingController::class, 'update'])->name('configuraciones.update');
 
     if (app()->environment('local')) {
         Route::get('/test-meta-config', function () {

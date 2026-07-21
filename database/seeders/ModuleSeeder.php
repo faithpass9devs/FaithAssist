@@ -57,6 +57,11 @@ class ModuleSeeder extends Seeder
                 'description' => 'Módulo para registrar asistencias manuales de niños por fin de semana y misa.',
                 'key' => 'asistencias_manuales',
             ],
+            [
+                'name' => 'Configuración',
+                'description' => 'Módulo para configurar valores operativos por parroquia.',
+                'key' => 'settings',
+            ],
         ];
 
         foreach ($modules as $module) {
