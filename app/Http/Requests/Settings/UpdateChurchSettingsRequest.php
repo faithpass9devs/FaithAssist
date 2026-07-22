@@ -46,7 +46,7 @@ class UpdateChurchSettingsRequest extends FormRequest
                 }
 
                 if (is_string($value) && json_decode($value, true) === null && json_last_error() !== JSON_ERROR_NONE) {
-                    $validator->errors()->add("settings.{$definition->key}", 'El valor debe ser JSON valido.');
+                    $validator->errors()->add("settings.{$definition->key}", 'El valor debe ser JSON válido.');
                 }
             }
         });
