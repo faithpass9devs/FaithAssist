@@ -85,8 +85,18 @@ class UpdateChurchSettingsRequest extends FormRequest
 
     private function definitions()
     {
-        return SettingDefinition::query()
+        $cached = $this->attributes->get('setting_definitions');
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $definitions = SettingDefinition::query()
             ->where('status', Status::ACTIVE)
             ->get();
+
+        $this->attributes->set('setting_definitions', $definitions);
+
+        return $definitions;
     }
 }
