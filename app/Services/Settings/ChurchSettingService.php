@@ -108,17 +108,21 @@ class ChurchSettingService
 
                 $payload = $this->payloadFor($definition, $value, $church);
 
-                ChurchSetting::query()->updateOrCreate(
-                    [
-                        'church_id' => $church->id,
-                        'setting_definition_id' => $definition->id,
-                    ],
-                    [
-                        'value' => $payload,
-                        'created_by' => $user->id,
-                        'updated_by' => $user->id,
-                    ]
-                );
+                $churchSetting = ChurchSetting::query()->firstOrNew([
+                    'church_id' => $church->id,
+                    'setting_definition_id' => $definition->id,
+                ]);
+
+                if (! $churchSetting->exists) {
+                    $churchSetting->created_by = $user->id;
+                }
+
+                $churchSetting->fill([
+                    'value' => $payload,
+                    'updated_by' => $user->id,
+                ]);
+
+                $churchSetting->save();
             }
         });
     }
