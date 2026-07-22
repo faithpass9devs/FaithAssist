@@ -35,7 +35,7 @@ class UpdateChurchSettingsRequest extends FormRequest
             $submittedKeys = array_keys($this->input('settings', []) + $this->file('settings', []));
 
             foreach (array_diff($submittedKeys, $knownKeys) as $key) {
-                $validator->errors()->add("settings.{$key}", 'La configuracion enviada no existe.');
+                $validator->errors()->add("settings.{$key}", 'La configuración enviada no existe.');
             }
 
             foreach ($this->definitions() as $definition) {
