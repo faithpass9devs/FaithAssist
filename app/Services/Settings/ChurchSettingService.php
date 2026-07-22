@@ -77,7 +77,7 @@ class ChurchSettingService
                     'description' => $definition->description,
                     'type_data' => $definition->type_data,
                     'meta' => $definition->meta ?? [],
-                    'value' => $setting?->value['value'] ?? null,
+                    'value' => $definition->type_data === SettingType::FILE ? null : ($setting?->value['value'] ?? ($definition->meta['default'] ?? null)),
                     'file' => $definition->type_data === SettingType::FILE ? ($setting?->value ?? null) : null,
                 ];
             })
