@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['church_id', 'setting_definition_id']);
+            $table->unique(['church_id', 'setting_definition_id']);
             $table->index('setting_definition_id');
         });
     }
