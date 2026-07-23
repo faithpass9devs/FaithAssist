@@ -31,57 +31,57 @@ class CommunitySeeder extends Seeder
                 'SANTIAGUITO', 'SANTO NIÑO', 'TECOLOTEPEC', 'TEOCOTITLA',
                 'CENTRO', 'ANALCO', 'ZACANGUILLO', 'ZACATONES',
             ],
-            'Tenancingo' => [
-                'CENTRO', 'SANTIAGUITO', 'SAN SIMONITO', 'EJIDO DE TENANCINGO',
-                'LA JOYA', 'CALLE REAL', 'SAN PEDRO TLANISCO', 'TEPALCINGO',
-                'COLONIA BENITO JUÁREZ', 'EL LINDERO',
-            ],
-            'Villa Guerrero' => [
-                'CENTRO', 'SAN FRANCISCO', 'SAN PABLO', 'LA PALMA',
-                'RANCHO LOS ÓRGANOS', 'BUENAVISTA', 'EL JACAL', 'LAS TROJES',
-            ],
-            'Zumpahuacan' => [
-                'CENTRO', 'SAN LUCAS', 'SAN MIGUEL', 'LAS PALMAS', 'TEQUIMILPA',
-                'EL CAPULÍN', 'SAN PEDRO', 'ZAPOTITLÁN',
-            ],
+            // 'Tenancingo' => [
+            //     'CENTRO', 'SANTIAGUITO', 'SAN SIMONITO', 'EJIDO DE TENANCINGO',
+            //     'LA JOYA', 'CALLE REAL', 'SAN PEDRO TLANISCO', 'TEPALCINGO',
+            //     'COLONIA BENITO JUÁREZ', 'EL LINDERO',
+            // ],
+            // 'Villa Guerrero' => [
+            //     'CENTRO', 'SAN FRANCISCO', 'SAN PABLO', 'LA PALMA',
+            //     'RANCHO LOS ÓRGANOS', 'BUENAVISTA', 'EL JACAL', 'LAS TROJES',
+            // ],
+            // 'Zumpahuacan' => [
+            //     'CENTRO', 'SAN LUCAS', 'SAN MIGUEL', 'LAS PALMAS', 'TEQUIMILPA',
+            //     'EL CAPULÍN', 'SAN PEDRO', 'ZAPOTITLÁN',
+            // ],
 
-            // ── Morelos ────────────────────────────────────────────────────
-            'Cuernavaca' => [
-                'CENTRO', 'CHAPULTEPEC', 'PALMIRA', 'LOMAS DE CORTÉS',
-                'JARDINES DE CUERNAVACA', 'BUENA VISTA', 'RANCHO CORTÉS', 'ACAPANTZINGO',
-                'CHIPITLÁN', 'LAS PALMAS',
-            ],
-            'Jiutepec' => [
-                'CENTRO', 'TEJALPA', 'PROGRESO', 'TEPETZINGO', 'LAS FLORES',
-                'SAN GASPAR', 'ATLACOMULCO', 'LA JOYA',
-            ],
-            'Temixco' => [
-                'CENTRO', 'ACATLIPA', 'XOCHITEPEC', 'ANTIQUERA', 'CUENTEPEC',
-                'TETECALITA', 'TEZOYUCA', 'SAN JOSÉ',
-            ],
-            'Yautepec' => [
-                'CENTRO', 'COCOYOC', 'OAXTEPEC', 'ITZAMATITLÁN', 'ATLATLAHUACAN',
-                'TLAYACAPAN', 'YECAPIXTLA', 'JANTETELCO',
-            ],
+            // // ── Morelos ────────────────────────────────────────────────────
+            // 'Cuernavaca' => [
+            //     'CENTRO', 'CHAPULTEPEC', 'PALMIRA', 'LOMAS DE CORTÉS',
+            //     'JARDINES DE CUERNAVACA', 'BUENA VISTA', 'RANCHO CORTÉS', 'ACAPANTZINGO',
+            //     'CHIPITLÁN', 'LAS PALMAS',
+            // ],
+            // 'Jiutepec' => [
+            //     'CENTRO', 'TEJALPA', 'PROGRESO', 'TEPETZINGO', 'LAS FLORES',
+            //     'SAN GASPAR', 'ATLACOMULCO', 'LA JOYA',
+            // ],
+            // 'Temixco' => [
+            //     'CENTRO', 'ACATLIPA', 'XOCHITEPEC', 'ANTIQUERA', 'CUENTEPEC',
+            //     'TETECALITA', 'TEZOYUCA', 'SAN JOSÉ',
+            // ],
+            // 'Yautepec' => [
+            //     'CENTRO', 'COCOYOC', 'OAXTEPEC', 'ITZAMATITLÁN', 'ATLATLAHUACAN',
+            //     'TLAYACAPAN', 'YECAPIXTLA', 'JANTETELCO',
+            // ],
 
-            // ── Guerrero ───────────────────────────────────────────────────
-            'Chilpancingo de los Bravo' => [
-                'CENTRO', 'XOCHIPALA', 'LAS PETAQUILLAS', 'EL CAMINO REAL',
-                'COLONIA GUERRERO', 'BIENESTAR', 'OMILTEMI', 'SAN MARCOS',
-                'RINCÓN DE LA VÍA', 'COLONIA MORELOS',
-            ],
-            'Tixtla de Guerrero' => [
-                'CENTRO', 'CUEXCONTITLÁN', 'ACTEOPAN', 'MIXTECAPA',
-                'LOS ÓRGANOS', 'ZUMPANGO', 'SAN FRANCISCO',
-            ],
-            'Chilapa de Álvarez' => [
-                'CENTRO', 'AHUIXTLA', 'IXCATEOPAN', 'QUECHULTENANGO',
-                'APALALA', 'OLINALÁ', 'CUETZALA DEL PROGRESO',
-            ],
-            'Mochitlán' => [
-                'CENTRO', 'SAN MIGUEL', 'LA CAÑADA', 'PANTITLÁN',
-                'APANGO', 'QUECHULTENANGO', 'EL PARAÍSO',
-            ],
+            // // ── Guerrero ───────────────────────────────────────────────────
+            // 'Chilpancingo de los Bravo' => [
+            //     'CENTRO', 'XOCHIPALA', 'LAS PETAQUILLAS', 'EL CAMINO REAL',
+            //     'COLONIA GUERRERO', 'BIENESTAR', 'OMILTEMI', 'SAN MARCOS',
+            //     'RINCÓN DE LA VÍA', 'COLONIA MORELOS',
+            // ],
+            // 'Tixtla de Guerrero' => [
+            //     'CENTRO', 'CUEXCONTITLÁN', 'ACTEOPAN', 'MIXTECAPA',
+            //     'LOS ÓRGANOS', 'ZUMPANGO', 'SAN FRANCISCO',
+            // ],
+            // 'Chilapa de Álvarez' => [
+            //     'CENTRO', 'AHUIXTLA', 'IXCATEOPAN', 'QUECHULTENANGO',
+            //     'APALALA', 'OLINALÁ', 'CUETZALA DEL PROGRESO',
+            // ],
+            // 'Mochitlán' => [
+            //     'CENTRO', 'SAN MIGUEL', 'LA CAÑADA', 'PANTITLÁN',
+            //     'APANGO', 'QUECHULTENANGO', 'EL PARAÍSO',
+            // ],
         ];
 
         foreach ($data as $municipalityName => $communities) {

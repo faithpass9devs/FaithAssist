@@ -18,16 +18,16 @@ class RolesSeeder extends Seeder
                 'description' => 'Acceso total al sistema',
             ],
             [
-                'name' => 'Coordinador',
-                'description' => 'Gestiona modulos asignados',
+                'name' => 'Coordinador de Parroquia',
+                'description' => 'Gestion operativa de parroquias y capillas',
             ],
-            [
-                'name' => 'Catequista',
-                'description' => 'Gestion operativa de capillas',
-            ],
+            // [
+            //     'name' => 'Catequista',
+            //     'description' => 'Gestion operativa de capillas',
+            // ],
             [
                 'name' => 'Capturista',
-                'description' => 'Consulta de informacion en capillas',
+                'description' => 'Registrar nuevos niños',
             ],
         ];
 

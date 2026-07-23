@@ -22,14 +22,14 @@ class SyncRolePermissionsSeeder extends Seeder
         ]);
 
         $coordinador = Role::query()->firstOrCreate([
-            'name' => 'Coordinador',
+            'name' => 'Coordinador de Parroquia',
             'guard_name' => 'web',
         ]);
 
-        $catequista = Role::query()->firstOrCreate([
-            'name' => 'Catequista',
-            'guard_name' => 'web',
-        ]);
+        // $catequista = Role::query()->firstOrCreate([
+        //     'name' => 'Catequista',
+        //     'guard_name' => 'web',
+        // ]);
 
         $capturista = Role::query()->firstOrCreate([
             'name' => 'Capturista',
@@ -49,15 +49,17 @@ class SyncRolePermissionsSeeder extends Seeder
         );
 
         $coordinador->syncPermissions(array_merge(
-            $this->permissionsForModules(['municipios'], $readAndShowActions),
+            $this->permissionsForModules([
+                'municipios',
+                'parroquias',
+                'periodos',
+                'niveles',
+                'tipos_movimientos_periodo',
+            ], $readAndShowActions),
             $this->permissionsForModules([
                 'comunidades',
-                'parroquias',
                 'capillas',
-                'periodos',
                 'periodo_movimientos',
-                'tipos_movimientos_periodo',
-                'niveles',
                 'children',
                 'usuarios',
                 'weekends',
@@ -78,18 +80,16 @@ class SyncRolePermissionsSeeder extends Seeder
             ]
         ));
 
-        $catequista->syncPermissions(array_merge(
-            $this->permissionsForModules(['parroquias', 'capillas', 'niveles', 'children', 'weekends'], $readAndShowActions),
-            $this->permissionsForModules(['masses', 'mass_attendance'], ['create', 'read', 'update', 'show']),
-            $this->permissionsForModules(['asistencias_manuales'], ['create', 'read', 'update', 'show']),
-            ['mass_attendance.scan']
-        ));
+        // $catequista->syncPermissions(array_merge(
+        //     $this->permissionsForModules(['parroquias', 'capillas', 'niveles', 'children', 'weekends'], $readAndShowActions),
+        //     $this->permissionsForModules(['masses', 'mass_attendance'], ['create', 'read', 'update', 'show']),
+        //     $this->permissionsForModules(['asistencias_manuales'], ['create', 'read', 'update', 'show']),
+        //     ['mass_attendance.scan']
+        // ));
 
         $capturista->syncPermissions(
             array_merge(
-                $this->permissionsForModules(['capillas', 'niveles', 'children', 'weekends', 'masses'], $readAndShowActions),
-                $this->permissionsForModules(['mass_attendance'], ['create', 'read', 'show']),
-                $this->permissionsForModules(['asistencias_manuales'], ['create', 'read', 'show']),
+                $this->permissionsForModules(['children'], ['create', 'read', 'update','show']),
                 ['mass_attendance.scan']
             )
         );
