@@ -1,28 +1,43 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Check, Church, Eye, EyeOff, KeyRound, MapPinned, ShieldCheck, User, Users, X } from 'lucide-vue-next';
+import {
+  CalendarDays,
+  Check,
+  Church,
+  Eye,
+  EyeOff,
+  KeyRound,
+  MapPinned,
+  ShieldCheck,
+  User,
+  Users,
+  X,
+} from 'lucide-vue-next';
 import AppShell from '../../../components/layouts/AppShell.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import PermissionSelector from '../../../components/security/PermissionSelector.vue';
 
 const props = defineProps({
-  user:                { type: Object, default: null },
-  roles:               { type: Array,  required: true },
-  permissionGroups:    { type: Array,  required: true },
-  dioceses:            { type: Array,  default: () => [] },
-  deaneries:           { type: Array,  default: () => [] },
-  churches:            { type: Array,  default: () => [] },
-  chapels:             { type: Array,  default: () => [] },
-  selectedRole:        { type: Number, default: null },
-  selectedPermissions: { type: Array,  default: () => [] },
-  selectedDiocese:     { type: Number, default: null },
-  selectedDeanery:     { type: Number, default: null },
-  selectedChurch:      { type: Number, default: null },
-  selectedChapel:      { type: Number, default: null },
-  editorScope:         { type: Object, default: () => ({ diocese_id: null, deanery_id: null, church_id: null, chapel_id: null }) },
+  user: { type: Object, default: null },
+  roles: { type: Array, required: true },
+  permissionGroups: { type: Array, required: true },
+  dioceses: { type: Array, default: () => [] },
+  deaneries: { type: Array, default: () => [] },
+  churches: { type: Array, default: () => [] },
+  chapels: { type: Array, default: () => [] },
+  selectedRole: { type: Number, default: null },
+  selectedPermissions: { type: Array, default: () => [] },
+  selectedDiocese: { type: Number, default: null },
+  selectedDeanery: { type: Number, default: null },
+  selectedChurch: { type: Number, default: null },
+  selectedChapel: { type: Number, default: null },
+  editorScope: {
+    type: Object,
+    default: () => ({ diocese_id: null, deanery_id: null, church_id: null, chapel_id: null }),
+  },
   selectedCountryCode: { type: String, default: '521' },
-  countryCodes:        { type: Array,  default: () => [] },
+  countryCodes: { type: Array, default: () => [] },
 });
 
 const isEditing = computed(() => !!props.user);
@@ -31,7 +46,10 @@ const pageTitle = computed(() => (isEditing.value ? `Editar Usuario` : 'Nuevo Us
 /** El editor tiene scope restringido (no es global): no puede cambiar el alcance. */
 const scopeLocked = computed(() => props.editorScope.diocese_id !== null);
 const canSelectChapelInLockedScope = computed(
-  () => scopeLocked.value && props.editorScope.church_id !== null && props.editorScope.chapel_id === null,
+  () =>
+    scopeLocked.value &&
+    props.editorScope.church_id !== null &&
+    props.editorScope.chapel_id === null,
 );
 
 const activeSection = ref('general');
@@ -39,35 +57,35 @@ const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
 
 const sections = [
-  { key: 'general',    label: 'Datos Generales', icon: User },
-  { key: 'alcance',    label: 'Alcance',         icon: MapPinned },
-  { key: 'roles',      label: 'Roles',           icon: ShieldCheck },
-  { key: 'permisos',   label: 'Permisos',        icon: KeyRound },
-  { key: 'seguridad',  label: 'Seguridad',       icon: Users },
+  { key: 'general', label: 'Datos Generales', icon: User },
+  { key: 'alcance', label: 'Alcance', icon: MapPinned },
+  { key: 'roles', label: 'Roles', icon: ShieldCheck },
+  { key: 'permisos', label: 'Permisos', icon: KeyRound },
+  { key: 'seguridad', label: 'Seguridad', icon: Users },
 ];
 
 const form = useForm({
-  name:                  props.user?.name    ?? '',
-  paterno:               props.user?.paterno ?? '',
-  materno:               props.user?.materno ?? '',
-  email:                 props.user?.email   ?? '',
+  name: props.user?.name ?? '',
+  paterno: props.user?.paterno ?? '',
+  materno: props.user?.materno ?? '',
+  email: props.user?.email ?? '',
   whatsapp_country_code: props.user?.whatsapp_country_code ?? props.selectedCountryCode ?? '521',
-  whatsapp_phone:        props.user?.whatsapp_phone ?? '',
-  role_id:               props.selectedRole,
-  diocese_id:            scopeLocked.value && !props.user
-    ? props.editorScope.diocese_id
-    : (props.selectedDiocese ?? null),
-  deanery_id:            scopeLocked.value && !props.user
-    ? props.editorScope.deanery_id
-    : (props.selectedDeanery ?? null),
-  church_id:             scopeLocked.value && !props.user
-    ? props.editorScope.church_id
-    : (props.selectedChurch ?? null),
-  chapel_id:             scopeLocked.value && !props.user
-    ? props.editorScope.chapel_id
-    : (props.selectedChapel ?? null),
-  permissions:           [...props.selectedPermissions],
-  password:              '',
+  whatsapp_phone: props.user?.whatsapp_phone ?? '',
+  role_id: props.selectedRole,
+  diocese_id:
+    scopeLocked.value && !props.user
+      ? props.editorScope.diocese_id
+      : (props.selectedDiocese ?? null),
+  deanery_id:
+    scopeLocked.value && !props.user
+      ? props.editorScope.deanery_id
+      : (props.selectedDeanery ?? null),
+  church_id:
+    scopeLocked.value && !props.user ? props.editorScope.church_id : (props.selectedChurch ?? null),
+  chapel_id:
+    scopeLocked.value && !props.user ? props.editorScope.chapel_id : (props.selectedChapel ?? null),
+  permissions: [...props.selectedPermissions],
+  password: '',
   password_confirmation: '',
 });
 
@@ -100,12 +118,18 @@ const canSubmit = computed(() => {
 });
 
 const selectedRoleObj = computed(() => props.roles.find((r) => r.id === form.role_id));
+const selectedRolePermissionIds = computed(() => selectedRoleObj.value?.permissions ?? []);
+const willDetachRoleOnSave = computed(() =>
+  selectedRolePermissionIds.value.some((permissionId) => !form.permissions.includes(permissionId)),
+);
 
 const totalPermissions = computed(() => form.permissions.length);
 const hasDiocese = computed(() => form.diocese_id !== null);
 const hasDeanery = computed(() => form.deanery_id !== null);
 const hasChurch = computed(() => form.church_id !== null);
-const hasScopeSet = computed(() => hasDiocese.value || hasDeanery.value || hasChurch.value || form.chapel_id !== null);
+const hasScopeSet = computed(
+  () => hasDiocese.value || hasDeanery.value || hasChurch.value || form.chapel_id !== null,
+);
 
 /** Decanatos filtrados según la diócesis seleccionada. */
 const filteredDeaneries = computed(() => {
@@ -193,50 +217,55 @@ const submit = () => {
             class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="form.processing || !canSubmit"
           >
-            {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar usuario' : 'Crear usuario') }}
+            {{
+              form.processing ? 'Guardando...' : isEditing ? 'Actualizar usuario' : 'Crear usuario'
+            }}
           </button>
         </template>
       </CatalogHeader>
 
-    <!-- User identity header (edit mode) -->
-    <div
-      v-if="isEditing"
-      class="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div class="flex items-center gap-4">
-        <span
+      <!-- User identity header (edit mode) -->
+      <div
+        v-if="isEditing"
+        class="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="flex items-center gap-4">
+          <span
             v-if="user.photo_url"
-          class="h-16 w-16 overflow-hidden rounded-full border-2 border-rose-200 shadow"
+            class="h-16 w-16 overflow-hidden rounded-full border-2 border-rose-200 shadow"
+          >
+            <img :src="user.photo_url" :alt="user.full_name" class="h-full w-full object-cover" />
+          </span>
+          <span
+            v-else
+            class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-rose-700 text-xl font-black uppercase text-white shadow"
+          >
+            {{ user.initials }}
+          </span>
+          <div>
+            <p
+              class="text-xl font-black uppercase tracking-wide text-slate-800 dark:text-slate-100"
+            >
+              {{ user.full_name }}
+            </p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ user.email }}</p>
+          </div>
+        </div>
+        <div
+          v-if="user.created_at"
+          class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
         >
-          <img :src="user.photo_url" :alt="user.full_name" class="h-full w-full object-cover" />
-        </span>
-        <span
-          v-else
-          class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-rose-700 text-xl font-black uppercase text-white shadow"
-        >
-          {{ user.initials }}
-        </span>
-        <div>
-          <p class="text-xl font-black uppercase tracking-wide text-slate-800 dark:text-slate-100">
-            {{ user.full_name }}
-          </p>
-          <p class="text-sm text-slate-500 dark:text-slate-400">{{ user.email }}</p>
+          <CalendarDays class="h-3.5 w-3.5" />
+          Alta: {{ user.created_at }}
         </div>
       </div>
-      <div
-        v-if="user.created_at"
-        class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-      >
-        <CalendarDays class="h-3.5 w-3.5" />
-        Alta: {{ user.created_at }}
-      </div>
-    </div>
 
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-
         <!-- Sidebar nav -->
         <aside class="w-full shrink-0 lg:w-52">
-          <nav class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <nav
+            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+          >
             <ul class="divide-y divide-slate-100 dark:divide-slate-800">
               <li v-for="s in sections" :key="s.key">
                 <button
@@ -254,17 +283,20 @@ const submit = () => {
                     {{ s.label }}
                   </span>
                   <span
-                      v-if="s.key === 'alcance' && hasScopeSet"
-                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                    >
-                      {{ [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean).length }}
-                    </span>
-                    <span
-                      v-if="s.key === 'roles' && selectedRoleObj"
-                      class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
-                    >
-                      1
-                    </span>
+                    v-if="s.key === 'alcance' && hasScopeSet"
+                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                  >
+                    {{
+                      [hasDiocese, hasDeanery, hasChurch, form.chapel_id !== null].filter(Boolean)
+                        .length
+                    }}
+                  </span>
+                  <span
+                    v-if="s.key === 'roles' && selectedRoleObj"
+                    class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
+                  >
+                    1
+                  </span>
                   <span
                     v-if="s.key === 'permisos' && totalPermissions > 0"
                     class="rounded-full bg-rose-700 px-1.5 py-0.5 text-xs font-bold text-white"
@@ -279,10 +311,14 @@ const submit = () => {
 
         <!-- Main content -->
         <div class="min-w-0 flex-1">
-
           <!-- Datos Generales -->
-          <div v-show="activeSection === 'general'" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-            <h2 class="mb-5 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+          <div
+            v-show="activeSection === 'general'"
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+          >
+            <h2
+              class="mb-5 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400"
+            >
               Informacion basica de la cuenta
             </h2>
             <div class="grid gap-4 sm:grid-cols-2">
@@ -290,32 +326,64 @@ const submit = () => {
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Nombre <span class="text-red-500">*</span>
                 </label>
-                <input v-model="form.name" type="text" placeholder="Nombre(s)" class="input input-bordered w-full" :class="{ 'input-error': form.errors.name }" />
-                <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">{{ form.errors.name }}</p>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  placeholder="Nombre(s)"
+                  class="input input-bordered w-full"
+                  :class="{ 'input-error': form.errors.name }"
+                />
+                <p v-if="form.errors.name" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.name }}
+                </p>
               </div>
 
               <div>
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Apellido paterno <span class="text-red-500">*</span>
                 </label>
-                <input v-model="form.paterno" type="text" placeholder="Apellido paterno" class="input input-bordered w-full" :class="{ 'input-error': form.errors.paterno }" />
-                <p v-if="form.errors.paterno" class="mt-1 text-xs text-red-500">{{ form.errors.paterno }}</p>
+                <input
+                  v-model="form.paterno"
+                  type="text"
+                  placeholder="Apellido paterno"
+                  class="input input-bordered w-full"
+                  :class="{ 'input-error': form.errors.paterno }"
+                />
+                <p v-if="form.errors.paterno" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.paterno }}
+                </p>
               </div>
 
               <div>
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Apellido materno
                 </label>
-                <input v-model="form.materno" type="text" placeholder="Apellido materno" class="input input-bordered w-full" :class="{ 'input-error': form.errors.materno }" />
-                <p v-if="form.errors.materno" class="mt-1 text-xs text-red-500">{{ form.errors.materno }}</p>
+                <input
+                  v-model="form.materno"
+                  type="text"
+                  placeholder="Apellido materno"
+                  class="input input-bordered w-full"
+                  :class="{ 'input-error': form.errors.materno }"
+                />
+                <p v-if="form.errors.materno" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.materno }}
+                </p>
               </div>
 
               <div>
                 <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Correo electronico <span class="text-red-500">*</span>
                 </label>
-                <input v-model="form.email" type="email" placeholder="correo@ejemplo.com" class="input input-bordered w-full" :class="{ 'input-error': form.errors.email }" />
-                <p v-if="form.errors.email" class="mt-1 text-xs text-red-500">{{ form.errors.email }}</p>
+                <input
+                  v-model="form.email"
+                  type="email"
+                  placeholder="correo@ejemplo.com"
+                  class="input input-bordered w-full"
+                  :class="{ 'input-error': form.errors.email }"
+                />
+                <p v-if="form.errors.email" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.email }}
+                </p>
               </div>
 
               <div>
@@ -332,22 +400,40 @@ const submit = () => {
                       {{ code.label }}
                     </option>
                   </select>
-                  <input v-model="form.whatsapp_phone" type="text" placeholder="5512345678" class="input input-bordered w-full" :class="{ 'input-error': form.errors.whatsapp_phone }" />
+                  <input
+                    v-model="form.whatsapp_phone"
+                    type="text"
+                    placeholder="5512345678"
+                    class="input input-bordered w-full"
+                    :class="{ 'input-error': form.errors.whatsapp_phone }"
+                  />
                 </div>
-                <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Este numero se usa para recuperar tu contrasena.</p>
-                <p v-if="form.errors.whatsapp_country_code" class="mt-1 text-xs text-red-500">{{ form.errors.whatsapp_country_code }}</p>
-                <p v-if="form.errors.whatsapp_phone" class="mt-1 text-xs text-red-500">{{ form.errors.whatsapp_phone }}</p>
+                <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  Este numero se usa para recuperar tu contrasena.
+                </p>
+                <p v-if="form.errors.whatsapp_country_code" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.whatsapp_country_code }}
+                </p>
+                <p v-if="form.errors.whatsapp_phone" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.whatsapp_phone }}
+                </p>
               </div>
             </div>
           </div>
 
           <!-- Alcance -->
-          <div v-show="activeSection === 'alcance'" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-            <h2 class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+          <div
+            v-show="activeSection === 'alcance'"
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+          >
+            <h2
+              class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400"
+            >
               Alcance de datos
             </h2>
             <p class="mb-5 text-xs text-slate-400 dark:text-slate-500">
-              Define hasta qué nivel puede ver datos este usuario. Sin asignación tiene acceso total.
+              Define hasta qué nivel puede ver datos este usuario. Sin asignación tiene acceso
+              total.
             </p>
 
             <!-- Aviso de scope bloqueado -->
@@ -357,16 +443,20 @@ const submit = () => {
             >
               <MapPinned class="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                {{ canSelectChapelInLockedScope
-                  ? 'El alcance se hereda de tu perfil. Puedes asignar una capilla de tu parroquia.'
-                  : 'El alcance se hereda de tu perfil y no puede modificarse.' }}
+                {{
+                  canSelectChapelInLockedScope
+                    ? 'El alcance se hereda de tu perfil. Puedes asignar una capilla de tu parroquia.'
+                    : 'El alcance se hereda de tu perfil y no puede modificarse.'
+                }}
               </span>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <!-- Diócesis -->
               <div>
-                <label class="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label
+                  class="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
                   <MapPinned class="h-4 w-4 text-rose-700 dark:text-rose-400" />
                   Diócesis
                 </label>
@@ -381,20 +471,32 @@ const submit = () => {
                     {{ diocese.name }}
                   </option>
                 </select>
-                <p v-if="form.errors.diocese_id" class="mt-1 text-xs text-red-500">{{ form.errors.diocese_id }}</p>
+                <p v-if="form.errors.diocese_id" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.diocese_id }}
+                </p>
               </div>
 
               <!-- Decanato -->
               <div>
                 <label
                   class="mb-1.5 flex items-center gap-2 text-sm font-medium"
-                  :class="hasDiocese ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'"
+                  :class="
+                    hasDiocese
+                      ? 'text-slate-700 dark:text-slate-300'
+                      : 'text-slate-400 dark:text-slate-500'
+                  "
                 >
-                  <MapPinned class="h-4 w-4" :class="hasDiocese ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'" />
+                  <MapPinned
+                    class="h-4 w-4"
+                    :class="hasDiocese ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'"
+                  />
                   Decanato
                 </label>
 
-                <div v-if="!hasDiocese" class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+                <div
+                  v-if="!hasDiocese"
+                  class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500"
+                >
                   Selecciona primero una diócesis
                 </div>
                 <template v-else>
@@ -405,11 +507,17 @@ const submit = () => {
                     :disabled="scopeLocked"
                   >
                     <option :value="null">— Toda la diócesis —</option>
-                    <option v-for="deanery in filteredDeaneries" :key="deanery.id" :value="deanery.id">
+                    <option
+                      v-for="deanery in filteredDeaneries"
+                      :key="deanery.id"
+                      :value="deanery.id"
+                    >
                       {{ deanery.name }}
                     </option>
                   </select>
-                  <p v-if="form.errors.deanery_id" class="mt-1 text-xs text-red-500">{{ form.errors.deanery_id }}</p>
+                  <p v-if="form.errors.deanery_id" class="mt-1 text-xs text-red-500">
+                    {{ form.errors.deanery_id }}
+                  </p>
                 </template>
               </div>
 
@@ -417,13 +525,23 @@ const submit = () => {
               <div>
                 <label
                   class="mb-1.5 flex items-center gap-2 text-sm font-medium"
-                  :class="hasDeanery ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'"
+                  :class="
+                    hasDeanery
+                      ? 'text-slate-700 dark:text-slate-300'
+                      : 'text-slate-400 dark:text-slate-500'
+                  "
                 >
-                  <Church class="h-4 w-4" :class="hasDeanery ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'" />
+                  <Church
+                    class="h-4 w-4"
+                    :class="hasDeanery ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'"
+                  />
                   Parroquia
                 </label>
 
-                <div v-if="!hasDeanery" class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+                <div
+                  v-if="!hasDeanery"
+                  class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500"
+                >
                   Selecciona primero un decanato
                 </div>
                 <template v-else>
@@ -438,7 +556,9 @@ const submit = () => {
                       {{ church.name }}
                     </option>
                   </select>
-                  <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">{{ form.errors.church_id }}</p>
+                  <p v-if="form.errors.church_id" class="mt-1 text-xs text-red-500">
+                    {{ form.errors.church_id }}
+                  </p>
                 </template>
               </div>
 
@@ -446,13 +566,23 @@ const submit = () => {
               <div>
                 <label
                   class="mb-1.5 flex items-center gap-2 text-sm font-medium"
-                  :class="hasChurch ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'"
+                  :class="
+                    hasChurch
+                      ? 'text-slate-700 dark:text-slate-300'
+                      : 'text-slate-400 dark:text-slate-500'
+                  "
                 >
-                  <Church class="h-4 w-4" :class="hasChurch ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'" />
+                  <Church
+                    class="h-4 w-4"
+                    :class="hasChurch ? 'text-rose-700 dark:text-rose-400' : 'text-slate-400'"
+                  />
                   Capilla
                 </label>
 
-                <div v-if="!hasChurch" class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500">
+                <div
+                  v-if="!hasChurch"
+                  class="flex h-10 items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500"
+                >
                   Selecciona primero una parroquia
                 </div>
                 <template v-else>
@@ -467,18 +597,27 @@ const submit = () => {
                       {{ chapel.name }}
                     </option>
                   </select>
-                  <p v-if="form.errors.chapel_id" class="mt-1 text-xs text-red-500">{{ form.errors.chapel_id }}</p>
+                  <p v-if="form.errors.chapel_id" class="mt-1 text-xs text-red-500">
+                    {{ form.errors.chapel_id }}
+                  </p>
                 </template>
               </div>
             </div>
           </div>
 
           <!-- Roles -->
-          <div v-show="activeSection === 'roles'" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-            <h2 class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+          <div
+            v-show="activeSection === 'roles'"
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+          >
+            <h2
+              class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400"
+            >
               Rol del usuario
             </h2>
-            <p class="mb-5 text-xs text-slate-400 dark:text-slate-500">Solo se puede asignar un rol por usuario.</p>
+            <p class="mb-5 text-xs text-slate-400 dark:text-slate-500">
+              Solo se puede asignar un rol por usuario.
+            </p>
 
             <div class="grid gap-2 sm:grid-cols-2">
               <!-- None option -->
@@ -494,12 +633,18 @@ const submit = () => {
               >
                 <span
                   class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
-                  :class="form.role_id === null ? 'border-rose-600' : 'border-slate-300 dark:border-slate-600'"
+                  :class="
+                    form.role_id === null
+                      ? 'border-rose-600'
+                      : 'border-slate-300 dark:border-slate-600'
+                  "
                 >
                   <span v-if="form.role_id === null" class="h-2 w-2 rounded-full bg-rose-600" />
                 </span>
                 <span>
-                  <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">Sin rol</span>
+                  <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200"
+                    >Sin rol</span
+                  >
                   <span class="block text-xs text-slate-400">No asignar ningun rol</span>
                 </span>
               </button>
@@ -518,36 +663,63 @@ const submit = () => {
               >
                 <span
                   class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2"
-                  :class="form.role_id === role.id ? 'border-rose-600' : 'border-slate-300 dark:border-slate-600'"
+                  :class="
+                    form.role_id === role.id
+                      ? 'border-rose-600'
+                      : 'border-slate-300 dark:border-slate-600'
+                  "
                 >
                   <span v-if="form.role_id === role.id" class="h-2 w-2 rounded-full bg-rose-600" />
                 </span>
                 <span>
-                  <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ role.name }}</span>
-                  <span v-if="role.description" class="block text-xs text-slate-400 dark:text-slate-500">{{ role.description }}</span>
+                  <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">{{
+                    role.name
+                  }}</span>
+                  <span
+                    v-if="role.description"
+                    class="block text-xs text-slate-400 dark:text-slate-500"
+                    >{{ role.description }}</span
+                  >
                 </span>
               </button>
             </div>
 
-            <p v-if="form.errors.role_id" class="mt-3 text-xs text-red-500">{{ form.errors.role_id }}</p>
+            <p v-if="form.errors.role_id" class="mt-3 text-xs text-red-500">
+              {{ form.errors.role_id }}
+            </p>
           </div>
 
           <!-- Permisos -->
           <div v-show="activeSection === 'permisos'">
-            <PermissionSelector
-              v-model="form.permissions"
-              :groups="permissionGroups"
-            />
-            <p v-if="form.errors.permissions" class="mt-2 text-xs text-red-500">{{ form.errors.permissions }}</p>
+            <div
+              v-if="selectedRoleObj && willDetachRoleOnSave"
+              class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300"
+            >
+              Desmarcaste permisos incluidos en el rol "{{ selectedRoleObj.name }}". Al guardar se
+              retirara el rol y se conservaran solo los permisos seleccionados para este usuario.
+            </div>
+            <PermissionSelector v-model="form.permissions" :groups="permissionGroups" />
+            <p v-if="form.errors.permissions" class="mt-2 text-xs text-red-500">
+              {{ form.errors.permissions }}
+            </p>
           </div>
 
           <!-- Seguridad -->
-          <div v-show="activeSection === 'seguridad'" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-            <h2 class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+          <div
+            v-show="activeSection === 'seguridad'"
+            class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+          >
+            <h2
+              class="mb-1 text-sm font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400"
+            >
               Seguridad
             </h2>
             <p class="mb-5 text-xs text-slate-400 dark:text-slate-500">
-              {{ isEditing ? 'Deja los campos vacios para mantener la contrasena actual.' : 'Define la contrasena de acceso.' }}
+              {{
+                isEditing
+                  ? 'Deja los campos vacios para mantener la contrasena actual.'
+                  : 'Define la contrasena de acceso.'
+              }}
             </p>
 
             <div class="grid gap-5 lg:grid-cols-2">
@@ -576,7 +748,9 @@ const submit = () => {
                   </button>
                 </div>
 
-                <p v-if="form.errors.password" class="mt-1 text-xs text-red-500">{{ form.errors.password }}</p>
+                <p v-if="form.errors.password" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.password }}
+                </p>
               </div>
 
               <div class="space-y-1.5">
@@ -596,14 +770,20 @@ const submit = () => {
                   <button
                     type="button"
                     class="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                    :aria-label="showPasswordConfirmation ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'"
+                    :aria-label="
+                      showPasswordConfirmation
+                        ? 'Ocultar confirmación de contraseña'
+                        : 'Mostrar confirmación de contraseña'
+                    "
                     @click="showPasswordConfirmation = !showPasswordConfirmation"
                   >
                     <EyeOff v-if="showPasswordConfirmation" class="h-4 w-4" />
                     <Eye v-else class="h-4 w-4" />
                   </button>
                 </div>
-                <p v-if="form.errors.password_confirmation" class="mt-1 text-xs text-red-500">{{ form.errors.password_confirmation }}</p>
+                <p v-if="form.errors.password_confirmation" class="mt-1 text-xs text-red-500">
+                  {{ form.errors.password_confirmation }}
+                </p>
               </div>
             </div>
 
@@ -636,7 +816,6 @@ const submit = () => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </form>
