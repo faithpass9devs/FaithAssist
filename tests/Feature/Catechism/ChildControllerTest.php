@@ -13,7 +13,6 @@ use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
 use App\Services\CatechismPeriodMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
 
