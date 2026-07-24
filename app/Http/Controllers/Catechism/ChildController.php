@@ -137,13 +137,15 @@ class ChildController extends Controller
     {
         abort_unless($request->user()?->can('children.read'), 403);
 
-        $scope = new UserScopeService($request->user());
+        if (! $request->user()?->can('children.scope.all')) {
+            $scope = new UserScopeService($request->user());
 
-        if (! $scope->isGlobal()) {
-            $hasChurchAccess = $scope->churchIds()->contains($child->church_id);
-            $hasCommunityAccess = $scope->communityIds()->contains($child->community_id);
+            if (! $scope->isGlobal()) {
+                $hasChurchAccess = $scope->churchIds()->contains($child->church_id);
+                $hasCommunityAccess = $scope->communityIds()->contains($child->community_id);
 
-            abort_unless($hasChurchAccess || $hasCommunityAccess, 403);
+                abort_unless($hasChurchAccess || $hasCommunityAccess, 403);
+            }
         }
 
         $pdfContent = $qrService->generateChildBadgePdf(
