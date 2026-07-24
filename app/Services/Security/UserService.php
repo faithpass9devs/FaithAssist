@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class UserService
@@ -117,7 +118,7 @@ class UserService
                 'materno' => $data['materno'] ?? null,
             ]);
 
-            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null);
+            $roleId = $this->allowedRoleIdForSubmittedPermissions($editor, $data['role_id'] ?? null, $data);
 
             if ($roleId) {
                 $user->syncRoles([$roleId]);
@@ -161,8 +162,9 @@ class UserService
                 'materno' => $data['materno'] ?? null,
             ])->save();
 
-            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null);
+            $roleId = $this->allowedRoleIdForSubmittedPermissions($editor, $data['role_id'] ?? null, $data);
             $user->syncRoles($roleId ? [$roleId] : collect());
+            $user->unsetRelation('roles');
 
             $finalPerms = $this->directPermissionsForUpdate($editor, $user, $data);
             $user->syncPermissions($finalPerms);
@@ -222,6 +224,30 @@ class UserService
         $allowedRoleIds = $this->users->allowedRoles($editor)->pluck('id');
 
         return $roleId && $allowedRoleIds->contains($roleId)
+            ? $roleId
+            : null;
+    }
+
+    private function allowedRoleIdForSubmittedPermissions(User $editor, mixed $roleId, array $data): mixed
+    {
+        $roleId = $this->allowedRoleId($editor, $roleId);
+
+        if (! $roleId || ! array_key_exists('permissions', $data)) {
+            return $roleId;
+        }
+
+        $rolePermissionIds = Role::query()
+            ->find($roleId)
+            ?->permissions()
+            ->pluck('id') ?? collect();
+
+        if ($rolePermissionIds->isEmpty()) {
+            return $roleId;
+        }
+
+        $safeIds = $this->safeSubmittedPermissionIds($editor, $data);
+
+        return $rolePermissionIds->diff($safeIds)->isEmpty()
             ? $roleId
             : null;
     }

@@ -22,31 +22,31 @@ class MunicipalitySeeder extends Seeder
         }
 
         $edomex    = State::where('name', 'Estado de México')->first();
-        $morelos   = State::where('name', 'Morelos')->first();
-        $guerrero  = State::where('name', 'Guerrero')->first();
+        // $morelos   = State::where('name', 'Morelos')->first();
+        // $guerrero  = State::where('name', 'Guerrero')->first();
 
         $dTenancingo      = Diocese::where('name', 'DIOCESIS DE TENANCINGO')->first();
-        $dCuernavaca      = Diocese::where('name', 'DIOCESIS DE CUERNAVACA')->first();
-        $dChilpancingo    = Diocese::where('name', 'DIOCESIS DE CHILPANCINGO-CHILAPA')->first();
+        // $dCuernavaca      = Diocese::where('name', 'DIOCESIS DE CUERNAVACA')->first();
+        // $dChilpancingo    = Diocese::where('name', 'DIOCESIS DE CHILPANCINGO-CHILAPA')->first();
 
         $municipalities = [
             // Estado de México – Diócesis de Tenancingo
             ['name' => 'Coatepec Harinas', 'state' => $edomex,   'diocese' => $dTenancingo],
-            ['name' => 'Tenancingo',        'state' => $edomex,   'diocese' => $dTenancingo],
-            ['name' => 'Villa Guerrero',    'state' => $edomex,   'diocese' => $dTenancingo],
-            ['name' => 'Zumpahuacan',       'state' => $edomex,   'diocese' => $dTenancingo],
+            // ['name' => 'Tenancingo',        'state' => $edomex,   'diocese' => $dTenancingo],
+            // ['name' => 'Villa Guerrero',    'state' => $edomex,   'diocese' => $dTenancingo],
+            // ['name' => 'Zumpahuacan',       'state' => $edomex,   'diocese' => $dTenancingo],
 
             // Morelos – Diócesis de Cuernavaca
-            ['name' => 'Cuernavaca',        'state' => $morelos,  'diocese' => $dCuernavaca],
-            ['name' => 'Jiutepec',          'state' => $morelos,  'diocese' => $dCuernavaca],
-            ['name' => 'Temixco',           'state' => $morelos,  'diocese' => $dCuernavaca],
-            ['name' => 'Yautepec',          'state' => $morelos,  'diocese' => $dCuernavaca],
+            // ['name' => 'Cuernavaca',        'state' => $morelos,  'diocese' => $dCuernavaca],
+            // ['name' => 'Jiutepec',          'state' => $morelos,  'diocese' => $dCuernavaca],
+            // ['name' => 'Temixco',           'state' => $morelos,  'diocese' => $dCuernavaca],
+            // ['name' => 'Yautepec',          'state' => $morelos,  'diocese' => $dCuernavaca],
 
             // Guerrero – Diócesis de Chilpancingo-Chilapa
-            ['name' => 'Chilpancingo de los Bravo', 'state' => $guerrero, 'diocese' => $dChilpancingo],
-            ['name' => 'Tixtla de Guerrero',        'state' => $guerrero, 'diocese' => $dChilpancingo],
-            ['name' => 'Chilapa de Álvarez',        'state' => $guerrero, 'diocese' => $dChilpancingo],
-            ['name' => 'Mochitlán',                 'state' => $guerrero, 'diocese' => $dChilpancingo],
+            // ['name' => 'Chilpancingo de los Bravo', 'state' => $guerrero, 'diocese' => $dChilpancingo],
+            // ['name' => 'Tixtla de Guerrero',        'state' => $guerrero, 'diocese' => $dChilpancingo],
+            // ['name' => 'Chilapa de Álvarez',        'state' => $guerrero, 'diocese' => $dChilpancingo],
+            // ['name' => 'Mochitlán',                 'state' => $guerrero, 'diocese' => $dChilpancingo],
         ];
 
         foreach ($municipalities as $data) {

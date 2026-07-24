@@ -16,21 +16,21 @@ class ProfileSeeder extends Seeder
                 'paterno' => 'Superadmin',
                 'materno' => 'Sistema',
             ],
-            'coordinador@faithassistqr.test' => [
-                'name' => 'Usuario',
-                'paterno' => 'Coordinador',
-                'materno' => 'Sistema',
-            ],
-            'catequista@faithassistqr.test' => [
-                'name' => 'Usuario',
-                'paterno' => 'Catequista',
-                'materno' => 'Sistema',
-            ],
-            'capturista@faithassistqr.test' => [
-                'name' => 'Usuario',
-                'paterno' => 'Capturista',
-                'materno' => 'Sistema',
-            ],
+            // 'coordinador@faithassistqr.test' => [
+            //     'name' => 'Usuario',
+            //     'paterno' => 'Coordinador',
+            //     'materno' => 'Sistema',
+            // ],
+            // 'catequista@faithassistqr.test' => [
+            //     'name' => 'Usuario',
+            //     'paterno' => 'Capturador',
+            //     'materno' => 'Sistema',
+            // ],
+            // 'capturista@faithassistqr.test' => [
+            //     'name' => 'Usuario',
+            //     'paterno' => 'Capturista',
+            //     'materno' => 'Sistema',
+            // ],
         ];
 
         foreach ($profilesByEmail as $email => $profileData) {

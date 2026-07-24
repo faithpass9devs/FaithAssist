@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\LadaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
 
@@ -177,8 +178,8 @@ class UserControllerTest extends TestCase
             ->assertSee('estados.export')
             ->assertSee('municipios.export')
             ->assertSee('comunidades.export')
-                ->assertSee('children.export')
-                ->assertSee('reinscripciones.export');
+            ->assertSee('children.export')
+            ->assertSee('reinscripciones.export');
     }
 
     public function test_update_modifies_user_and_redirects(): void
@@ -253,6 +254,83 @@ class UserControllerTest extends TestCase
 
         $this->assertFalse($target->hasDirectPermission('estados.export'));
         $this->assertFalse($target->can('estados.export'));
+    }
+
+    public function test_update_can_customize_permissions_by_removing_role_inherited_permission(): void
+    {
+        $readPermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.read', 'guard_name' => 'web'],
+            ['description' => 'usuarios.read', 'module_key' => 'security']
+        );
+        $updatePermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.update', 'guard_name' => 'web'],
+            ['description' => 'usuarios.update', 'module_key' => 'security']
+        );
+
+        $role = Role::create(['name' => 'Gestor Usuarios', 'guard_name' => 'web']);
+        $role->givePermissionTo([$readPermission, $updatePermission]);
+
+        $target = User::factory()->create(['diocese_id' => null]);
+        $target->assignRole($role);
+        Profile::create(['user_id' => $target->id, 'name' => 'Raul', 'paterno' => 'Ramos', 'materno' => null]);
+
+        $editor = $this->makeGlobalUser('usuarios.read', 'usuarios.update');
+
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Raul',
+                'paterno' => 'Ramos',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertFalse($target->hasRole($role));
+        $this->assertTrue($target->hasDirectPermission('usuarios.read'));
+        $this->assertTrue($target->can('usuarios.read'));
+        $this->assertFalse($target->can('usuarios.update'));
+    }
+
+    public function test_update_preserves_role_when_adding_direct_permission_to_role_permissions(): void
+    {
+        $readPermission = Permission::firstOrCreate(
+            ['name' => 'roles.read', 'guard_name' => 'web'],
+            ['description' => 'roles.read', 'module_key' => 'security']
+        );
+        $extraPermission = Permission::firstOrCreate(
+            ['name' => 'roles.update', 'guard_name' => 'web'],
+            ['description' => 'roles.update', 'module_key' => 'security']
+        );
+
+        $role = Role::create(['name' => 'Lector Roles', 'guard_name' => 'web']);
+        $role->givePermissionTo($readPermission);
+
+        $target = User::factory()->create(['diocese_id' => null]);
+        $target->assignRole($role);
+        Profile::create(['user_id' => $target->id, 'name' => 'Sofia', 'paterno' => 'Suarez', 'materno' => null]);
+
+        $editor = $this->makeGlobalUser('roles.read', 'roles.update');
+
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Sofia',
+                'paterno' => 'Suarez',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id, $extraPermission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertTrue($target->hasRole($role));
+        $this->assertFalse($target->hasDirectPermission('roles.read'));
+        $this->assertTrue($target->hasDirectPermission('roles.update'));
+        $this->assertTrue($target->can('roles.read'));
+        $this->assertTrue($target->can('roles.update'));
     }
 
     public function test_destroy_requires_usuarios_delete_permission(): void

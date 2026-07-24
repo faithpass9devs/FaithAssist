@@ -26,15 +26,15 @@ class DeanerySeeder extends Seeder
             ['diocese' => 'DIOCESIS DE TENANCINGO',          'name' => 'SAN FRANCISCO DE ASIS'],
             ['diocese' => 'DIOCESIS DE TENANCINGO',          'name' => 'CRISTO REY'],
 
-            // Diócesis de Cuernavaca (Morelos)
-            ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'LA ASUNCION DE MARIA'],
-            ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'SAN JUAN BAUTISTA'],
-            ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'SANTA CATARINA'],
+            // // Diócesis de Cuernavaca (Morelos)
+            // ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'LA ASUNCION DE MARIA'],
+            // ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'SAN JUAN BAUTISTA'],
+            // ['diocese' => 'DIOCESIS DE CUERNAVACA',          'name' => 'SANTA CATARINA'],
 
-            // Diócesis de Chilpancingo-Chilapa (Guerrero)
-            ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MATEO APOSTOL'],
-            ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MARTIN OBISPO'],
-            ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MIGUEL ARCANGEL'],
+            // // Diócesis de Chilpancingo-Chilapa (Guerrero)
+            // ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MATEO APOSTOL'],
+            // ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MARTIN OBISPO'],
+            // ['diocese' => 'DIOCESIS DE CHILPANCINGO-CHILAPA', 'name' => 'SAN MIGUEL ARCANGEL'],
         ];
 
         foreach ($deaneries as $data) {

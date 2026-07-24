@@ -26,16 +26,16 @@ class DioceseSeeder extends Seeder
                 'name'   => 'DIOCESIS DE TENANCINGO',
                 'bishop' => 'MONS. VICTOR CARABES CHAVEZ',
             ],
-            [
-                'state'  => 'Morelos',
-                'name'   => 'DIOCESIS DE CUERNAVACA',
-                'bishop' => 'MONS. RAMON CASTRO CASTRO',
-            ],
-            [
-                'state'  => 'Guerrero',
-                'name'   => 'DIOCESIS DE CHILPANCINGO-CHILAPA',
-                'bishop' => 'MONS. JOSE DE JESUS GONZALEZ HERNANDEZ',
-            ],
+            // [
+            //     'state'  => 'Morelos',
+            //     'name'   => 'DIOCESIS DE CUERNAVACA',
+            //     'bishop' => 'MONS. RAMON CASTRO CASTRO',
+            // ],
+            // [
+            //     'state'  => 'Guerrero',
+            //     'name'   => 'DIOCESIS DE CHILPANCINGO-CHILAPA',
+            //     'bishop' => 'MONS. JOSE DE JESUS GONZALEZ HERNANDEZ',
+            // ],
         ];
 
         foreach ($dioceses as $data) {

@@ -18,27 +18,27 @@ class UsersPerRoleSeeder extends Seeder
                 'password' => 'password',
                 'role' => 'Superadmin',
             ],
-            [
-                'name' => 'Usuario Coordinador',
-                'email' => 'coordinador@faithassistqr.test',
-                'whatsapp_phone' => '+5215522222222',
-                'password' => 'password',
-                'role' => 'Coordinador',
-            ],
-            [
-                'name' => 'Usuario Catequista',
-                'email' => 'catequista@faithassistqr.test',
-                'whatsapp_phone' => '+5215533333333',
-                'password' => 'password',
-                'role' => 'Catequista',
-            ],
-            [
-                'name' => 'Usuario Capturista',
-                'email' => 'capturista@faithassistqr.test',
-                'whatsapp_phone' => '+5215544444444',
-                'password' => 'password',
-                'role' => 'Capturista',
-            ],
+            // [
+            //     'name' => 'Usuario Coordinador',
+            //     'email' => 'coordinador@faithassistqr.test',
+            //     'whatsapp_phone' => '+5215522222222',
+            //     'password' => 'password',
+            //     'role' => 'Coordinador',
+            // ],
+            // [
+            //     'name' => 'Usuario Catequista',
+            //     'email' => 'catequista@faithassistqr.test',
+            //     'whatsapp_phone' => '+5215533333333',
+            //     'password' => 'password',
+            //     'role' => 'Catequista',
+            // ],
+            // [
+            //     'name' => 'Usuario Capturista',
+            //     'email' => 'capturista@faithassistqr.test',
+            //     'whatsapp_phone' => '+5215544444444',
+            //     'password' => 'password',
+            //     'role' => 'Capturista',
+            // ],
         ];
 
         foreach ($users as $userData) {

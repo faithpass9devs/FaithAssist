@@ -21,8 +21,8 @@ class StateSeeder extends Seeder
 
         $states = [
             ['name' => 'Estado de México', 'short_name' => 'Edomex'],
-            ['name' => 'Morelos',           'short_name' => 'Mor.'],
-            ['name' => 'Guerrero',          'short_name' => 'Gro.'],
+            // ['name' => 'Morelos',           'short_name' => 'Mor.'],
+            // ['name' => 'Guerrero',          'short_name' => 'Gro.'],
         ];
 
         foreach ($states as $state) {
