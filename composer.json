@@ -11,7 +11,7 @@
   "require": {
     "php": "^8.3",
     "dompdf/dompdf": "3.1",
-    "endroid/qr-code": "6.1",
+    "endroid/qr-code": "6.0.9",
     "guzzlehttp/guzzle": "^7.10",
     "inertiajs/inertia-laravel": "^2.0",
     "laravel/framework": "^13.8",
