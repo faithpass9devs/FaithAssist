@@ -154,7 +154,7 @@ class ChildService
             $this->qrWhatsappService->sendChildQrBadge($child);
         } catch (\Throwable $e) {
             // Log ya registrado en el servicio, simplemente continuamos
-            \Illuminate\Support\Facades\Log::warning('QR WhatsApp envío diferido', [
+            \Illuminate\Support\Facades\Log::warning('Gafete PDF WhatsApp envío diferido', [
                 'child_id' => $child->id,
             ]);
         }

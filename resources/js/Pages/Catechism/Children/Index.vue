@@ -149,6 +149,8 @@ const closeQr = () => {
   qrDataUrl.value = '';
 };
 
+const badgePdfHref = computed(() => (qrChild.value ? `/children/${qrChild.value.id}/badge-pdf` : '#'));
+
 const toast = (icon, title) => {
   Swal.fire({
     toast: true,
@@ -184,15 +186,15 @@ const sendQrWhatsapp = async () => {
 
     if (!response.ok) {
       console.error('Respuesta del servidor:', response.status, data);
-      toast('error', data.message || `Error: No se pudo enviar el QR`);
+      toast('error', data.message || `Error: No se pudo enviar el gafete PDF`);
       return;
     }
 
-    toast('success', data.message || 'QR enviado exitosamente por WhatsApp');
+    toast('success', data.message || 'Gafete PDF enviado exitosamente por WhatsApp');
     closeQr();
   } catch (error) {
     console.error('Error enviando QR:', error);
-    toast('error', error.message || 'Error al enviar el QR por WhatsApp. Intenta de nuevo');
+    toast('error', error.message || 'Error al enviar el gafete PDF por WhatsApp. Intenta de nuevo');
   } finally {
     isSendingQr.value = false;
   }
@@ -456,6 +458,14 @@ const sendQrWhatsapp = async () => {
           >
             Cerrar
           </button>
+          <a
+            :href="badgePdfHref"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-outline btn-sm flex-1 rounded-2xl border-sky-300 text-sky-700 hover:border-sky-400 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-300 dark:hover:bg-sky-950/40"
+          >
+            Ver gafete
+          </a>
           <button
             type="button"
             class="btn btn-primary btn-sm flex-1 rounded-2xl"
@@ -463,7 +473,7 @@ const sendQrWhatsapp = async () => {
             @click="sendQrWhatsapp"
           >
             <span v-if="isSendingQr" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Enviar QR</span>
+            <span v-else>Enviar gafete</span>
           </button>
         </div>
       </div>

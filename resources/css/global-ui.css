@@ -32,6 +32,17 @@
   h6 {
     @apply tracking-tight text-slate-900 dark:text-slate-50;
   }
+
+  /*
+   * In dark mode, some browsers render native <select> popups with a white
+   * background while inheriting light text, causing unreadable options.
+   * Force high contrast for option rows globally.
+   */
+  .dark select option,
+  .dark select optgroup {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
 }
 
 @layer components {

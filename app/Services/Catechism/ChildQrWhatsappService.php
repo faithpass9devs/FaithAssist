@@ -6,6 +6,12 @@ use App\Models\Catechism\Child;
 use App\Models\WhatsappMessage;
 use App\Services\WhatsappService;
 use Exception;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +24,7 @@ class ChildQrWhatsappService
     ) {}
 
     /**
-     * Envía el gafete (QR + datos del niño) por WhatsApp al teléfono registrado
+     * Envía el gafete en PDF por WhatsApp al teléfono registrado.
      */
     public function sendChildQrBadge(Child $child): void
     {
@@ -43,10 +49,10 @@ class ChildQrWhatsappService
                 return;
             }
 
-            $qrImagePath = $this->generateQrImage($child->code);
+            $badgePdfPath = $this->generateBadgePdfFile($child);
 
-            if (! $qrImagePath) {
-                Log::warning('No se pudo generar QR del gafete, omitiendo envío', [
+            if (! $badgePdfPath) {
+                Log::warning('No se pudo generar el PDF del gafete, omitiendo envío', [
                     'child_id' => $child->id,
                     'child_code' => $child->code,
                 ]);
@@ -54,7 +60,7 @@ class ChildQrWhatsappService
                 return;
             }
 
-            $this->sendViaWhatsapp($child, $phoneNumber, $qrImagePath);
+            $this->sendViaWhatsapp($child, $phoneNumber, $badgePdfPath);
 
             Log::info('Gafete enviado exitosamente por WhatsApp', [
                 'child_id' => $child->id,
@@ -68,7 +74,86 @@ class ChildQrWhatsappService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            throw $e;
         }
+    }
+
+    /**
+     * Genera y guarda temporalmente el PDF del gafete para envío por WhatsApp.
+     */
+    private function generateBadgePdfFile(Child $child): ?string
+    {
+        try {
+            $pdfContent = $this->generateChildBadgePdf($child);
+
+            if (! is_string($pdfContent) || strlen($pdfContent) < 100) {
+                return null;
+            }
+
+            $filename = 'gafete_'.$child->code.'_'.time().'.pdf';
+            $path = 'whatsapp/temp_badges/'.$filename;
+
+            Storage::makeDirectory('whatsapp/temp_badges');
+            Storage::put($path, $pdfContent);
+
+            return $path;
+        } catch (Throwable $e) {
+            Log::error('Error generando PDF temporal del gafete para WhatsApp', [
+                'child_id' => $child->id,
+                'child_code' => $child->code,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Genera el PDF del gafete del niño para abrirse en navegador.
+     */
+    public function generateChildBadgePdf(Child $child, ?string $qrImageDataUrl = null): string
+    {
+        $child->loadMissing([
+            'church.municipality.state',
+            'community.municipality.state',
+            'activeLevelAssignments.level',
+        ]);
+
+        $qrSvg = $this->generateQrSvgMarkup($child->code);
+        $qrMatrixHtml = $this->generateQrMatrixHtml($child->code);
+        $qrStoragePath = $this->generateQrImage($child->code);
+
+        try {
+            $qrImageUrl = $this->buildPdfLocalFileUrl($qrStoragePath)
+                ?? $this->generateQrDataUri($child->code)
+                ?? $this->sanitizePdfQrImage($qrImageDataUrl);
+
+            $viewData = $this->buildBadgeViewData($child, $qrImageUrl, $qrSvg, $qrMatrixHtml);
+            $html = view('pdf.catechism.child-badge', $viewData)->render();
+
+            return $this->generatePdfContent($html);
+        } finally {
+            if ($qrStoragePath && Storage::exists($qrStoragePath)) {
+                Storage::delete($qrStoragePath);
+            }
+        }
+    }
+
+    private function buildPdfLocalFileUrl(?string $storagePath): ?string
+    {
+        if (! $storagePath) {
+            return null;
+        }
+
+        $absolutePath = Storage::path($storagePath);
+        $realPath = realpath($absolutePath);
+
+        if (! $realPath || ! file_exists($realPath)) {
+            return null;
+        }
+
+        return 'file://'.str_replace('\\', '/', $realPath);
     }
 
     /**
@@ -120,37 +205,6 @@ class ChildQrWhatsappService
             Log::error('Error generando PDF del gafete', [
                 'error' => $e->getMessage(),
             ]);
-
-            return null;
-        }
-    }
-
-    /**
-     * Genera la imagen QR y la almacena temporalmente
-     */
-    private function generateQrImage(string $childCode): ?string
-    {
-        try {
-            // Construir URL del QR desde el código del niño
-            $qrContent = $childCode;
-
-            // Usar API gratuita de QR code (sin dependencias)
-            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=256x256&data={$qrContent}";
-
-            $response = Http::timeout(10)->get($qrUrl);
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            $filename = "qr_{$childCode}_" . time() . '.png';
-            $path = "whatsapp/temp_qr/{$filename}";
-
-            Storage::put($path, $response->body());
-
-            return $path;
-        } catch (Exception $e) {
-            Log::error('Error generando QR', ['error' => $e->getMessage()]);
 
             return null;
         }
@@ -247,6 +301,362 @@ class ChildQrWhatsappService
     }
 
     /**
+     * Prepara la información que necesita la vista del gafete.
+     */
+    private function buildBadgeViewData(
+        Child $child,
+        ?string $qrImageUrl = null,
+        ?string $qrSvg = null,
+        ?string $qrMatrixHtml = null
+    ): array
+    {
+        $church = $child->church;
+        $community = $child->community;
+        $municipality = $church?->municipality ?? $community?->municipality;
+        $state = $municipality?->state;
+        $levels = $child->activeLevelAssignments
+            ->map(fn ($assignment) => $assignment->level?->name)
+            ->filter()
+            ->values();
+
+        return [
+            'childName' => $this->resolveFullName($child),
+            'childCode' => $child->code,
+            'badgeLogoPath' => $this->resolveBadgeLogoPath(),
+            'pageOneBackgroundPath' => $this->resolveBackgroundTemplatePath('background_1'),
+            'pageTwoBackgroundPath' => $this->resolveBackgroundTemplatePath('background_2'),
+            'churchName' => $church?->name ?? 'No especificada',
+            'municipalityName' => $municipality?->name ?? 'No especificado',
+            'stateName' => $state?->short_name ?? $state?->name ?? '',
+            'communityName' => $community?->name ?? 'No especificada',
+            'levelName' => $levels->isNotEmpty() ? $levels->implode(', ') : 'Sin nivel',
+            'qrImageUrl' => $qrImageUrl,
+            'qrSvg' => $qrSvg,
+            'qrMatrixHtml' => $qrMatrixHtml,
+            'attendanceMonths' => [
+                'Septiembre',
+                'Octubre',
+                'Noviembre',
+                'Diciembre',
+                'Enero',
+                'Febrero',
+                'Marzo',
+                'Abril',
+                'Mayo',
+                'Junio',
+                'Julio',
+                'Agosto',
+            ],
+            'weekHeaders' => ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5'],
+        ];
+    }
+
+    private function resolveBadgeLogoPath(): ?string
+    {
+        $candidates = [
+            public_path('images/virgen.png'),
+            public_path('images/virgen.jpg'),
+            public_path('images/virgen.jpeg'),
+        ];
+
+        foreach ($candidates as $logoPath) {
+            if (file_exists($logoPath)) {
+                return str_replace('\\', '/', $logoPath);
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveBackgroundTemplatePath(string $baseName): ?string
+    {
+        $candidates = [
+            public_path('images/'.$baseName.'.png'),
+            public_path('images/'.$baseName.'.jpg'),
+            public_path('images/'.$baseName.'.jpeg'),
+        ];
+
+        foreach ($candidates as $backgroundPath) {
+            if (file_exists($backgroundPath)) {
+                return $this->preparePdfTemplateImagePath($backgroundPath);
+            }
+        }
+
+        return null;
+    }
+
+    private function preparePdfTemplateImagePath(string $sourcePath): ?string
+    {
+        $normalizedSource = str_replace('\\', '/', $sourcePath);
+        $extension = strtolower(pathinfo($normalizedSource, PATHINFO_EXTENSION));
+
+        if ($extension !== 'png') {
+            return 'file://'.$normalizedSource;
+        }
+
+        try {
+            $image = @imagecreatefrompng($sourcePath);
+
+            if (! $image) {
+                return 'file://'.$normalizedSource;
+            }
+
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $canvas = imagecreatetruecolor($width, $height);
+
+            $white = imagecolorallocate($canvas, 255, 255, 255);
+            imagefilledrectangle($canvas, 0, 0, $width, $height, $white);
+            imagecopy($canvas, $image, 0, 0, 0, 0, $width, $height);
+
+            $targetDir = storage_path('app/private/pdf_templates');
+
+            if (! is_dir($targetDir)) {
+                @mkdir($targetDir, 0755, true);
+            }
+
+            $targetPath = $targetDir.'/'.pathinfo($sourcePath, PATHINFO_FILENAME).'.jpg';
+            imagejpeg($canvas, $targetPath, 92);
+
+            imagedestroy($canvas);
+            imagedestroy($image);
+
+            if (file_exists($targetPath)) {
+                return 'file://'.str_replace('\\', '/', $targetPath);
+            }
+        } catch (Throwable $e) {
+            Log::warning('No se pudo normalizar plantilla PNG para PDF', [
+                'path' => $sourcePath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return 'file://'.$normalizedSource;
+    }
+
+    private function generateQrSvgMarkup(string $childCode): ?string
+    {
+        try {
+            $result = (new Builder(
+                writer: new SvgWriter(),
+                data: $childCode,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::High,
+                size: 320,
+                margin: 0,
+                roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            ))->build();
+
+            $svgRaw = trim($result->getString());
+
+            if ($svgRaw === '') {
+                return null;
+            }
+
+            $svgStart = stripos($svgRaw, '<svg');
+
+            if ($svgStart === false) {
+                return null;
+            }
+
+            $svg = substr($svgRaw, $svgStart);
+
+            return $svg;
+        } catch (Throwable $e) {
+            Log::error('Error generando SVG QR para PDF', [
+                'child_code' => $childCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Genera un PNG local del QR usando Endroid para que Dompdf lo renderice sin depender de red.
+     */
+    private function generateQrImage(string $childCode): ?string
+    {
+        try {
+            $result = $this->buildQrResult($childCode);
+
+            if (! $result) {
+                return null;
+            }
+
+            $filename = 'qr_'.$childCode.'_'.time().'.png';
+            $path = 'whatsapp/temp_qr/'.$filename;
+            $pngBinary = $this->normalizePngBinary($result->getString());
+
+            if ($pngBinary === null) {
+                return null;
+            }
+
+            Storage::makeDirectory('whatsapp/temp_qr');
+            Storage::put($path, $pngBinary);
+
+            return $path;
+        } catch (Throwable $e) {
+            Log::error('Error generando QR PNG local', [
+                'child_code' => $childCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function normalizePngBinary(string $pngBinary): ?string
+    {
+        try {
+            $image = @imagecreatefromstring($pngBinary);
+
+            if (! $image) {
+                Log::warning('No se pudo abrir binario PNG del QR para normalizacion');
+
+                return null;
+            }
+
+            imagepalettetotruecolor($image);
+            imagesavealpha($image, true);
+
+            ob_start();
+            imagepng($image, null, 9);
+            $normalized = ob_get_clean();
+            imagedestroy($image);
+
+            if (! is_string($normalized) || $normalized === '') {
+                return null;
+            }
+
+            return $normalized;
+        } catch (Throwable $e) {
+            Log::warning('Error normalizando PNG del QR', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    private function generateQrDataUri(string $childCode): ?string
+    {
+        $result = $this->buildQrResult($childCode);
+
+        if (! $result) {
+            return null;
+        }
+
+        $pngBinary = $result->getString();
+
+        if (! is_string($pngBinary) || $pngBinary === '') {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($pngBinary);
+    }
+
+    private function generateQrMatrixHtml(string $childCode): ?string
+    {
+        $result = $this->buildQrResult($childCode, 0);
+
+        if (! $result) {
+            return null;
+        }
+
+        $matrix = $result->getMatrix();
+        $blocks = $matrix->getBlockCount();
+
+        if ($blocks <= 0) {
+            return null;
+        }
+
+        // Ajusta el QR para que ocupe el recuadro casi completo sin desbordar.
+        $targetPixels = 204;
+        $cellSize = max(4, min(8, (int) round($targetPixels / $blocks)));
+        $html = '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 auto;background:#fff;line-height:0;font-size:0;">';
+
+        for ($row = 0; $row < $blocks; $row++) {
+            $html .= '<tr>';
+
+            for ($col = 0; $col < $blocks; $col++) {
+                $value = $matrix->getBlockValue($row, $col);
+                $color = $value === 1 ? '#000000' : '#ffffff';
+                $html .= '<td style="width:'.$cellSize.'px;height:'.$cellSize.'px;background:'.$color.';padding:0;margin:0;"></td>';
+            }
+
+            $html .= '</tr>';
+        }
+
+        $html .= '</table>';
+
+        return $html;
+    }
+
+    private function sanitizePdfQrImage(?string $qrImageDataUrl): ?string
+    {
+        if (! is_string($qrImageDataUrl)) {
+            return null;
+        }
+
+        $qrImageDataUrl = trim($qrImageDataUrl);
+
+        if ($qrImageDataUrl === '' || ! str_starts_with($qrImageDataUrl, 'data:image/png;base64,')) {
+            return null;
+        }
+
+        // Protege de URLs excesivamente grandes o payloads no válidos.
+        if (strlen($qrImageDataUrl) > 200000) {
+            return null;
+        }
+
+        $payload = substr($qrImageDataUrl, strlen('data:image/png;base64,'));
+        $decoded = base64_decode($payload, true);
+
+        if ($decoded === false || $decoded === '') {
+            return null;
+        }
+
+        $image = @imagecreatefromstring($decoded);
+
+        if ($image === false) {
+            return null;
+        }
+
+        imagedestroy($image);
+
+        return 'data:image/png;base64,'.base64_encode($decoded);
+    }
+
+    private function buildQrResult(string $childCode, int $margin = 16)
+    {
+        try {
+            return (new Builder(
+                writer: new PngWriter(),
+                data: $childCode,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::High,
+                size: 320,
+                margin: max(0, $margin),
+                roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            ))->build();
+        } catch (Throwable $e) {
+            Log::error('Error construyendo QR', [
+                'child_code' => $childCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Resuelve el nombre completo del niño sin depender de un accessor serializado.
+     */
+    private function resolveFullName(Child $child): string
+    {
+        return trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' '));
+    }
+
+    /**
      * Construye la sección del QR en HTML, omitiendo si no está disponible
      */
     private function buildQrSectionHtml(string $qrUrl): string
@@ -267,12 +677,8 @@ class ChildQrWhatsappService
      */
     private function generatePdfContent(string $html): string
     {
-        // Intentar usar wkhtmltopdf si existe
-        if ($this->hasWkhtmltopdf()) {
-            return $this->generatePdfWithWkhtmltopdf($html);
-        }
-
-        // Fallback: usar dompdf (ya instalado en el proyecto)
+        // Usar dompdf para el gafete; wkhtmltopdf en Windows ha mostrado
+        // placeholder de imagen rota con el QR incrustado.
         return $this->generatePdfWithDompdf($html);
     }
 
@@ -285,11 +691,11 @@ class ChildQrWhatsappService
             $options = new \Dompdf\Options();
             $options->set('isHtml5ParserEnabled', true);
             $options->set('isRemoteEnabled', true);
-            $options->set('defaultFont', 'Arial');
+            $options->set('chroot', base_path());
 
             $dompdf = new \Dompdf\Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
-            $dompdf->setPaper('A5', 'portrait');
+            $dompdf->setPaper('A4', 'portrait');
             $dompdf->render();
 
             return $dompdf->output();
@@ -368,38 +774,38 @@ class ChildQrWhatsappService
     }
 
     /**
-     * Envía el QR por WhatsApp como imagen con mensaje de bienvenida
+     * Envía el gafete por WhatsApp como documento PDF con mensaje de bienvenida.
      */
-    private function sendViaWhatsapp(Child $child, string $phoneNumber, string $qrImagePath): void
+    private function sendViaWhatsapp(Child $child, string $phoneNumber, string $badgePdfPath): void
     {
         try {
             $child->loadMissing(['church:id,name', 'community:id,name']);
             $churchName = $child->church?->name ?? '';
             $communityName = $child->community?->name ?? '';
+            $fullName = $this->resolveFullName($child);
+            $filename = $this->buildBadgePdfFilename($child);
 
-            $caption = "¡Bienvenido(a) {$child->full_name}! 🎉\n\n"
-                . "Este es tu código QR de identificación para la catequesis.\n"
-                . "📖 Código: {$child->code}\n"
-                . ($churchName ? "⛪ Iglesia: {$churchName}\n" : '')
-                . ($communityName ? "🏘️ Comunidad: {$communityName}\n" : '')
-                . "\nGuárdalo y preséntalo cuando sea necesario o se te indique.";
+            $caption = "🙏 *¡Buen día!*\n\n"
+                . "Con gusto le compartimos el *gafete de asistencia* de su hijo(a).\n\n"
+                . "👤 *Nombre:* {$fullName}\n\n"
+                . "📌 *Por favor:*\n\n"
+                . "- Verifique que los datos sean correctos.\n"
+                . "- Guarde este gafete en un lugar seguro.\n"
+                . "- Preséntelo cuando sea solicitado durante las actividades correspondientes.\n\n"
+                . "🤝 Agradecemos su apoyo y colaboración";
 
-            $result = $this->whatsappService->uploadAndSendImage(
+            $result = $this->whatsappService->uploadAndSendPdf(
                 toPhone: $phoneNumber,
-                storagePath: $qrImagePath,
+                storagePath: $badgePdfPath,
+                filename: $filename,
                 caption: $caption
             );
 
-            Log::info('Gafete QR enviado por WhatsApp', [
+            Log::info('Gafete PDF enviado por WhatsApp', [
                 'child_id' => $child->id,
                 'child_code' => $child->code,
                 'media_id' => $result['media_id'] ?? null,
             ]);
-
-            // Limpiar imagen temporal
-            if (Storage::exists($qrImagePath)) {
-                Storage::delete($qrImagePath);
-            }
         } catch (Throwable $e) {
             Log::error('Error enviando WhatsApp', [
                 'child_id' => $child->id,
@@ -407,7 +813,40 @@ class ChildQrWhatsappService
             ]);
 
             throw $e;
+        } finally {
+            if (Storage::exists($badgePdfPath)) {
+                Storage::delete($badgePdfPath);
+            }
         }
+    }
+
+    /**
+     * Construye el nombre del PDF a enviar por WhatsApp.
+     */
+    private function buildBadgePdfFilename(Child $child): string
+    {
+        $firstName = $this->firstWord((string) $child->name, 'NINO');
+        $firstLastName = $this->firstWord((string) $child->paterno, 'SIN_APELLIDO');
+        $displayName = trim($firstName.' '.$firstLastName);
+        $displayName = preg_replace('/[^\pL\pN\s\-]/u', '', $displayName) ?: 'NINO SIN_APELLIDO';
+
+        return 'Gafete de Asistencia '.$displayName.'.pdf';
+    }
+
+    /**
+     * Obtiene la primera palabra de un valor textual.
+     */
+    private function firstWord(string $value, string $fallback): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return $fallback;
+        }
+
+        $parts = preg_split('/\s+/u', $value) ?: [];
+
+        return $parts[0] ?? $fallback;
     }
 
     /**
