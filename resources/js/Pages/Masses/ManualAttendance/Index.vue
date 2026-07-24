@@ -13,6 +13,7 @@ const props = defineProps({
   levels: { type: Array, default: () => [] },
   municipalities: { type: Array, default: () => [] },
   communities: { type: Array, default: () => [] },
+  movement: { type: Object, default: () => ({ is_active: true, message: '' }) },
   filters: { type: Object, default: () => ({ child_id: null, weekend_id: null }) },
 });
 
@@ -29,6 +30,15 @@ const selectedChildId = ref(props.filters.child_id);
 const selectedWeekendId = ref(props.filters.weekend_id ?? null);
 const selectedMassIds = ref([]);
 let debounce = null;
+const lastInactiveAlertAt = ref(0);
+
+const isMovementActive = computed(() => props.movement?.is_active !== false);
+
+const inactiveMovementMessage = computed(
+  () =>
+    props.movement?.message ||
+    'No hay movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
+);
 
 const availableMasses = computed(() => props.masses ?? []);
 
@@ -106,6 +116,15 @@ const activeFilters = computed(
 );
 
 const reload = () => {
+  if (!isMovementActive.value) {
+    const now = Date.now();
+    if (now - lastInactiveAlertAt.value > 1200) {
+      lastInactiveAlertAt.value = now;
+      toast('error', inactiveMovementMessage.value);
+    }
+    return;
+  }
+
   router.get(
     '/asistencias-manuales',
     {
@@ -118,6 +137,18 @@ const reload = () => {
     },
     { preserveState: true, replace: true },
   );
+};
+
+const notifyInactiveMovementOnFilterAttempt = () => {
+  if (isMovementActive.value) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastInactiveAlertAt.value > 1200) {
+    lastInactiveAlertAt.value = now;
+    toast('error', inactiveMovementMessage.value);
+  }
 };
 
 watch([codeTerm, nameTerm, selectedLevelId, selectedMunicipalityId, selectedCommunityId], () => {
@@ -315,6 +346,7 @@ const chooseChild = (childId) => {
               v-model="codeTerm"
               type="text"
               placeholder="Código"
+              @focus="notifyInactiveMovementOnFilterAttempt"
               class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
           </label>
@@ -325,12 +357,14 @@ const chooseChild = (childId) => {
               v-model="nameTerm"
               type="text"
               placeholder="Nombre"
+              @focus="notifyInactiveMovementOnFilterAttempt"
               class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
           </label>
 
           <select
             v-model="selectedLevelId"
+            @focus="notifyInactiveMovementOnFilterAttempt"
             class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
           >
             <option :value="null">Nivel</option>
@@ -341,6 +375,7 @@ const chooseChild = (childId) => {
 
           <select
             v-model="selectedMunicipalityId"
+            @focus="notifyInactiveMovementOnFilterAttempt"
             class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
           >
             <option :value="null">Municipio</option>
@@ -351,6 +386,7 @@ const chooseChild = (childId) => {
 
           <select
             v-model="selectedCommunityId"
+            @focus="notifyInactiveMovementOnFilterAttempt"
             class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
           >
             <option :value="null">Comunidad</option>

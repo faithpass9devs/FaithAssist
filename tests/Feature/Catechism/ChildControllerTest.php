@@ -278,6 +278,32 @@ class ChildControllerTest extends TestCase
         );
     }
 
+    public function test_badge_pdf_returns_inline_pdf_response(): void
+    {
+        $chain = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('children.read');
+
+        $response = $this->actingAs($user)->get("/children/{$child->id}/badge-pdf");
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type') ?? '');
+        $this->assertStringContainsString('inline', $response->headers->get('Content-Disposition') ?? '');
+    }
+
+    public function test_badge_pdf_is_forbidden_outside_scope(): void
+    {
+        $chain1 = $this->createChain();
+        $chain2 = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain2, ['code' => '2026-BBB-20180314-CH2-0001']));
+
+        $user = $this->makeChurchUser($chain1['diocese'], $chain1['deanery'], $chain1['church'], 'children.read');
+
+        $this->actingAs($user)
+            ->get("/children/{$child->id}/badge-pdf")
+            ->assertForbidden();
+    }
+
     private function payload(array $chain, array $overrides = []): array
     {
         return array_merge([

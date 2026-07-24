@@ -6,9 +6,10 @@ use App\Exports\Catechism\ChildrenExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
-use App\Services\Catechism\ChildService;
 use App\Services\Catechism\ChildQrWhatsappService;
+use App\Services\Catechism\ChildService;
 use App\Services\CatechismPeriodMovementService;
+use App\Services\UserScopeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -98,20 +99,15 @@ class ChildController extends Controller
 
     public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
     {
-        // El binding automático de {child} ya verifica que el modelo existe
-        // No necesitamos autorización adicional aquí
-
         try {
-            // Validar que el niño tiene teléfono configurado
-            if (!$child->phone || !$child->phone_lada) {
+            if (! $child->phone || ! $child->phone_lada) {
                 return response()->json([
                     'success' => false,
                     'message' => 'El niño no tiene un teléfono registrado. Por favor, completa los datos de contacto.',
                 ], 422);
             }
 
-            // Validar que WhatsApp está configurado
-            if (!config('meta.whatsapp.token') || !config('meta.whatsapp.phone_number_id')) {
+            if (! config('meta.whatsapp.token') || ! config('meta.whatsapp.phone_number_id')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'WhatsApp no está configurado en el sistema.',
@@ -122,18 +118,70 @@ class ChildController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'QR enviado exitosamente por WhatsApp',
+                'message' => 'Gafete PDF enviado exitosamente por WhatsApp',
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error enviando QR por WhatsApp', [
+            \Log::error('Error enviando gafete PDF por WhatsApp', [
                 'child_id' => $child->id,
                 'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar el QR por WhatsApp. Por favor, intenta más tarde.',
+                'message' => 'Error al enviar el gafete PDF por WhatsApp. Por favor, intenta más tarde.',
             ], 500);
         }
+    }
+
+    public function badgePdf(Request $request, Child $child, ChildQrWhatsappService $qrService)
+    {
+        abort_unless($request->user()?->can('children.read'), 403);
+
+        if (! $request->user()?->can('children.scope.all')) {
+            $scope = new UserScopeService($request->user());
+
+            if (! $scope->isGlobal()) {
+                $hasChurchAccess = $scope->churchIds()->contains($child->church_id);
+                $hasCommunityAccess = $scope->communityIds()->contains($child->community_id);
+
+                abort_unless($hasChurchAccess || $hasCommunityAccess, 403);
+            }
+        }
+
+        $pdfContent = $qrService->generateChildBadgePdf(
+            $child,
+            $request->query('qr_image')
+        );
+        $fileName = $this->buildBadgePdfFilename($child);
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
+    }
+
+    private function buildBadgePdfFilename(Child $child): string
+    {
+        $firstName = $this->firstWord((string) $child->name, 'NINO');
+        $firstLastName = $this->firstWord((string) $child->paterno, 'SIN_APELLIDO');
+        $displayName = trim($firstName.' '.$firstLastName);
+        $displayName = preg_replace('/[^\pL\pN\s\-]/u', '', $displayName) ?: 'NINO SIN_APELLIDO';
+
+        return 'Gafete de Asistencia '.$displayName.'.pdf';
+    }
+
+    private function firstWord(string $value, string $fallback): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return $fallback;
+        }
+
+        $parts = preg_split('/\s+/u', $value) ?: [];
+
+        return $parts[0] ?? $fallback;
     }
 }

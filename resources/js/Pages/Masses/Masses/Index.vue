@@ -8,6 +8,7 @@ import AppShell from '../../../components/layouts/AppShell.vue';
 
 const props = defineProps({
   masses: { type: Object, required: true },
+  weekendTotal: { type: Number, default: 0 },
   weekends: { type: Array, default: () => [] },
   search: { type: String, default: '' },
   filters: { type: Object, default: () => ({ weekend_id: null }) },
@@ -62,9 +63,19 @@ const weekendsById = computed(() =>
 );
 
 const groupedMasses = computed(() => {
+  const rows = props.masses.data ?? [];
+
+  if (
+    rows.length > 0
+    && Array.isArray(rows[0]?.masses)
+    && Object.prototype.hasOwnProperty.call(rows[0], 'weekendId')
+  ) {
+    return rows;
+  }
+
   const groups = new Map();
 
-  for (const mass of props.masses.data ?? []) {
+  for (const mass of rows) {
     if (!groups.has(mass.weekend_id)) {
       const weekend = weekendsById.value[mass.weekend_id] ?? null;
 
@@ -182,7 +193,7 @@ const destroyMass = (mass) => {
       title="Misas"
       subtitle="Gestión de misas por fin de semana y ubicación"
       back-href="/"
-      :count="masses.total"
+      :count="weekendTotal || masses.total"
       :icon="Church"
     >
       <template #actions>

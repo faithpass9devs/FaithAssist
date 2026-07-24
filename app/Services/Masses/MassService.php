@@ -12,10 +12,11 @@ class MassService
 
     public function indexData(User $user, string $search, ?int $weekendId = null): array
     {
-        $masses = $this->masses->paginateWithScope($user, $search, $weekendId);
+        $masses = $this->masses->paginateWeekendGroupsWithScope($user, $search, $weekendId, 5);
 
         return [
-            'masses' => $masses->through(fn (Mass $mass) => $this->masses->serializeMass($mass)),
+            'masses' => $masses,
+            'weekendTotal' => $masses->total(),
             'weekends' => $this->masses->activeWeekends($user),
             'churches' => $this->masses->activeChurches($user),
             'chapels' => $this->masses->activeChapels($user),

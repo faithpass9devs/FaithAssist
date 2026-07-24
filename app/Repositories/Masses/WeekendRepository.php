@@ -10,7 +10,7 @@ use App\Services\UserScopeService;
 
 class WeekendRepository
 {
-    public function paginateWithScope(User $user, string $search, int $perPage = 15)
+    public function paginateWithScope(User $user, string $search, int $perPage = 5)
     {
         $scope = new UserScopeService($user);
 
