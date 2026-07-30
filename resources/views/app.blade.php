@@ -12,6 +12,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
+    <meta name="facebook-domain-verification" content="k9jgrkbd2m67ptrvlvhlxzj28v0dkt" />
 </head>
 <body>
     @inertia
