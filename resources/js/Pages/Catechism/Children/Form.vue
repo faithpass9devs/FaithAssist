@@ -143,25 +143,10 @@ const submit = () => {
         back-href="/children"
         :icon="User"
       >
-        <template #actions>
-          <Link
-            href="/children"
-            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
-          >
-            Cancelar
-          </Link>
-          <button
-            type="submit"
-            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="form.processing"
-          >
-            {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar niño' : 'Crear niño' }}
-          </button>
-        </template>
       </CatalogHeader>
 
       <div
-        class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
+        class="mb-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
       >
         <div v-if="isEditing" class="mb-8 grid gap-6 md:grid-cols-2">
           <UnderlineField :model-value="child.code" label="Código único" disabled />
@@ -239,6 +224,7 @@ const submit = () => {
                 :error="form.errors.church_id"
                 number-value
                 required
+                disabled=true
               />
               <UnderlineField
                 :model-value="selectedChurch?.municipality_id ?? null"
@@ -266,6 +252,7 @@ const submit = () => {
                 :options="statuses"
                 :error="form.errors.status"
                 required
+                disabled=true
               />
               <div v-if="!isEditing" class="md:col-span-2">
                 <div class="mb-2 flex items-center justify-between gap-3">
@@ -395,5 +382,21 @@ const submit = () => {
         </div>
       </div>
     </form>
+    <div class="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+      <Link
+        href="/children"
+        class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+      >
+        Cancelar
+      </Link>
+
+      <button
+        type="submit"
+        class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="form.processing"
+      >
+        {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar niño' : 'Crear niño' }}
+      </button>
+    </div>
   </AppShell>
 </template>
