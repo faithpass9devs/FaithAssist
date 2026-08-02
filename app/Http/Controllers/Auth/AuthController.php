@@ -99,12 +99,12 @@ class AuthController extends Controller
         if ($mustChangePassword) {
             return redirect()
                 ->route('home')
-                ->with('status', 'Contrasena actualizada correctamente.');
+                ->with('status', 'Contraseña actualizada correctamente.');
         }
 
         return redirect()
             ->route('profile.password.edit')
-            ->with('status', 'Contrasena actualizada correctamente.');
+            ->with('status', 'Contraseña actualizada correctamente.');
     }
 
     private function availableUiColumns(): array
