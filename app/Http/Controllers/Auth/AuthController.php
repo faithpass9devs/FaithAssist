@@ -60,7 +60,9 @@ class AuthController extends Controller
         }
 
         if ($request->user()?->must_change_password) {
-            return redirect()->route('profile.password.edit');
+            return redirect()
+                ->route('profile.password.edit')
+                ->with('status', 'Debes actualizar tu contraseña para ingresar al sistema.');
         }
 
         return redirect()->intended(route('home', absolute: false));
