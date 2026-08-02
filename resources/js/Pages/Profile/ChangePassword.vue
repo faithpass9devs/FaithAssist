@@ -9,6 +9,10 @@ defineProps({
     type: String,
     default: null,
   },
+  forceChange: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const form = useForm({
@@ -49,10 +53,6 @@ const submit = () => {
   });
 };
 
-const clearForm = () => {
-  form.reset('current_password', 'password', 'password_confirmation');
-  form.clearErrors();
-};
 </script>
 
 <template>
@@ -85,6 +85,7 @@ const clearForm = () => {
           </div>
 
           <Link
+            v-if="!forceChange"
             href="/profile"
             class="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-8 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
@@ -273,7 +274,13 @@ const clearForm = () => {
                 :disabled="form.processing"
               >
                 <Check class="h-4 w-4" />
-                {{ form.processing ? 'Actualizando...' : 'Actualizar contraseña' }}
+                {{
+                  form.processing
+                    ? 'Actualizando...'
+                    : forceChange
+                      ? 'Actualizar contraseña e ingresar'
+                      : 'Actualizar contraseña'
+                }}
               </button>
             </div>
           </form>

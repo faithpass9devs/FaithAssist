@@ -52,7 +52,7 @@ Route::middleware('guest')->group(function () {
         });
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/', function () {
         return Inertia::render('Dashboard');
     })->name('home');

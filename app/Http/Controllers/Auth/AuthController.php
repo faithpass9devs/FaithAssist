@@ -59,6 +59,10 @@ class AuthController extends Controller
             }
         }
 
+        if ($request->user()?->must_change_password) {
+            return redirect()->route('profile.password.edit');
+        }
+
         return redirect()->intended(route('home', absolute: false));
     }
 
@@ -76,16 +80,25 @@ class AuthController extends Controller
     {
         return Inertia::render('Profile/ChangePassword', [
             'status' => session('status'),
+            'forceChange' => (bool) auth()->user()?->must_change_password,
         ]);
     }
 
     public function updatePassword(ChangeOwnPasswordRequest $request): RedirectResponse
     {
+        $mustChangePassword = (bool) $request->user()->must_change_password;
+
         $this->auth->updatePassword(
             $request->user(),
             $request->validated('current_password'),
             $request->validated('password')
         );
+
+        if ($mustChangePassword) {
+            return redirect()
+                ->route('home')
+                ->with('status', 'Contrasena actualizada correctamente.');
+        }
 
         return redirect()
             ->route('profile.password.edit')
