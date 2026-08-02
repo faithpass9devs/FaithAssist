@@ -131,6 +131,7 @@ const modules = computed(() =>
           href: '/reinscripciones',
           moduleKey: 'reinscripciones',
         },
+        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos' },
       ],
     },
     {
