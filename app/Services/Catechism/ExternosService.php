@@ -9,6 +9,7 @@ use App\Models\Catechism\Child;
 use App\Models\External\ExternalChild;
 use App\Models\ExternalChildImport;
 use App\Models\ExternalChildImportBatch;
+use App\Models\Lada;
 use App\Models\User;
 use App\Repositories\Catechism\ExternosRepository;
 use Illuminate\Support\Facades\Bus;
@@ -188,6 +189,8 @@ class ExternosService
             'targetLevel' => $levels['targetLevel'],
             'levels' => $this->externos->getLevels($user, $defaultChurchId),
             'bloodTypes' => $this->bloodTypeOptions(),
+            'countryCodes' => Lada::options(),
+            'defaultCountryCode' => ExternalChildImportService::LADA,
         ];
     }
 

@@ -17,6 +17,8 @@ const props = defineProps({
   targetLevel: { type: Object, default: null },
   levels: { type: Array, default: () => [] },
   bloodTypes: { type: Array, default: () => [] },
+  countryCodes: { type: Array, default: () => [] },
+  defaultCountryCode: { type: String, default: '52' },
 });
 
 const initialBloodType = computed(() => {
@@ -32,7 +34,9 @@ const form = useForm({
   materno: props.externo.materno ?? '',
   blood_type: initialBloodType.value,
   email: props.externo.email ?? '',
+  phone_lada: props.externo.phone_lada ?? props.defaultCountryCode,
   phone: props.externo.phone ?? '',
+  emergency_phone_lada: props.externo.emergency_phone_lada ?? props.defaultCountryCode,
   emergency_phone: props.externo.emergency_phone ?? '',
   community_id: props.externo.community_id ?? null,
   observations: props.externo.notes ?? '',
@@ -288,7 +292,13 @@ const submit = () => {
                 :error="form.errors.email"
               />
               <div class="grid grid-cols-[8.5rem_1fr] gap-4">
-                <UnderlineField :model-value="'52'" label="Lada" disabled />
+                <UnderlineField
+                  v-model="form.phone_lada"
+                  label="Lada"
+                  as="select"
+                  :options="countryCodes"
+                  :error="form.errors.phone_lada"
+                />
                 <UnderlineField
                   v-model="form.phone"
                   label="Teléfono"
@@ -297,7 +307,13 @@ const submit = () => {
                 />
               </div>
               <div class="grid grid-cols-[8.5rem_1fr] gap-4 md:col-span-2">
-                <UnderlineField :model-value="'52'" label="Lada emergencia" disabled />
+                <UnderlineField
+                  v-model="form.emergency_phone_lada"
+                  label="Lada emergencia"
+                  as="select"
+                  :options="countryCodes"
+                  :error="form.errors.emergency_phone_lada"
+                />
                 <UnderlineField
                   v-model="form.emergency_phone"
                   label="Teléfono de emergencia"

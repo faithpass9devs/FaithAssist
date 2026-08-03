@@ -23,7 +23,7 @@ use RuntimeException;
 
 class ExternalChildImportService
 {
-    private const LADA = '52';
+    public const LADA = '52';
 
     public function __construct(
         private readonly ChildRepository $children,
@@ -72,9 +72,9 @@ class ExternalChildImportService
                 'birthdate' => $externo->birthdate?->format('Y-m-d'),
                 'sex' => ExternalDataMapper::sex($externo->sex),
                 'email' => $data['email'] ?? null,
-                'phone_lada' => self::LADA,
+                'phone_lada' => $data['phone_lada'] ?? self::LADA,
                 'phone' => ExternalDataMapper::phone($data['phone'] ?? null),
-                'emergency_phone_lada' => self::LADA,
+                'emergency_phone_lada' => $data['emergency_phone_lada'] ?? self::LADA,
                 'emergency_phone' => ExternalDataMapper::phone($data['emergency_phone'] ?? null),
                 'blood_type' => ExternalDataMapper::bloodType($data['blood_type'] ?? $externo->blood_type),
                 'observations' => $data['observations'] ?? $externo->notes,
