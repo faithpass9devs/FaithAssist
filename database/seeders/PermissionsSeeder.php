@@ -69,6 +69,8 @@ class PermissionsSeeder extends Seeder
             ['name' => 'children.export', 'module_key' => 'catechism', 'description' => 'Permite exportar niños a Excel'],
             ['name' => 'reinscripciones.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todas las reinscripciones'],
             ['name' => 'externos.scope.all', 'module_key' => 'catechism', 'description' => 'Permite ver todos los externos'],
+            ['name' => 'externos.import', 'module_key' => 'catechism', 'description' => 'Permite importar externos al módulo de niños'],
+            ['name' => 'externos.import_all', 'module_key' => 'catechism', 'description' => 'Permite importar masivamente externos al módulo de niños'],
             ['name' => 'weekends.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todos los fines de semana de misas'],
             ['name' => 'masses.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las misas'],
             ['name' => 'mass_attendance.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias a misas'],

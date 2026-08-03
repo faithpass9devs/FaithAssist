@@ -79,6 +79,8 @@ class SyncRolePermissionsSeeder extends Seeder
                 'mass_attendance.scan',
                 'asistencias_manuales.scope.all',
                 'externos.scope.all',
+                'externos.import',
+                'externos.import_all',
             ]
         ));
 
@@ -93,7 +95,7 @@ class SyncRolePermissionsSeeder extends Seeder
             array_merge(
                 $this->permissionsForModules(['children'], ['create', 'read', 'update', 'show']),
                 $this->permissionsForModules(['externos'], ['read', 'show']),
-                ['mass_attendance.scan']
+                ['externos.import', 'externos.import_all', 'mass_attendance.scan']
             )
         );
 

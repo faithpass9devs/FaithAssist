@@ -23,6 +23,16 @@ class ExternosPolicy extends BasePermissionPolicy
         return $this->can($user, 'show') && $this->withinScope($user, $child);
     }
 
+    public function import(User $user, ExternalChild $child): bool
+    {
+        return $this->can($user, 'import') && $this->withinScope($user, $child);
+    }
+
+    public function importAll(User $user): bool
+    {
+        return $this->can($user, 'import_all');
+    }
+
     private function withinScope(User $user, ExternalChild $child): bool
     {
         $scope = new UserScopeService($user);

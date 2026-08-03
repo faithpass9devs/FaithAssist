@@ -169,6 +169,16 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'show'])
         ->parameters(['externos' => 'externo']);
 
+    Route::get('/externos/{externo}/register', [ExternosController::class, 'register'])
+        ->name('externos.register');
+    Route::post('/externos/{externo}/import', [ExternosController::class, 'import'])
+        ->name('externos.import');
+
+    Route::post('/externos/import-batch', [ExternosController::class, 'importBatch'])
+        ->name('externos.import-batch');
+    Route::get('/externos/import-batch/{batch}', [ExternosController::class, 'batchStatus'])
+        ->name('externos.import-batch.show');
+
     // Seguridad
     Route::resource('modulos', ModuleController::class)
         ->only(['index', 'store', 'update', 'destroy'])
