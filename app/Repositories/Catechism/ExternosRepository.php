@@ -7,14 +7,18 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\External\ExternalChild;
 use App\Models\External\ExternalCommunity;
 use App\Models\External\ExternalLevel;
+use App\Models\ExternalChildImport;
 use App\Models\Operation\Level;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\User;
 use App\Services\UserScopeService;
+use App\Support\HostingerCache;
 use App\Support\SplitLastNames;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class ExternosRepository
 {
@@ -23,16 +27,16 @@ class ExternosRepository
         string $search,
         ?int $levelId = null,
         ?int $communityId = null
-    ) {
-        $scope = new UserScopeService($user);
+    ): LengthAwarePaginator {
+        $key = $this->listKey($user, $search, $levelId, $communityId);
 
-        $query = $this->baseQuery($search, $levelId, $communityId)
-            ->orderBy('name')
-            ->orderBy('last_names');
+        $data = Cache::tags(HostingerCache::tags())->remember(
+            $key,
+            HostingerCache::ttl('list'),
+            fn () => $this->loadPageData($user, $search, $levelId, $communityId)
+        );
 
-        return ($scope->isGlobal() ? $query : $scope->applyChildScope($query))
-            ->paginate(15)
-            ->withQueryString();
+        return $this->rebuildPaginator($data);
     }
 
     public function externosForBulkImport(
@@ -81,17 +85,38 @@ class ExternosRepository
 
     public function getFilterOptions(User $user): array
     {
+        $key = $this->filtersKey($user);
+
+        return Cache::tags(HostingerCache::tags())->remember(
+            $key,
+            HostingerCache::ttl('filters'),
+            fn () => $this->loadFilterOptions($user)
+        );
+    }
+
+    private function loadFilterOptions(User $user): array
+    {
         $scope = new UserScopeService($user);
 
         return [
             'communities' => ExternalCommunity::query()
                 ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('church_id', $scope->churchIds()))
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'name'])
+                ->map(fn (ExternalCommunity $community): array => [
+                    'id' => $community->id,
+                    'name' => $community->name,
+                ])
+                ->all(),
             'levels' => ExternalLevel::query()
                 ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('church_id', $scope->churchIds()))
                 ->orderBy('name')
-                ->get(['id', 'name']),
+                ->get(['id', 'name'])
+                ->map(fn (ExternalLevel $level): array => [
+                    'id' => $level->id,
+                    'name' => $level->name,
+                ])
+                ->all(),
         ];
     }
 
@@ -190,5 +215,88 @@ class ExternosRepository
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function loadPageData(
+        User $user,
+        string $search,
+        ?int $levelId,
+        ?int $communityId
+    ): array {
+        $scope = new UserScopeService($user);
+
+        $query = $this->baseQuery($search, $levelId, $communityId)
+            ->orderBy('name')
+            ->orderBy('last_names');
+
+        $paginator = ($scope->isGlobal() ? $query : $scope->applyChildScope($query))->paginate(15);
+
+        $importedSet = array_fill_keys(
+            ExternalChildImport::query()
+                ->whereIn('external_child_id', $paginator->getCollection()->pluck('id'))
+                ->pluck('external_child_id')
+                ->all(),
+            true
+        );
+
+        $items = $paginator->getCollection()
+            ->map(fn (ExternalChild $child): array => $this->serializeExternalChild(
+                $child,
+                isset($importedSet[$child->id])
+            ))
+            ->values()
+            ->all();
+
+        return [
+            'items' => $items,
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+        ];
+    }
+
+    private function rebuildPaginator(array $data): LengthAwarePaginator
+    {
+        return (new LengthAwarePaginator(
+            $data['items'],
+            $data['total'],
+            $data['per_page'],
+            $data['current_page'],
+            ['path' => LengthAwarePaginator::resolveCurrentPath()],
+        ))->withQueryString();
+    }
+
+    private function scopeKey(User $user): string
+    {
+        $scope = new UserScopeService($user);
+
+        if ($scope->isGlobal()) {
+            return 'global';
+        }
+
+        return 'churches:' . md5(collect($scope->churchIds())->sort()->implode('-'));
+    }
+
+    private function filtersKey(User $user): string
+    {
+        return config('hostinger_cache.prefix') . ':filters:' . $this->scopeKey($user);
+    }
+
+    private function listKey(
+        User $user,
+        string $search,
+        ?int $levelId,
+        ?int $communityId
+    ): string {
+        return implode(':', [
+            config('hostinger_cache.prefix'),
+            'list',
+            'v1',
+            $this->scopeKey($user),
+            md5($search),
+            (string) $levelId,
+            (string) $communityId,
+            (string) LengthAwarePaginator::resolveCurrentPage(),
+        ]);
     }
 }
