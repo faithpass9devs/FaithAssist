@@ -95,7 +95,7 @@ class SyncRolePermissionsSeeder extends Seeder
             array_merge(
                 $this->permissionsForModules(['children'], ['create', 'read', 'update', 'show']),
                 $this->permissionsForModules(['externos'], ['read', 'show']),
-                ['externos.import', 'externos.import_all', 'mass_attendance.scan']
+                ['externos.import', 'mass_attendance.scan']
             )
         );
 

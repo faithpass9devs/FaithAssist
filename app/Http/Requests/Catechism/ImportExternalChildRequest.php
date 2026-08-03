@@ -31,6 +31,8 @@ class ImportExternalChildRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'emergency_phone' => ['nullable', 'string', 'max:30'],
+            'community_id' => ['required', 'integer', Rule::exists('communities', 'id')->whereNull('deleted_at')],
+            'observations' => ['nullable', 'string', 'max:2000'],
             'level_ids' => ['nullable', 'array'],
             'level_ids.*' => ['integer', Rule::exists('levels', 'id')->whereNull('deleted_at')],
             'privacy_terms' => ['accepted'],

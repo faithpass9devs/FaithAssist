@@ -60,7 +60,7 @@ class ExternalChildImportService
             }
 
             $church = Church::query()->with('deanery:id,diocese_id')->findOrFail($this->resolveLocalChurchId($externo));
-            $community = Community::findOrFail($externo->community_id);
+            $community = Community::findOrFail($data['community_id'] ?? $externo->community_id);
 
             $childData = [
                 'church_id' => $church->id,
@@ -68,6 +68,7 @@ class ExternalChildImportService
                 'name' => $data['name'],
                 'paterno' => $data['paterno'],
                 'materno' => $data['materno'] ?? null,
+                'origin' => 'imported',
                 'birthdate' => $externo->birthdate?->format('Y-m-d'),
                 'sex' => ExternalDataMapper::sex($externo->sex),
                 'email' => $data['email'] ?? null,
@@ -76,7 +77,7 @@ class ExternalChildImportService
                 'emergency_phone_lada' => self::LADA,
                 'emergency_phone' => ExternalDataMapper::phone($data['emergency_phone'] ?? null),
                 'blood_type' => ExternalDataMapper::bloodType($data['blood_type'] ?? $externo->blood_type),
-                'observations' => $externo->notes,
+                'observations' => $data['observations'] ?? $externo->notes,
                 'privacy_terms' => true,
                 'status' => ExternalDataMapper::status($externo->status),
                 'created_by' => $user->id,
@@ -122,13 +123,14 @@ class ExternalChildImportService
             return $child;
         });
 
-        try {
-            $this->qrWhatsappService->sendChildQrBadge($child);
-        } catch (\Throwable $e) {
-            Log::warning('Gafete PDF WhatsApp envío diferido', [
-                'child_id' => $child->id,
-            ]);
-        }
+        // DESHABILITADO temporalmente: no enviar gafete QR por WhatsApp al importar desde Hostinger.
+        // try {
+        //     $this->qrWhatsappService->sendChildQrBadge($child);
+        // } catch (\Throwable $e) {
+        //     Log::warning('Gafete PDF WhatsApp envío diferido', [
+        //         'child_id' => $child->id,
+        //     ]);
+        // }
 
         return $child;
     }

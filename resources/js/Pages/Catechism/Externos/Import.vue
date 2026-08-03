@@ -34,6 +34,8 @@ const form = useForm({
   email: props.externo.email ?? '',
   phone: props.externo.phone ?? '',
   emergency_phone: props.externo.emergency_phone ?? '',
+  community_id: props.externo.community_id ?? null,
+  observations: props.externo.notes ?? '',
   privacy_terms: false,
   level_ids: props.targetLevel?.id ? [props.targetLevel.id] : [],
 });
@@ -171,12 +173,14 @@ const submit = () => {
               />
               <UnderlineField :model-value="municipalityName" label="Municipio" disabled />
               <UnderlineField
-                :model-value="externo.community_id"
+                v-model="form.community_id"
                 label="Comunidad"
                 as="select"
+                placeholder="Selecciona..."
                 :options="communityOptions"
                 number-value
-                disabled
+                :error="form.errors.community_id"
+                required
               />
 
               <div class="md:col-span-2">
@@ -307,11 +311,11 @@ const submit = () => {
           <UnderlineSection title="Observaciones">
             <div class="grid gap-x-9 gap-y-7">
               <UnderlineField
-                :model-value="externo.notes"
+                v-model="form.observations"
                 label="Observaciones"
                 as="textarea"
                 placeholder="Notas del registro externo"
-                disabled
+                :error="form.errors.observations"
               />
 
               <label
