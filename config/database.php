@@ -114,6 +114,22 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'hostinger' => [
+            'driver' => 'mysql',
+            'host' => env('HOSTINGER_DB_HOST'),
+            'port' => env('HOSTINGER_DB_PORT', '3306'),
+            'database' => env('HOSTINGER_DB_DATABASE'),
+            'username' => env('HOSTINGER_DB_USERNAME'),
+            'password' => env('HOSTINGER_DB_PASSWORD'),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
     ],
 
     /*

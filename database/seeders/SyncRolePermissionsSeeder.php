@@ -55,6 +55,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'periodos',
                 'niveles',
                 'tipos_movimientos_periodo',
+                'externos',
             ], $readAndShowActions),
             $this->permissionsForModules([
                 'comunidades',
@@ -77,6 +78,9 @@ class SyncRolePermissionsSeeder extends Seeder
                 'mass_attendance.scope.all',
                 'mass_attendance.scan',
                 'asistencias_manuales.scope.all',
+                'externos.scope.all',
+                'externos.import',
+                'externos.import_all',
             ]
         ));
 
@@ -89,8 +93,9 @@ class SyncRolePermissionsSeeder extends Seeder
 
         $capturista->syncPermissions(
             array_merge(
-                $this->permissionsForModules(['children'], ['create', 'read', 'update','show']),
-                ['mass_attendance.scan']
+                $this->permissionsForModules(['children'], ['create', 'read', 'update', 'show']),
+                $this->permissionsForModules(['externos'], ['read', 'show']),
+                ['externos.import', 'mass_attendance.scan']
             )
         );
 

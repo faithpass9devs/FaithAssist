@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Catechism\ChildController;
+use App\Http\Controllers\Catechism\ExternosController;
 use App\Http\Controllers\Catechism\ReinscriptionController;
 use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
@@ -163,6 +164,20 @@ Route::middleware('auth')->group(function () {
     Route::resource('reinscripciones', ReinscriptionController::class)
         ->only(['index', 'store']);
     Route::get('/reinscripciones/export', [ReinscriptionController::class, 'export'])->name('reinscripciones.export');
+
+    Route::resource('externos', ExternosController::class)
+        ->only(['index', 'show'])
+        ->parameters(['externos' => 'externo']);
+
+    Route::get('/externos/{externo}/register', [ExternosController::class, 'register'])
+        ->name('externos.register');
+    Route::post('/externos/{externo}/import', [ExternosController::class, 'import'])
+        ->name('externos.import');
+
+    Route::post('/externos/import-batch', [ExternosController::class, 'importBatch'])
+        ->name('externos.import-batch');
+    Route::get('/externos/import-batch/{batch}', [ExternosController::class, 'batchStatus'])
+        ->name('externos.import-batch.show');
 
     // Seguridad
     Route::resource('modulos', ModuleController::class)

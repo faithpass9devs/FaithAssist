@@ -42,8 +42,16 @@ class WhatsappService
                 'type' => 'application/pdf',
             ]);
 
-        if (!$response->successful()) {
-            throw new RuntimeException('No se pudo preparar el PDF para su envío. Intenta de nuevo en unos minutos.');
+        if (! $response->successful()) {
+            logger()->error('Error al subir PDF a WhatsApp', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'json' => $response->json(),
+            ]);
+
+            throw new RuntimeException(
+                'No se pudo preparar el PDF para su envío. Intenta de nuevo en unos minutos.'
+            );
         }
 
         return $response->json('id');

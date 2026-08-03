@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'paterno',
     'materno',
     'code',
+    'origin',
     'birthdate',
     'sex',
     'email',
