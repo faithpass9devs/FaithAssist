@@ -105,6 +105,7 @@ class UserService
                     $data['whatsapp_country_code'] ?? null
                 ),
                 'password' => Hash::make($data['password']),
+                'must_change_password' => true,
                 'diocese_id' => $dioceseId,
                 'deanery_id' => $deaneryId,
                 'church_id' => $churchId,
@@ -152,7 +153,10 @@ class UserService
             ]);
 
             if (! empty($data['password'])) {
-                $user->update(['password' => Hash::make($data['password'])]);
+                $user->update([
+                    'password' => Hash::make($data['password']),
+                    'must_change_password' => true,
+                ]);
             }
 
             $profile = $user->profile ?? new Profile(['user_id' => $user->id]);
