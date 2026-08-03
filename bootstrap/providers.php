@@ -1,9 +1,9 @@
 <?php
 
 use App\Providers\AppServiceProvider;
-use App\Providers\HorizonServiceProvider;
+// use App\Providers\HorizonServiceProvider;
 
 return [
     AppServiceProvider::class,
-    HorizonServiceProvider::class,
+    // HorizonServiceProvider::class,
 ];
