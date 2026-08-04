@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Repositories\Catechism\ChildRepository;
 use App\Services\ChildCodeGenerator;
 use App\Support\ExternalDataMapper;
-use App\Support\HostingerCache;
 use App\Support\SplitLastNames;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -124,7 +123,10 @@ class ExternalChildImportService
             return $child;
         });
 
-        HostingerCache::flush();
+        // Los datos de la BD remota de Hostinger no se modifican, por lo que la
+        // caché del dataset completo (24h) sigue siendo válida tras importar.
+        // El estado "importado" se calcula en vivo contra la tabla local
+        // ExternalChildImport en cada petición.
 
         // DESHABILITADO temporalmente: no enviar gafete QR por WhatsApp al importar desde Hostinger.
         // try {

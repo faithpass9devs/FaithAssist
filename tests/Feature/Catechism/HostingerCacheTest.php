@@ -12,7 +12,7 @@ class HostingerCacheTest extends TestCase
     {
         $result = Cache::tags(HostingerCache::tags())->remember(
             'probe',
-            HostingerCache::ttl('list'),
+            HostingerCache::ttl('all'),
             fn () => ['id' => 1]
         );
 
@@ -44,8 +44,8 @@ class HostingerCacheTest extends TestCase
     public function test_ttl_returns_configured_values(): void
     {
         $this->assertSame(
-            (int) config('hostinger_cache.ttl.list'),
-            HostingerCache::ttl('list')
+            (int) config('hostinger_cache.ttl.all'),
+            HostingerCache::ttl('all')
         );
         $this->assertSame(
             (int) config('hostinger_cache.ttl.filters'),

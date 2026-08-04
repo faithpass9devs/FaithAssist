@@ -18,10 +18,11 @@ return [
     'tags' => ['hostinger'],
 
     'ttl' => [
-        // Resultados paginados del listado (segundos)
-        'list' => (int) env('HOSTINGER_CACHE_TTL_LIST', 900),
+        // Dataset completo de externos por scope (segundos). Los datos de la BD
+        // remota de Hostinger no se modifican, así que 24 horas es seguro.
+        'all' => (int) env('HOSTINGER_CACHE_TTL_ALL', 86400),
         // Opciones de filtro: comunidades y niveles
-        'filters' => (int) env('HOSTINGER_CACHE_TTL_FILTERS', 3600),
+        'filters' => (int) env('HOSTINGER_CACHE_TTL_FILTERS', 86400),
     ],
 
 ];

@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Services\UserScopeService;
 use App\Support\HostingerCache;
 use App\Support\SplitLastNames;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -28,15 +27,34 @@ class ExternosRepository
         ?int $levelId = null,
         ?int $communityId = null
     ): LengthAwarePaginator {
-        $key = $this->listKey($user, $search, $levelId, $communityId);
+        $filtered = $this->applyFilters($this->allChildren($user), $search, $levelId, $communityId);
 
-        $data = Cache::tags(HostingerCache::tags())->remember(
-            $key,
-            HostingerCache::ttl('list'),
-            fn () => $this->loadPageData($user, $search, $levelId, $communityId)
+        $importedSet = array_fill_keys(
+            ExternalChildImport::query()
+                ->whereIn('external_child_id', $filtered->pluck('id'))
+                ->pluck('external_child_id')
+                ->all(),
+            true
         );
 
-        return $this->rebuildPaginator($data);
+        $items = $filtered
+            ->map(fn (array $child): array => [
+                ...$child,
+                'imported' => isset($importedSet[$child['id']]),
+            ])
+            ->all();
+
+        $perPage = 15;
+        $page = max(1, LengthAwarePaginator::resolveCurrentPage());
+        $total = count($items);
+
+        return (new LengthAwarePaginator(
+            array_slice($items, ($page - 1) * $perPage, $perPage),
+            $total,
+            $perPage,
+            $page,
+            ['path' => LengthAwarePaginator::resolveCurrentPath()],
+        ))->withQueryString();
     }
 
     public function externosForBulkImport(
@@ -45,35 +63,75 @@ class ExternosRepository
         ?int $levelId = null,
         ?int $communityId = null
     ): Collection {
-        $scope = new UserScopeService($user);
-
-        $query = $this->baseQuery($search, $levelId, $communityId);
-
-        return ($scope->isGlobal() ? $query : $scope->applyChildScope($query))
+        return $this->applyFilters($this->allChildren($user), $search, $levelId, $communityId)
             ->pluck('id');
     }
 
-    private function baseQuery(
-        string $search,
-        ?int $levelId = null,
-        ?int $communityId = null
-    ): Builder {
-        return ExternalChild::query()
+    public function allChildren(User $user): Collection
+    {
+        $key = $this->allKey($user);
+
+        $data = Cache::tags(HostingerCache::tags())->remember(
+            $key,
+            HostingerCache::ttl('all'),
+            fn () => $this->loadAllChildren($user)
+        );
+
+        return collect($data);
+    }
+
+    private function loadAllChildren(User $user): array
+    {
+        $scope = new UserScopeService($user);
+
+        $query = ExternalChild::query()
             ->with(['community:id,name', 'church:id,name', 'childPeriods.levels.level:id,name'])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($builder) use ($search) {
-                    $builder
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('last_names', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
-                });
+            ->orderBy('name')
+            ->orderBy('last_names');
+
+        return ($scope->isGlobal() ? $query : $scope->applyChildScope($query))
+            ->get()
+            ->map(fn (ExternalChild $child): array => $this->serializeExternalChild($child))
+            ->all();
+    }
+
+    private function applyFilters(
+        Collection $children,
+        string $search,
+        ?int $levelId,
+        ?int $communityId
+    ): Collection {
+        return $children
+            ->filter(function (array $child) use ($search, $levelId, $communityId): bool {
+                if ($communityId !== null && (int) $child['community_id'] !== $communityId) {
+                    return false;
+                }
+
+                if ($levelId !== null) {
+                    $hasLevel = collect($child['levels'])
+                        ->contains(fn (array $level): bool => $level['level_id'] === $levelId);
+
+                    if (! $hasLevel) {
+                        return false;
+                    }
+                }
+
+                if ($search !== '') {
+                    $needle = mb_strtolower($search);
+                    $haystack = implode(' ', [
+                        (string) $child['full_name'],
+                        (string) $child['email'],
+                        (string) $child['phone'],
+                    ]);
+
+                    if (! str_contains(mb_strtolower($haystack), $needle)) {
+                        return false;
+                    }
+                }
+
+                return true;
             })
-            ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
-            ->when($levelId, fn ($query) => $query->whereHas(
-                'childPeriods.levels',
-                fn ($level) => $level->where('level_id', $levelId)
-            ));
+            ->values();
     }
 
     public function findOrFail(int $id): ExternalChild
@@ -217,55 +275,6 @@ class ExternosRepository
         ];
     }
 
-    private function loadPageData(
-        User $user,
-        string $search,
-        ?int $levelId,
-        ?int $communityId
-    ): array {
-        $scope = new UserScopeService($user);
-
-        $query = $this->baseQuery($search, $levelId, $communityId)
-            ->orderBy('name')
-            ->orderBy('last_names');
-
-        $paginator = ($scope->isGlobal() ? $query : $scope->applyChildScope($query))->paginate(15);
-
-        $importedSet = array_fill_keys(
-            ExternalChildImport::query()
-                ->whereIn('external_child_id', $paginator->getCollection()->pluck('id'))
-                ->pluck('external_child_id')
-                ->all(),
-            true
-        );
-
-        $items = $paginator->getCollection()
-            ->map(fn (ExternalChild $child): array => $this->serializeExternalChild(
-                $child,
-                isset($importedSet[$child->id])
-            ))
-            ->values()
-            ->all();
-
-        return [
-            'items' => $items,
-            'total' => $paginator->total(),
-            'per_page' => $paginator->perPage(),
-            'current_page' => $paginator->currentPage(),
-        ];
-    }
-
-    private function rebuildPaginator(array $data): LengthAwarePaginator
-    {
-        return (new LengthAwarePaginator(
-            $data['items'],
-            $data['total'],
-            $data['per_page'],
-            $data['current_page'],
-            ['path' => LengthAwarePaginator::resolveCurrentPath()],
-        ))->withQueryString();
-    }
-
     private function scopeKey(User $user): string
     {
         $scope = new UserScopeService($user);
@@ -274,29 +283,16 @@ class ExternosRepository
             return 'global';
         }
 
-        return 'churches:' . md5(collect($scope->churchIds())->sort()->implode('-'));
+        return 'churches:'.md5(collect($scope->churchIds())->sort()->implode('-'));
     }
 
     private function filtersKey(User $user): string
     {
-        return config('hostinger_cache.prefix') . ':filters:' . $this->scopeKey($user);
+        return config('hostinger_cache.prefix').':filters:'.$this->scopeKey($user);
     }
 
-    private function listKey(
-        User $user,
-        string $search,
-        ?int $levelId,
-        ?int $communityId
-    ): string {
-        return implode(':', [
-            config('hostinger_cache.prefix'),
-            'list',
-            'v1',
-            $this->scopeKey($user),
-            md5($search),
-            (string) $levelId,
-            (string) $communityId,
-            (string) LengthAwarePaginator::resolveCurrentPage(),
-        ]);
+    private function allKey(User $user): string
+    {
+        return config('hostinger_cache.prefix').':all:'.$this->scopeKey($user);
     }
 }
