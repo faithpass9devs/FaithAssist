@@ -123,6 +123,11 @@ class ExternalChildImportService
             return $child;
         });
 
+        // Los datos de la BD remota de Hostinger no se modifican, por lo que la
+        // caché del dataset completo (24h) sigue siendo válida tras importar.
+        // El estado "importado" se calcula en vivo contra la tabla local
+        // ExternalChildImport en cada petición.
+
         // DESHABILITADO temporalmente: no enviar gafete QR por WhatsApp al importar desde Hostinger.
         // try {
         //     $this->qrWhatsappService->sendChildQrBadge($child);

@@ -27,23 +27,10 @@ class ExternosService
         ?int $levelId = null,
         ?int $communityId = null
     ): array {
-        $externos = $this->externos->paginateWithFilters($user, $search, $levelId, $communityId);
-
         $filterOptions = $this->externos->getFilterOptions($user);
 
-        $importedIds = ExternalChildImport::query()
-            ->whereIn('external_child_id', collect($externos->items())->pluck('id'))
-            ->pluck('external_child_id')
-            ->all();
-        $importedSet = array_fill_keys($importedIds, true);
-
         return [
-            'externos' => $externos->through(
-                fn (ExternalChild $child) => $this->externos->serializeExternalChild(
-                    $child,
-                    isset($importedSet[$child->id])
-                )
-            ),
+            'externos' => $this->externos->paginateWithFilters($user, $search, $levelId, $communityId),
             'search' => $search,
             'filters' => [
                 'level_id' => $levelId,
