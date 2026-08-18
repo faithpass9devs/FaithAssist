@@ -13,6 +13,12 @@ import path from 'node:path';
 const app = express();
 const port = Number(process.env.BAILEYS_PORT || 3001);
 const token = process.env.BAILEYS_INTERNAL_TOKEN || '';
+
+if (!token) {
+  console.error('BAILEYS_INTERNAL_TOKEN es requerido para iniciar el servidor Baileys.');
+  process.exit(1);
+}
+
 const authDir = process.env.BAILEYS_AUTH_DIR || 'storage/app/baileys/auth';
 const lockFile = process.env.BAILEYS_LOCK_FILE || path.join(process.cwd(), 'storage/app/baileys/.baileys.lock');
 const phoneNumber = String(process.env.BAILEYS_PHONE_NUMBER || '').replace(/\D/g, '');
