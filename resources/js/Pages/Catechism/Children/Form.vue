@@ -398,21 +398,5 @@ const submit = () => {
         </button>
       </div>
     </form>
-    <div class="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
-      <Link
-        href="/children"
-        class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
-      >
-        Cancelar
-      </Link>
-
-      <button
-        type="submit"
-        class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="form.processing"
-      >
-        {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar niño' : 'Crear niño' }}
-      </button>
-    </div>
   </AppShell>
 </template>

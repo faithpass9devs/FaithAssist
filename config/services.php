@@ -36,15 +36,7 @@ return [
     ],
 
     'whatsapp' => [
-        'token' => env('META_WHATSAPP_TOKEN'),
-        'phone_number_id' => env('META_WHATSAPP_PHONE_NUMBER_ID'),
-        'api_version' => env('META_WHATSAPP_API_VERSION', 'v25.0'),
-        'base_url' => env('META_WHATSAPP_BASE_URL', 'https://graph.facebook.com'),
-        'enabled' => env('META_WHATSAPP_ENABLED', false),
-        'default_country_code' => env('META_WHATSAPP_DEFAULT_COUNTRY_CODE', '521'),
-        'use_template' => env('META_WHATSAPP_USE_TEMPLATE', false),
-        'template_name' => env('META_WHATSAPP_TEMPLATE_NAME', 'faithassist_reset_code'),
-        'template_language' => env('META_WHATSAPP_TEMPLATE_LANGUAGE', 'es_MX'),
+        'default_country_code' => env('BAILEYS_DEFAULT_COUNTRY_CODE', '521'),
     ],
 
 ];

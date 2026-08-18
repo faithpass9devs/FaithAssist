@@ -2,8 +2,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 const THEMES = ['light', 'dark'];
-const PALETTE_STORAGE_KEY = 'faithassist.ui.palette';
-const CUSTOM_COLOR_STORAGE_KEY = 'faithassist.ui.customColor';
+const STORAGE_PREFIX = 'faithassist.ui';
+const LAST_USER_STORAGE_KEY = 'lastUserId';
+const THEME_STORAGE_KEY = 'theme';
+const PALETTE_STORAGE_KEY = 'palette';
+const CUSTOM_COLOR_STORAGE_KEY = 'customColor';
 const CUSTOM_PALETTE_ID = 'custom';
 const RESET_NEUTRAL_PALETTE_ID = 'neutral';
 const DEFAULT_CUSTOM_COLOR = '#3b82f6';
@@ -735,6 +738,180 @@ export const PALETTE_OPTIONS = [
       brandColor: '#ede9fe',
     },
   },
+  {
+    id: 'navy',
+    label: 'Marino',
+    swatch: '#1e3a8a',
+    light: {
+      shellBg: '#eef1fb',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(30, 58, 138, 0.18) 0%, rgba(238, 241, 251, 0) 58%), linear-gradient(145deg, #f6f8ff 0%, #e2e8f8 100%)',
+      authBg: '#eaeff9',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(30, 58, 138, 0.13) 0%, rgba(234, 239, 249, 0) 55%), linear-gradient(145deg, #f5f8ff 0%, #dfe6f6 100%)',
+      topbarBg: 'rgba(228, 234, 248, 0.96)',
+      topbarBorder: 'rgba(59, 130, 246, 0.5)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#172554',
+    },
+    dark: {
+      shellBg: '#131f45',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(59, 130, 246, 0.24) 0%, rgba(19, 31, 69, 0) 60%), linear-gradient(145deg, #131f45 0%, #1d2f66 100%)',
+      authBg: '#131f45',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(59, 130, 246, 0.2) 0%, rgba(19, 31, 69, 0) 55%), linear-gradient(145deg, #131f45 0%, #1d2f66 100%)',
+      topbarBg: 'rgba(19, 31, 69, 0.92)',
+      topbarBorder: 'rgba(96, 165, 250, 0.5)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#dbeafe',
+    },
+  },
+  {
+    id: 'plum',
+    label: 'Ciruela',
+    swatch: '#5f2b57',
+    light: {
+      shellBg: '#f8f0f7',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(95, 43, 87, 0.18) 0%, rgba(248, 240, 247, 0) 58%), linear-gradient(145deg, #fdf7fc 0%, #eee0ec 100%)',
+      authBg: '#f6ecf5',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(95, 43, 87, 0.13) 0%, rgba(246, 236, 245, 0) 55%), linear-gradient(145deg, #fcf6fb 0%, #ecdcea 100%)',
+      topbarBg: 'rgba(240, 228, 238, 0.96)',
+      topbarBorder: 'rgba(147, 51, 134, 0.45)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#3b0a35',
+    },
+    dark: {
+      shellBg: '#3a1935',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(192, 84, 175, 0.24) 0%, rgba(58, 25, 53, 0) 60%), linear-gradient(145deg, #3a1935 0%, #55254e 100%)',
+      authBg: '#3a1935',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(192, 84, 175, 0.2) 0%, rgba(58, 25, 53, 0) 55%), linear-gradient(145deg, #3a1935 0%, #55254e 100%)',
+      topbarBg: 'rgba(58, 25, 53, 0.92)',
+      topbarBorder: 'rgba(192, 84, 175, 0.45)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#fae8f7',
+    },
+  },
+  {
+    id: 'wine',
+    label: 'Vino',
+    swatch: '#8c1d40',
+    light: {
+      shellBg: '#fdf0f4',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(140, 29, 64, 0.18) 0%, rgba(253, 240, 244, 0) 58%), linear-gradient(145deg, #fff7fa 0%, #f6dfe7 100%)',
+      authBg: '#fbecf1',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(140, 29, 64, 0.13) 0%, rgba(251, 236, 241, 0) 55%), linear-gradient(145deg, #fff6f9 0%, #f4dbe4 100%)',
+      topbarBg: 'rgba(248, 229, 236, 0.96)',
+      topbarBorder: 'rgba(190, 24, 93, 0.45)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#4c0519',
+    },
+    dark: {
+      shellBg: '#4a1226',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(190, 24, 93, 0.24) 0%, rgba(74, 18, 38, 0) 60%), linear-gradient(145deg, #4a1226 0%, #6b1c37 100%)',
+      authBg: '#4a1226',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(190, 24, 93, 0.2) 0%, rgba(74, 18, 38, 0) 55%), linear-gradient(145deg, #4a1226 0%, #6b1c37 100%)',
+      topbarBg: 'rgba(74, 18, 38, 0.92)',
+      topbarBorder: 'rgba(225, 29, 72, 0.45)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#ffe4ec',
+    },
+  },
+  {
+    id: 'emerald',
+    label: 'Esmeralda',
+    swatch: '#059669',
+    light: {
+      shellBg: '#ecfdf5',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(5, 150, 105, 0.18) 0%, rgba(236, 253, 245, 0) 58%), linear-gradient(145deg, #f4fffa 0%, #dcf5ea 100%)',
+      authBg: '#e8fbf1',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(5, 150, 105, 0.13) 0%, rgba(232, 251, 241, 0) 55%), linear-gradient(145deg, #f3fef9 0%, #d8f2e5 100%)',
+      topbarBg: 'rgba(226, 247, 238, 0.96)',
+      topbarBorder: 'rgba(16, 185, 129, 0.5)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#064e3b',
+    },
+    dark: {
+      shellBg: '#0b3b2e',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(16, 185, 129, 0.24) 0%, rgba(11, 59, 46, 0) 60%), linear-gradient(145deg, #0b3b2e 0%, #145a44 100%)',
+      authBg: '#0b3b2e',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(16, 185, 129, 0.2) 0%, rgba(11, 59, 46, 0) 55%), linear-gradient(145deg, #0b3b2e 0%, #145a44 100%)',
+      topbarBg: 'rgba(11, 59, 46, 0.92)',
+      topbarBorder: 'rgba(52, 211, 153, 0.5)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#d1fae5',
+    },
+  },
+  {
+    id: 'sand',
+    label: 'Arena',
+    swatch: '#b08d57',
+    light: {
+      shellBg: '#fbf6ec',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(176, 141, 87, 0.18) 0%, rgba(251, 246, 236, 0) 58%), linear-gradient(145deg, #fffbf3 0%, #f2e7d4 100%)',
+      authBg: '#f9f3e6',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(176, 141, 87, 0.13) 0%, rgba(249, 243, 230, 0) 55%), linear-gradient(145deg, #fffaf1 0%, #f0e3cf 100%)',
+      topbarBg: 'rgba(245, 237, 222, 0.96)',
+      topbarBorder: 'rgba(202, 167, 110, 0.5)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#422f10',
+    },
+    dark: {
+      shellBg: '#3f3524',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(202, 167, 110, 0.24) 0%, rgba(63, 53, 36, 0) 60%), linear-gradient(145deg, #3f3524 0%, #5b4c33 100%)',
+      authBg: '#3f3524',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(202, 167, 110, 0.2) 0%, rgba(63, 53, 36, 0) 55%), linear-gradient(145deg, #3f3524 0%, #5b4c33 100%)',
+      topbarBg: 'rgba(63, 53, 36, 0.92)',
+      topbarBorder: 'rgba(202, 167, 110, 0.5)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#fdf1d6',
+    },
+  },
+  {
+    id: 'coral',
+    label: 'Coral',
+    swatch: '#f2725c',
+    light: {
+      shellBg: '#fff1ee',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(242, 114, 92, 0.2) 0%, rgba(255, 241, 238, 0) 58%), linear-gradient(145deg, #fff8f6 0%, #ffe3dc 100%)',
+      authBg: '#ffece8',
+      authBgImage:
+        'radial-gradient(120% 100% at 12% 2%, rgba(242, 114, 92, 0.14) 0%, rgba(255, 236, 232, 0) 55%), linear-gradient(145deg, #fff7f5 0%, #ffded6 100%)',
+      topbarBg: 'rgba(253, 229, 223, 0.96)',
+      topbarBorder: 'rgba(248, 113, 113, 0.5)',
+      topbarShadow: '0 1px 0 rgba(15, 23, 42, 0.05)',
+      brandColor: '#641a10',
+    },
+    dark: {
+      shellBg: '#5c2a22',
+      shellBgImage:
+        'radial-gradient(120% 100% at 10% 0%, rgba(242, 114, 92, 0.24) 0%, rgba(92, 42, 34, 0) 60%), linear-gradient(145deg, #5c2a22 0%, #7d3a2f 100%)',
+      authBg: '#5c2a22',
+      authBgImage:
+        'radial-gradient(130% 110% at 10% 0%, rgba(242, 114, 92, 0.2) 0%, rgba(92, 42, 34, 0) 55%), linear-gradient(145deg, #5c2a22 0%, #7d3a2f 100%)',
+      topbarBg: 'rgba(92, 42, 34, 0.92)',
+      topbarBorder: 'rgba(248, 113, 113, 0.5)',
+      topbarShadow: '0 1px 0 rgba(0, 0, 0, 0.4)',
+      brandColor: '#ffe4de',
+    },
+  },
 ];
 
 const PALETTE_IDS = PALETTE_OPTIONS.map((palette) => palette.id);
@@ -824,74 +1001,169 @@ export function normalizePalette(value, fallback = DEFAULT_PALETTE) {
   return PALETTE_IDS.includes(value) ? value : fallback;
 }
 
-export function getInitialTheme(preferredTheme = null) {
+function getCurrentUserId() {
+  try {
+    return usePage().props.auth?.user?.id ?? null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getLastKnownUserId() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const value = window.localStorage.getItem(`${STORAGE_PREFIX}.${LAST_USER_STORAGE_KEY}`);
+    return value ? String(value) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setLastKnownUserId(userId) {
+  if (typeof window === 'undefined' || !userId) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(`${STORAGE_PREFIX}.${LAST_USER_STORAGE_KEY}`, String(userId));
+  } catch (error) {
+    // Ignore storage errors (private mode / quota).
+  }
+}
+
+function getUserStorageKey(keyName, userId = getCurrentUserId()) {
+  if (userId) {
+    return `${STORAGE_PREFIX}.${keyName}.user.${userId}`;
+  }
+
+  return `${STORAGE_PREFIX}.${keyName}`;
+}
+
+function getStoredTheme(userId = getCurrentUserId()) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(getUserStorageKey(THEME_STORAGE_KEY, userId));
+  } catch (error) {
+    return null;
+  }
+}
+
+function setStoredTheme(value, userId = getCurrentUserId()) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(getUserStorageKey(THEME_STORAGE_KEY, userId), value);
+  } catch (error) {
+    // Ignore storage errors (private mode / quota).
+  }
+}
+
+export function getInitialTheme(preferredTheme = null, userId = getCurrentUserId()) {
+  if (preferredTheme !== null) {
+    return normalizeTheme(preferredTheme, 'light');
+  }
+
+  const effectiveUserId = userId ?? getLastKnownUserId();
+
+  if (!effectiveUserId) {
+    return 'light';
+  }
+
   const fallback =
     typeof document !== 'undefined'
       ? normalizeTheme(document.documentElement.dataset.theme, 'light')
       : 'light';
 
-  return normalizeTheme(preferredTheme, fallback);
+  return normalizeTheme(getStoredTheme(effectiveUserId), fallback);
 }
 
-function getStoredPalette() {
+function getStoredPalette(userId = getCurrentUserId()) {
   if (typeof window === 'undefined') {
     return null;
   }
 
   try {
-    return window.localStorage.getItem(PALETTE_STORAGE_KEY);
+    return window.localStorage.getItem(getUserStorageKey(PALETTE_STORAGE_KEY, userId));
   } catch (error) {
     return null;
   }
 }
 
-function setStoredPalette(value) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(PALETTE_STORAGE_KEY, value);
-  } catch (error) {
-    // Ignore storage errors (private mode / quota).
-  }
-}
-
-function getStoredCustomColor() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    return window.localStorage.getItem(CUSTOM_COLOR_STORAGE_KEY);
-  } catch (error) {
-    return null;
-  }
-}
-
-function setStoredCustomColor(value) {
+function setStoredPalette(value, userId = getCurrentUserId()) {
   if (typeof window === 'undefined') {
     return;
   }
 
   try {
-    window.localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, value);
+    window.localStorage.setItem(getUserStorageKey(PALETTE_STORAGE_KEY, userId), value);
   } catch (error) {
     // Ignore storage errors (private mode / quota).
   }
 }
 
-export function getInitialPalette(preferredPalette = null) {
+function getStoredCustomColor(userId = getCurrentUserId()) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(getUserStorageKey(CUSTOM_COLOR_STORAGE_KEY, userId));
+  } catch (error) {
+    return null;
+  }
+}
+
+function setStoredCustomColor(value, userId = getCurrentUserId()) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(getUserStorageKey(CUSTOM_COLOR_STORAGE_KEY, userId), value);
+  } catch (error) {
+    // Ignore storage errors (private mode / quota).
+  }
+}
+
+export function getInitialPalette(preferredPalette = null, userId = getCurrentUserId()) {
+  if (preferredPalette !== null) {
+    return normalizePalette(preferredPalette, DEFAULT_PALETTE);
+  }
+
+  const effectiveUserId = userId ?? getLastKnownUserId();
+
+  if (!effectiveUserId) {
+    return RESET_NEUTRAL_PALETTE_ID;
+  }
+
   const fallback =
     typeof document !== 'undefined'
       ? normalizePalette(document.documentElement.dataset.uiPalette, DEFAULT_PALETTE)
       : DEFAULT_PALETTE;
 
-  return normalizePalette(preferredPalette ?? getStoredPalette(), fallback);
+  return normalizePalette(getStoredPalette(effectiveUserId), fallback);
 }
 
-export function getInitialCustomColor(preferredColor = null) {
-  return normalizeCustomColor(preferredColor ?? getStoredCustomColor(), DEFAULT_CUSTOM_COLOR);
+export function getInitialCustomColor(preferredColor = null, userId = getCurrentUserId()) {
+  if (preferredColor !== null) {
+    return normalizeCustomColor(preferredColor, DEFAULT_CUSTOM_COLOR);
+  }
+
+  const effectiveUserId = userId ?? getLastKnownUserId();
+
+  if (!effectiveUserId) {
+    return DEFAULT_CUSTOM_COLOR;
+  }
+
+  return normalizeCustomColor(getStoredCustomColor(effectiveUserId), DEFAULT_CUSTOM_COLOR);
 }
 
 export function applyPalette(paletteId, theme = 'light', customColor = null) {
@@ -942,29 +1214,34 @@ export function applyTheme(theme) {
 
 export function useTheme() {
   const page = usePage();
-  const theme = ref(getInitialTheme(page.props.auth?.user?.ui_theme));
-  const palette = ref(getInitialPalette(page.props.auth?.user?.ui_palette));
-  const customColor = ref(getInitialCustomColor(page.props.auth?.user?.ui_custom_color));
+  const userId = page.props.auth?.user?.id ?? null;
+  const theme = ref(getInitialTheme(page.props.auth?.user?.ui_theme, userId));
+  const palette = ref(getInitialPalette(page.props.auth?.user?.ui_palette, userId));
+  const customColor = ref(getInitialCustomColor(page.props.auth?.user?.ui_custom_color, userId));
   const savingTheme = ref(false);
   let persistAppearanceTimeoutId = null;
 
   const isDark = computed(() => theme.value === 'dark');
 
   const syncTheme = (value) => {
-    applyTheme(value);
-    applyPalette(palette.value, value, customColor.value);
+    const normalized = normalizeTheme(value, theme.value);
+    applyTheme(normalized);
+    applyPalette(palette.value, normalized, customColor.value);
 
     if (page.props.auth?.user) {
-      page.props.auth.user.ui_theme = value;
+      setStoredTheme(normalized, page.props.auth.user.id);
+      setLastKnownUserId(page.props.auth.user.id);
+      page.props.auth.user.ui_theme = normalized;
     }
   };
 
   const syncPalette = (value) => {
     const normalized = normalizePalette(value, palette.value);
     applyPalette(normalized, theme.value, customColor.value);
-    setStoredPalette(normalized);
 
     if (page.props.auth?.user) {
+      setStoredPalette(normalized, page.props.auth.user.id);
+      setLastKnownUserId(page.props.auth.user.id);
       page.props.auth.user.ui_palette = normalized;
     }
   };
@@ -995,6 +1272,7 @@ export function useTheme() {
 
       const json = await response.json();
       theme.value = normalizeTheme(json.theme, value);
+      setStoredTheme(theme.value, page.props.auth.user.id);
     } finally {
       savingTheme.value = false;
     }
@@ -1068,7 +1346,10 @@ export function useTheme() {
 
   const setCustomColor = (value) => {
     customColor.value = normalizeCustomColor(value, customColor.value);
-    setStoredCustomColor(customColor.value);
+    if (page.props.auth?.user) {
+      setStoredCustomColor(customColor.value, page.props.auth.user.id);
+      setLastKnownUserId(page.props.auth.user.id);
+    }
     palette.value = CUSTOM_PALETTE_ID;
     persistAppearance(palette.value, customColor.value, 250);
   };
@@ -1076,7 +1357,10 @@ export function useTheme() {
   const resetPalette = () => {
     palette.value = RESET_NEUTRAL_PALETTE_ID;
     customColor.value = DEFAULT_CUSTOM_COLOR;
-    setStoredCustomColor(DEFAULT_CUSTOM_COLOR);
+    if (page.props.auth?.user) {
+      setStoredCustomColor(DEFAULT_CUSTOM_COLOR, page.props.auth.user.id);
+      setLastKnownUserId(page.props.auth.user.id);
+    }
     persistAppearance(palette.value, customColor.value);
   };
 
@@ -1094,7 +1378,10 @@ export function useTheme() {
   });
 
   watch(customColor, (value) => {
-    setStoredCustomColor(value);
+    if (page.props.auth?.user) {
+      setStoredCustomColor(value, page.props.auth.user.id);
+      setLastKnownUserId(page.props.auth.user.id);
+    }
 
     if (palette.value === CUSTOM_PALETTE_ID) {
       applyPalette(CUSTOM_PALETTE_ID, theme.value, value);

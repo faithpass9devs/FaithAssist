@@ -40,8 +40,8 @@ watch(searchTerm, (val) => {
 const destroyUser = async (user) => {
   const result = await Swal.fire({
     toast: true,
-    title: 'Confirmar eliminación de usuario',
-    text: '¿Esta usted seguro que quiere continuar con esta acción?',
+    title: 'Eliminar usuario',
+    text: '¿Seguro que deseas eliminar este usuario?',
     icon: 'warning',
     position: 'top-end',
     width: 460,
@@ -95,7 +95,7 @@ const destroyUser = async (user) => {
   } catch (error) {
     Swal.fire({
       icon: 'error',
-      title: 'No se pudo eliminar',
+      title: 'No se pudo eliminar el usuario',
       text: error?.message ?? 'Ocurrió un error al intentar eliminar el usuario.',
     });
   }

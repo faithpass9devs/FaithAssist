@@ -49,7 +49,7 @@ class ManualAttendanceController extends Controller
         if (! $this->dataService->isManualAttendanceCaptureActive($request->user())) {
             return response()->json([
                 'success' => false,
-                'message' => 'No hay movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
+                'message' => 'No hay un movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
             ], 409);
         }
 

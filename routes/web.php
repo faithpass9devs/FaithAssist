@@ -194,17 +194,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['usuarios' => 'usuario']);
 
-    if (app()->environment('local')) {
-        Route::get('/test-meta-config', function () {
-            return [
-                'token_exists' => config('meta.whatsapp.token') ? true : false,
-                'phone_number_id' => config('meta.whatsapp.phone_number_id'),
-                'api_version' => config('meta.whatsapp.api_version'),
-                'base_url' => config('meta.whatsapp.base_url'),
-            ];
-        });
-    }
-
     Route::get('/whatsapp', [WhatsappMessageController::class, 'index'])->name('whatsapp.index');
 
     Route::post('/whatsapp/send', [WhatsappMessageController::class, 'send'])->name('whatsapp.send');

@@ -128,8 +128,8 @@ const csrfToken = () =>
 
 const launchImport = async () => {
   const confirmed = await Swal.fire({
-    title: '¿Importar externos?',
-    text: 'Se importarán al módulo de niños todos los externos que coincidan con los filtros actuales, enviando el gafete por WhatsApp a cada uno.',
+    title: '¿Importar registros externos?',
+    text: 'Se importarán los registros que coincidan con los filtros actuales y se enviará el gafete por WhatsApp a cada persona.',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, importar',
@@ -167,15 +167,15 @@ const launchImport = async () => {
       startPolling();
     } else {
       Swal.fire({
-        title: 'Sin externos',
-        text: 'No hay externos que coincidan con los filtros actuales.',
+        title: 'No hay registros para importar',
+        text: 'No hay registros externos que coincidan con los filtros actuales.',
         icon: 'info',
       });
     }
   } catch {
     Swal.fire({
-      title: 'Error',
-      text: 'No se pudo iniciar la importación masiva.',
+      title: 'No se pudo iniciar la importación',
+      text: 'La importación no pudo comenzar en este momento.',
       icon: 'error',
     });
   } finally {

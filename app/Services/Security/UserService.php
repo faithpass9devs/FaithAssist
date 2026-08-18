@@ -179,6 +179,11 @@ class UserService
         });
     }
 
+    public function deleteUser(User $user): void
+    {
+        $user->delete();
+    }
+
     private function indexUserData(User $user): array
     {
         return [
