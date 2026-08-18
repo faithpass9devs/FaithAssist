@@ -110,6 +110,7 @@ class ForgotPasswordController extends Controller
         }
 
         $this->putState($request, [
+            ...$this->state($request),
             'phone_normalized' => $normalizedPhone,
             'masked_phone' => $this->forgotPassword->maskPhone($normalizedPhone),
         ]);
@@ -148,6 +149,7 @@ class ForgotPasswordController extends Controller
         }
 
         $this->putState($request, [
+            ...$this->state($request),
             'code_verified_at' => now()->timestamp,
         ]);
 

@@ -51,7 +51,7 @@ const sendWhatsapp = async () => {
   errorMessage.value = '';
 
   if (form.value.to_phone.length < 7) {
-    errorMessage.value = 'El teléfono debe tener al menos 7 dígitos.';
+    errorMessage.value = 'Ingresa un número de teléfono válido.';
     loading.value = false;
     return;
   }
@@ -98,7 +98,7 @@ const sendWhatsapp = async () => {
     errorMessage.value =
       error.message ||
       error.error ||
-      'No se pudo enviar el PDF por WhatsApp.';
+      'No se pudo enviar el archivo por WhatsApp. Intenta de nuevo.';
   } finally {
     loading.value = false;
   }
@@ -113,7 +113,7 @@ const loadHistory = async () => {
     });
 
     if (!response.ok) {
-      throw new Error('No se pudo cargar el historial.');
+      throw new Error('No se pudo cargar el historial de envíos.');
     }
 
     history.value = await response.json();

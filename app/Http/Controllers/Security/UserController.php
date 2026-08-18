@@ -7,6 +7,7 @@ use App\Http\Requests\Security\UserRequest;
 use App\Models\User;
 use App\Services\Security\UserService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,5 +50,24 @@ class UserController extends Controller
 
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario actualizado correctamente.');
+    }
+
+    public function destroy(Request $request, User $usuario): JsonResponse
+    {
+        abort_unless($request->user()?->can('usuarios.delete'), 403);
+
+        if ($request->user()->is($usuario)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes eliminar tu propio usuario.',
+            ], 422);
+        }
+
+        $this->users->deleteUser($usuario);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario eliminado correctamente.',
+        ]);
     }
 }

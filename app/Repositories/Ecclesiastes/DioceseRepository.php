@@ -11,6 +11,10 @@ class DioceseRepository
     public function paginate(User $user, string $search, int $perPage = 15)
     {
         return Diocese::query()
+            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+                'id',
+                (new \App\Services\UserScopeService($user))->dioceseIds()
+            ))
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
             ->paginate($perPage, ['id', 'state_id', 'name', 'bishop', 'status'])
@@ -21,6 +25,10 @@ class DioceseRepository
     {
         return State::query()
             ->where('status', 'active')
+            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+                'id',
+                (new \App\Services\UserScopeService($user))->stateIds()
+            ))
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
     }

@@ -63,7 +63,7 @@ class ManualAttendanceDataService
                 'active_movement' => $activeMovement,
                 'message' => $isManualAttendanceActive
                     ? "Movimiento activo: {$activeMovement['type_name']} ({$activeMovement['period_name']})"
-                    : 'No hay movimiento activo de asistencia manual. Por favor, contacte al administrador.',
+                    : 'No hay un movimiento activo de asistencia manual. Contacta al administrador.',
             ],
         ];
     }

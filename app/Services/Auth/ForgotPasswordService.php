@@ -5,16 +5,14 @@ namespace App\Services\Auth;
 use App\Models\Lada;
 use App\Models\PasswordResetWhatsappCode;
 use App\Models\User;
-use App\Services\MetaWhatsAppService;
+use App\Jobs\ProcessWhatsappQueueBatchJob;
+use App\Models\WhatsappMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Throwable;
 
 class ForgotPasswordService
 {
-    public function __construct(private readonly MetaWhatsAppService $whatsapp) {}
-
     public function findUserByEmail(string $email): ?User
     {
         return User::query()->where('email', $email)->first();
@@ -55,17 +53,19 @@ class ForgotPasswordService
             ]);
         });
 
-        try {
-            $this->whatsapp->sendMessage(
-                phone: $normalizedPhone,
-                message: "Tu código de recuperación de contraseña es: {$code}\n\nVálido por 15 minutos. No compartas este código con nadie."
-            );
-            RateLimiter::hit($rateLimitKey, 600);
-            return true;
-        } catch (Throwable $e) {
-            report($e);
-            return false;
-        }
+        $message = WhatsappMessage::query()->create([
+            'to_phone' => $normalizedPhone,
+            'country_code' => Lada::detectCountryCode($normalizedPhone),
+            'message_type' => 'text',
+            'message_body' => "Tu código de verificación es ({$code}). Caduca en 15 minutos. No lo compartas con nadie.",
+            'status' => WhatsappMessage::STATUS_PENDING,
+            'max_retries' => config('baileys.retry.max_retries'),
+            'legend_text' => config('baileys.legend'),
+        ]);
+
+        ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
+        RateLimiter::hit($rateLimitKey, 600);
+        return true;
     }
 
     public function verifyCode(User $user, string $inputCode): bool

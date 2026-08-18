@@ -99,6 +99,8 @@ class ChildController extends Controller
 
     public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
     {
+        $this->authorize('view', $child);
+
         try {
             if (! $child->phone || ! $child->phone_lada) {
                 return response()->json([
@@ -107,18 +109,27 @@ class ChildController extends Controller
                 ], 422);
             }
 
-            if (! config('meta.whatsapp.token') || ! config('meta.whatsapp.phone_number_id')) {
+            if (! config('baileys.enabled')) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'WhatsApp no está configurado en el sistema.',
+                    'message' => 'WhatsApp no está habilitado en el sistema.',
                 ], 500);
             }
 
-            $qrService->sendChildQrBadge($child);
+            $message = $qrService->sendChildQrBadge($child);
+
+            if (! $message) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo generar el PDF del gafete para enviarlo.',
+                ], 500);
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Gafete PDF enviado exitosamente por WhatsApp',
+                'message' => "Gafete agregado correctamente.\nSe enviará por WhatsApp.",
+                'message_id' => $message?->id,
+                'status' => $message?->status,
             ]);
         } catch (\Exception $e) {
             \Log::error('Error enviando gafete PDF por WhatsApp', [

@@ -4,13 +4,10 @@ namespace App\Services\Standalone;
 
 use App\Models\Lada;
 use App\Models\WhatsappMessage;
-use App\Services\WhatsappService;
-use Throwable;
+use App\Jobs\ProcessWhatsappQueueBatchJob;
 
 class WhatsappMessageService
 {
-    public function __construct(private readonly WhatsappService $whatsappService) {}
-
     public function getIndexData(): array
     {
         return [
@@ -37,60 +34,26 @@ class WhatsappMessageService
         }
 
         $path = $validated['pdf_file']->store('whatsapp/gafetes');
+        $legend = config('baileys.legend');
 
         $message = WhatsappMessage::create([
             'to_phone' => $normalizedPhone,
             'country_code' => (string) $validated['to_country_code'],
             'message_type' => 'document',
+            'message_body' => $validated['caption'] ?? 'Te compartimos tu gafete en PDF.',
             'pdf_path' => $path,
-            'status' => 'pending',
+            'filename' => $validated['pdf_file']->getClientOriginalName(),
+            'status' => WhatsappMessage::STATUS_PENDING,
+            'max_retries' => config('baileys.retry.max_retries'),
+            'legend_text' => $legend,
         ]);
 
-        try {
-            $result = $this->whatsappService->uploadAndSendPdf(
-                toPhone: $normalizedPhone,
-                storagePath: $path,
-                filename: $validated['pdf_file']->getClientOriginalName(),
-                caption: $validated['caption'] ?? 'Te compartimos el gafete en PDF.'
-            );
+        ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
 
-            $metaMessageId = $result['response']['messages'][0]['id'] ?? null;
-
-            $message->update([
-                'media_id' => $result['media_id'],
-                'meta_message_id' => $metaMessageId,
-                'status' => 'sent',
-                'request_payload' => $result['payload'],
-                'response_payload' => $result['response'],
-            ]);
-
-            return [
-                'ok' => true,
-                'message' => 'PDF enviado correctamente por WhatsApp.',
-                'data' => $message->only(['id', 'to_phone', 'status', 'created_at']),
-            ];
-        } catch (Throwable $e) {
-            $message->update([
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
-
-            report($e);
-
-            $userMessage = 'No se pudo enviar el PDF por WhatsApp.';
-
-            if (
-                str_contains($e->getMessage(), 'Recipient phone number not in allowed list')
-                || str_contains($e->getMessage(), '131030')
-            ) {
-                $userMessage = 'No se pudo enviar el PDF. El número ingresado no está autorizado para recibir mensajes. Verifica el número.';
-            }
-
-            return [
-                'ok' => false,
-                'message' => $userMessage,
-                'error' => app()->environment('local') ? $e->getMessage() : null,
-            ];
-        }
+        return [
+            'ok' => true,
+            'message' => 'PDF agregado a la cola de envíos.',
+            'data' => $message->only(['id', 'to_phone', 'status', 'created_at']),
+        ];
     }
 }

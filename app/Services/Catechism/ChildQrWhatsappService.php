@@ -4,7 +4,7 @@ namespace App\Services\Catechism;
 
 use App\Models\Catechism\Child;
 use App\Models\WhatsappMessage;
-use App\Services\WhatsappService;
+use App\Jobs\ProcessWhatsappQueueBatchJob;
 use Exception;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
@@ -12,21 +12,16 @@ use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class ChildQrWhatsappService
 {
-    public function __construct(
-        private readonly WhatsappService $whatsappService
-    ) {}
-
     /**
      * Envía el gafete en PDF por WhatsApp al teléfono registrado.
      */
-    public function sendChildQrBadge(Child $child): void
+    public function sendChildQrBadge(Child $child): ?WhatsappMessage
     {
         try {
             if (! $this->isConfigured()) {
@@ -35,7 +30,7 @@ class ChildQrWhatsappService
                     'child_code' => $child->code,
                 ]);
 
-                return;
+                return null;
             }
 
             $phoneNumber = $this->getNormalizedPhone($child);
@@ -46,7 +41,7 @@ class ChildQrWhatsappService
                     'child_code' => $child->code,
                 ]);
 
-                return;
+                return null;
             }
 
             $badgePdfPath = $this->generateBadgePdfFile($child);
@@ -57,16 +52,18 @@ class ChildQrWhatsappService
                     'child_code' => $child->code,
                 ]);
 
-                return;
+                return null;
             }
 
-            $this->sendViaWhatsapp($child, $phoneNumber, $badgePdfPath);
+            $message = $this->sendViaWhatsapp($child, $phoneNumber, $badgePdfPath);
 
-            Log::info('Gafete enviado exitosamente por WhatsApp', [
+            Log::info('Gafete agregado a la cola de WhatsApp', [
                 'child_id' => $child->id,
                 'child_code' => $child->code,
                 'phone' => $this->maskPhone($phoneNumber),
             ]);
+
+            return $message;
         } catch (Throwable $e) {
             Log::error('Error al enviar gafete por WhatsApp', [
                 'child_id' => $child->id ?? null,
@@ -776,48 +773,32 @@ class ChildQrWhatsappService
     /**
      * Envía el gafete por WhatsApp como documento PDF con mensaje de bienvenida.
      */
-    private function sendViaWhatsapp(Child $child, string $phoneNumber, string $badgePdfPath): void
+    private function sendViaWhatsapp(Child $child, string $phoneNumber, string $badgePdfPath): WhatsappMessage
     {
-        try {
-            $child->loadMissing(['church:id,name', 'community:id,name']);
-            $churchName = $child->church?->name ?? '';
-            $communityName = $child->community?->name ?? '';
-            $fullName = $this->resolveFullName($child);
-            $filename = $this->buildBadgePdfFilename($child);
+        $child->loadMissing(['church:id,name', 'community:id,name']);
+        $fullName = $this->resolveFullName($child);
+        $caption = "🎓 GAFETE DE ASISTENCIA\n\n"
+            . "Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
+            . "👤 Nombre: {$fullName}\n\n"
+            . "🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
+            . "⚠️ En caso de detectar alguna información incorrecta, favor de acudir a las *oficinas de la Parroquia del Centro* para solicitar la aclaración correspondiente.\n\n"
+            . '📌 *Mensaje informativo. No es necesario responder a este WhatsApp.*';
 
-            $caption = "🙏 *¡Buen día!*\n\n"
-                . "Con gusto le compartimos el *gafete de asistencia* de su hijo(a).\n\n"
-                . "👤 *Nombre:* {$fullName}\n\n"
-                . "📌 *Por favor:*\n\n"
-                . "- Verifique que los datos sean correctos.\n"
-                . "- Guarde este gafete en un lugar seguro.\n"
-                . "- Preséntelo cuando sea solicitado durante las actividades correspondientes.\n\n"
-                . "🤝 Agradecemos su apoyo y colaboración";
+        $message = WhatsappMessage::query()->create([
+            'to_phone' => $phoneNumber,
+            'country_code' => $child->phone_lada,
+            'message_type' => 'document',
+            'message_body' => $caption,
+            'pdf_path' => $badgePdfPath,
+            'filename' => $this->buildBadgePdfFilename($child),
+            'status' => WhatsappMessage::STATUS_PENDING,
+            'max_retries' => config('baileys.retry.max_retries'),
+            'legend_text' => '',
+        ]);
 
-            $result = $this->whatsappService->uploadAndSendPdf(
-                toPhone: $phoneNumber,
-                storagePath: $badgePdfPath,
-                filename: $filename,
-                caption: $caption
-            );
+        ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
 
-            Log::info('Gafete PDF enviado por WhatsApp', [
-                'child_id' => $child->id,
-                'child_code' => $child->code,
-                'media_id' => $result['media_id'] ?? null,
-            ]);
-        } catch (Throwable $e) {
-            Log::error('Error enviando WhatsApp', [
-                'child_id' => $child->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        } finally {
-            if (Storage::exists($badgePdfPath)) {
-                Storage::delete($badgePdfPath);
-            }
-        }
+        return $message;
     }
 
     /**
@@ -877,7 +858,7 @@ class ChildQrWhatsappService
      */
     private function isConfigured(): bool
     {
-        return (bool) config('meta.whatsapp.token') && (bool) config('meta.whatsapp.phone_number_id');
+        return (bool) config('baileys.enabled');
     }
 
     /**

@@ -7,7 +7,8 @@ use App\Models\User;
 use Database\Seeders\LadaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
+use App\Jobs\ProcessWhatsappQueueBatchJob;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ForgotPasswordWhatsappTest extends TestCase
@@ -42,13 +43,8 @@ class ForgotPasswordWhatsappTest extends TestCase
 
     public function test_it_confirms_phone_and_sends_code(): void
     {
-        config()->set('services.whatsapp.enabled', true);
-        config()->set('services.whatsapp.token', 'test-token');
-        config()->set('services.whatsapp.phone_number_id', '1234567890');
-
-        Http::fake([
-            'https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200),
-        ]);
+        config()->set('baileys.enabled', true);
+        Queue::fake();
 
         $user = User::query()->create([
             'name' => 'Usuario Prueba',
@@ -77,10 +73,7 @@ class ForgotPasswordWhatsappTest extends TestCase
             'user_id' => $user->id,
         ]);
 
-        Http::assertSent(function ($request) use ($user) {
-            return str_contains($request->url(), '/messages')
-                && $request['to'] === $user->whatsapp_phone;
-        });
+        Queue::assertPushed(ProcessWhatsappQueueBatchJob::class);
     }
 
     public function test_it_validates_code_and_moves_to_reset_step(): void
@@ -176,13 +169,8 @@ class ForgotPasswordWhatsappTest extends TestCase
 
     public function test_it_accepts_different_phone_number_in_step_2(): void
     {
-        config()->set('services.whatsapp.enabled', true);
-        config()->set('services.whatsapp.token', 'test-token');
-        config()->set('services.whatsapp.phone_number_id', '1234567890');
-
-        Http::fake([
-            'https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200),
-        ]);
+        config()->set('baileys.enabled', true);
+        Queue::fake();
 
         $user = User::query()->create([
             'name' => 'Usuario Prueba',
@@ -211,10 +199,6 @@ class ForgotPasswordWhatsappTest extends TestCase
             'user_id' => $user->id,
         ]);
 
-        // Verificar que se envió a través de HTTP
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), '/messages')
-                && $request['to'] === '+5215598765432'; // Al número diferente
-        });
+        Queue::assertPushed(ProcessWhatsappQueueBatchJob::class);
     }
 }

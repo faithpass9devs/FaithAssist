@@ -154,3 +154,11 @@ Si no se reflejan cambios de permisos/policies:
 php artisan optimize:clear
 php artisan permission:cache-reset
 ```
+
+### WhatsApp con Baileys
+
+La integración usa una sesión persistente de Baileys y no requiere Meta Cloud API.
+Configura `BAILEYS_ENABLED=true` y un `BAILEYS_INTERNAL_TOKEN` en `.env`. Ejecuta
+`composer run dev` para iniciar Laravel, el worker, el scheduler y el servidor Baileys.
+La primera ejecución mostrará un código QR en la terminal para vincular el teléfono;
+las credenciales quedan guardadas en `storage/app/baileys/auth`.

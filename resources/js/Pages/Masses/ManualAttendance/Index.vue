@@ -37,7 +37,7 @@ const isMovementActive = computed(() => props.movement?.is_active !== false);
 const inactiveMovementMessage = computed(
   () =>
     props.movement?.message ||
-    'No hay movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
+    'No hay un movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
 );
 
 const availableMasses = computed(() => props.masses ?? []);
@@ -100,7 +100,7 @@ const suggestionsMessage = computed(() => {
   }
 
   if (!suggestedChildren.value.length) {
-    return 'No se encontraron coincidencias con los filtros seleccionados.';
+    return 'No se encontraron resultados con los filtros seleccionados.';
   }
 
   return '';

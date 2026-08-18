@@ -8,8 +8,6 @@ import {
   Lock,
   Mail,
   MoonStar,
-  Palette,
-  RotateCcw,
   ShieldCheck,
   Sparkles,
   SunMedium,
@@ -17,19 +15,12 @@ import {
 import { useTheme } from '../../composables/useTheme';
 
 const showPassword = ref(false);
-const showPalettePicker = ref(false);
-const showCustomColorBar = ref(false);
-const customHue = ref(0);
 const {
   theme,
   isDark,
   palette,
-  paletteOptions,
   customColor,
   savingTheme,
-  resetPalette,
-  setCustomColor,
-  setPalette,
   toggleTheme,
 } = useTheme();
 
@@ -83,152 +74,11 @@ const forgotPasswordHref = computed(() => {
   return `/forgot-password/email?email=${encodeURIComponent(email)}`;
 });
 
-const sortedPaletteOptions = computed(() => {
-  const groupOrder = {
-    azure: 1,
-    cobalt: 1,
-    cyan: 1,
-    steel: 1,
-    slate: 1,
-    indigo: 2,
-    violet: 2,
-    purple: 2,
-    orchid: 2,
-    rose: 3,
-    mauve: 3,
-    ruby: 3,
-    mint: 4,
-    teal: 4,
-    forest: 4,
-    green: 4,
-    olive: 4,
-    amber: 5,
-    orange: 5,
-    terracotta: 5,
-    chocolate: 5,
-  };
-
-  return paletteOptions.value
-    .filter((option) => option.id !== 'custom' && option.id !== 'neutral')
-    .sort((a, b) => {
-      const aGroup = groupOrder[a.id] ?? 99;
-      const bGroup = groupOrder[b.id] ?? 99;
-
-      if (aGroup !== bGroup) {
-        return aGroup - bGroup;
-      }
-
-      return a.label.localeCompare(b.label, 'es');
-    });
-});
-
 const submit = () => {
   form.post('/login', {
     onFinish: () => form.reset('password'),
   });
 };
-
-const togglePalettePicker = () => {
-  showPalettePicker.value = !showPalettePicker.value;
-
-  if (!showPalettePicker.value) {
-    showCustomColorBar.value = false;
-  }
-};
-
-const toggleCustomColorBar = () => {
-  showCustomColorBar.value = !showCustomColorBar.value;
-};
-
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-const hueToHex = (hue) => {
-  const h = ((hue % 360) + 360) % 360;
-  const c = 1;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-
-  let r = 0;
-  let g = 0;
-  let b = 0;
-
-  if (h < 60) {
-    r = c;
-    g = x;
-  } else if (h < 120) {
-    r = x;
-    g = c;
-  } else if (h < 180) {
-    g = c;
-    b = x;
-  } else if (h < 240) {
-    g = x;
-    b = c;
-  } else if (h < 300) {
-    r = x;
-    b = c;
-  } else {
-    r = c;
-    b = x;
-  }
-
-  const toHex = (channel) => {
-    const value = Math.round(channel * 255).toString(16);
-
-    return value.length === 1 ? `0${value}` : value;
-  };
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-};
-
-const hexToHue = (hex) => {
-  const normalized = hex.replace('#', '');
-
-  if (normalized.length !== 6) {
-    return 0;
-  }
-
-  const r = parseInt(normalized.slice(0, 2), 16) / 255;
-  const g = parseInt(normalized.slice(2, 4), 16) / 255;
-  const b = parseInt(normalized.slice(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  if (delta === 0) {
-    return 0;
-  }
-
-  let hue = 0;
-
-  if (max === r) {
-    hue = ((g - b) / delta) % 6;
-  } else if (max === g) {
-    hue = (b - r) / delta + 2;
-  } else {
-    hue = (r - g) / delta + 4;
-  }
-
-  return Math.round((hue * 60 + 360) % 360);
-};
-
-const applyHue = (event) => {
-  const hue = clamp(Number(event.target.value) || 0, 0, 360);
-  customHue.value = hue;
-  setCustomColor(hueToHex(hue));
-};
-
-const handleResetPalette = () => {
-  resetPalette();
-};
-
-watch(
-  customColor,
-  (value) => {
-    customHue.value = hexToHue(value);
-  },
-  { immediate: true },
-);
 </script>
 
 <template>
@@ -380,156 +230,5 @@ watch(
       </section>
     </div>
 
-    <div class="fixed bottom-6 right-6 z-20 flex flex-col items-end sm:bottom-8 sm:right-8">
-      <div
-        v-if="showPalettePicker"
-        class="mb-3 w-[20rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
-      >
-        <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-          PERSONALIZAR AMBIENTE
-        </p>
-
-        <div
-          class="max-h-64 overflow-y-auto pr-0.5"
-          style="scrollbar-width: thin"
-        >
-          <div class="grid grid-cols-4 gap-2.5">
-          <button
-            v-for="option in sortedPaletteOptions"
-            :key="option.id"
-            type="button"
-            class="group rounded-xl border p-2 text-center transition"
-            :class="
-              palette === option.id
-                ? 'border-slate-500 bg-white dark:border-slate-400 dark:bg-slate-800'
-                : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
-            "
-            :title="option.label"
-            @click="setPalette(option.id)"
-          >
-            <span
-              class="mx-auto mb-1.5 block h-10 w-10 rounded-full border border-white/30 shadow-inner"
-              :style="{ backgroundColor: option.swatch }"
-            ></span>
-            <span class="block truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-              {{ option.label }}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="group col-span-2 rounded-xl border border-slate-200 bg-white p-2 text-center transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
-            @click="handleResetPalette"
-          >
-            <span class="mb-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-slate-100 text-slate-600 shadow-inner dark:bg-slate-700 dark:text-slate-200">
-              <RotateCcw class="h-4 w-4" />
-            </span>
-            <span class="block truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-              Reset
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="group col-span-2 rounded-xl border p-2 text-center transition"
-            :class="
-              showCustomColorBar
-                ? 'border-slate-500 bg-white dark:border-slate-400 dark:bg-slate-800'
-                : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
-            "
-            @click="toggleCustomColorBar"
-          >
-            <span
-              class="mx-auto mb-1.5 block h-10 w-10 rounded-full border border-white/30 shadow-inner"
-              :style="{ backgroundColor: customColor }"
-            ></span>
-            <span class="block truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-              Color
-            </span>
-          </button>
-          </div>
-        </div>
-
-        <div v-if="showCustomColorBar" class="mt-3 border-t border-slate-200 px-1 pt-3 dark:border-slate-700">
-            <input
-              type="range"
-              min="0"
-              max="360"
-              :value="customHue"
-              class="ui-hue-slider"
-              aria-label="Ajustar color"
-              @input="applyHue"
-            />
-
-          <p class="mt-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400/90 dark:text-slate-500">
-            Color actual: {{ customColor }}
-          </p>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white/95 text-slate-700 shadow-lg transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:border-slate-600"
-        aria-label="Personalizar colores"
-        @click="togglePalettePicker"
-      >
-        <Palette class="h-5 w-5" />
-      </button>
-    </div>
   </main>
 </template>
-
-<style scoped>
-.ui-hue-slider {
-  width: 100%;
-  height: 0.5rem;
-  border-radius: 999px;
-  appearance: none;
-  border: 1px solid rgb(226 232 240 / 0.9);
-  background: linear-gradient(
-    90deg,
-    #ff0000 0%,
-    #ffff00 17%,
-    #00ff00 33%,
-    #00ffff 50%,
-    #0000ff 67%,
-    #ff00ff 83%,
-    #ff0000 100%
-  );
-}
-
-.ui-hue-slider::-webkit-slider-thumb {
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  border: 2px solid #ffffff;
-  appearance: none;
-  background-color: v-bind(customColor);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.35);
-}
-
-.ui-hue-slider::-moz-range-thumb {
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  border: 2px solid #ffffff;
-  background-color: v-bind(customColor);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.35);
-}
-
-.ui-hue-slider::-moz-range-track {
-  height: 0.5rem;
-  border-radius: 999px;
-  border: 1px solid rgb(226 232 240 / 0.9);
-  background: linear-gradient(
-    90deg,
-    #ff0000 0%,
-    #ffff00 17%,
-    #00ff00 33%,
-    #00ffff 50%,
-    #0000ff 67%,
-    #ff00ff 83%,
-    #ff0000 100%
-  );
-}
-</style>

@@ -11,6 +11,10 @@ class DeaneryRepository
     public function paginate(User $user, string $search, int $perPage = 15)
     {
         return Deanery::query()
+            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+                'id',
+                (new \App\Services\UserScopeService($user))->deaneryIds()
+            ))
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
             ->paginate($perPage, ['id', 'diocese_id', 'name', 'status'])
@@ -21,6 +25,10 @@ class DeaneryRepository
     {
         return Diocese::query()
             ->where('status', 'active')
+            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+                'id',
+                (new \App\Services\UserScopeService($user))->dioceseIds()
+            ))
             ->orderBy('name')
             ->get(['id', 'name']);
     }
