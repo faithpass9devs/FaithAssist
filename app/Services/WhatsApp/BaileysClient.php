@@ -46,8 +46,15 @@ class BaileysClient
 
     private function request(): PendingRequest
     {
-        return Http::baseUrl(config('baileys.base_url'))
-            ->withToken(config('baileys.internal_token'))
+        $baseUrl = (string) config('baileys.base_url');
+        $token = (string) config('baileys.internal_token');
+
+        if ($baseUrl === '' || $token === '') {
+            throw new RuntimeException('Baileys no está configurado correctamente (base_url / internal_token).');
+        }
+
+        return Http::baseUrl($baseUrl)
+            ->withToken($token)
             ->acceptJson()
             ->timeout(30);
     }
