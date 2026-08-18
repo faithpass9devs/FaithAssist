@@ -58,8 +58,12 @@ class SendWhatsappMessageJob implements ShouldQueue
                     ->onQueue('whatsapp');
             }
         } finally {
-            if ($message?->pdf_path && $message->fresh()?->status === WhatsappMessage::STATUS_SENT) {
-                Storage::delete($message->pdf_path);
+            if ($message?->pdf_path) {
+                $status = $message->fresh()?->status;
+
+                if (in_array($status, [WhatsappMessage::STATUS_SENT, WhatsappMessage::STATUS_FAILED], true)) {
+                    Storage::delete($message->pdf_path);
+                }
             }
         }
     }
