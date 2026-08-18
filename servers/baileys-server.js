@@ -222,8 +222,15 @@ app.post('/send', async (request, response) => {
 
     let result;
     if (documentPath) {
+      const allowedRoot = path.resolve(process.cwd(), 'storage/app');
+      const resolvedPath = path.resolve(String(documentPath));
+
+      if (!resolvedPath.startsWith(`${allowedRoot}${path.sep}`)) {
+        return response.status(422).json({ message: 'Ruta de documento no permitida.' });
+      }
+
       result = await socket.sendMessage(jid, {
-        document: await fs.readFile(documentPath),
+        document: await fs.readFile(resolvedPath),
         mimetype: 'application/pdf',
         fileName: filename || 'gafete.pdf',
         caption: text || undefined,
