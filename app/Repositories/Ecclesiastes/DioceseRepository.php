@@ -10,10 +10,12 @@ class DioceseRepository
 {
     public function paginate(User $user, string $search, int $perPage = 15)
     {
+        $scope = new \App\Services\UserScopeService($user);
+
         return Diocese::query()
-            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn(
                 'id',
-                (new \App\Services\UserScopeService($user))->dioceseIds()
+                $scope->dioceseIds()
             ))
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
@@ -23,11 +25,13 @@ class DioceseRepository
 
     public function activeStates(User $user)
     {
+        $scope = new \App\Services\UserScopeService($user);
+
         return State::query()
             ->where('status', 'active')
-            ->when(! (new \App\Services\UserScopeService($user))->isGlobal(), fn ($q) => $q->whereIn(
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn(
                 'id',
-                (new \App\Services\UserScopeService($user))->stateIds()
+                $scope->stateIds()
             ))
             ->orderBy('name')
             ->get(['id', 'name', 'short_name']);
