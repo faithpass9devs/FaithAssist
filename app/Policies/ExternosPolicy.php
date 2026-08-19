@@ -33,6 +33,11 @@ class ExternosPolicy extends BasePermissionPolicy
         return $this->can($user, 'import_all');
     }
 
+    public function massWhatsApp(User $user): bool
+    {
+        return $this->can($user, 'import_all');
+    }
+
     private function withinScope(User $user, ExternalChild $child): bool
     {
         $scope = new UserScopeService($user);

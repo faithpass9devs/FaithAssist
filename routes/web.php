@@ -179,6 +179,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/externos/import-batch/{batch}', [ExternosController::class, 'batchStatus'])
         ->name('externos.import-batch.show');
 
+    Route::post('/externos/mass-whatsapp', [ExternosController::class, 'massWhatsApp'])
+        ->name('externos.mass-whatsapp');
+    Route::get('/externos/mass-whatsapp/{batch}', [ExternosController::class, 'massWhatsAppStatus'])
+        ->name('externos.mass-whatsapp.show');
+
     // Seguridad
     Route::resource('modulos', ModuleController::class)
         ->only(['index', 'store', 'update', 'destroy'])
