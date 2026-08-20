@@ -4,19 +4,15 @@ namespace App\Services\Catechism;
 
 use App\Jobs\SendMassWhatsAppToImportedChildJob;
 use App\Models\Catechism\Child;
+use App\Models\FailedWhatsappChild;
 use App\Models\User;
 use App\Models\WhatsappMassBatch;
-use App\Repositories\Catechism\ExternosRepository;
 use App\Services\UserScopeService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
 
 class MassWhatsAppService
 {
-    public function __construct(
-        private readonly ExternosRepository $externos,
-    ) {}
-
     public function createBatch(
         User $user,
         string $search = '',
@@ -26,6 +22,25 @@ class MassWhatsAppService
         ?int $levelId = null,
         ?string $status = null,
     ): array {
+        $activeBatch = WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->whereNull('batch_id')
+            ->exists();
+
+        if ($activeBatch) {
+            return ['error' => 'Ya hay un envio masivo en proceso. Espera a que termine.'];
+        }
+
+        $runningBatch = WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('batch_id')
+            ->latest('id')
+            ->first();
+
+        if ($runningBatch && ! Bus::findBatch($runningBatch->batch_id)?->finished()) {
+            return ['error' => 'Ya hay un envio masivo en curso. Espera a que termine.'];
+        }
+
         $children = $this->getImportedChildrenWithPhone(
             $user,
             $search,
@@ -40,17 +55,7 @@ class MassWhatsAppService
             return ['batch_id' => null, 'total' => 0];
         }
 
-        $jobs = $children->map(
-            fn (Child $child): SendMassWhatsAppToImportedChildJob => new SendMassWhatsAppToImportedChildJob($child->id)
-        )->all();
-
-        $batch = Bus::batch($jobs)
-            ->name('WhatsApp masivo a importados')
-            ->allowFailures()
-            ->dispatch();
-
-        WhatsappMassBatch::create([
-            'batch_id' => $batch->id,
+        $record = WhatsappMassBatch::create([
             'user_id' => $user->id,
             'total_jobs' => $children->count(),
             'filters' => array_filter([
@@ -62,6 +67,17 @@ class MassWhatsAppService
                 'status' => $status,
             ], fn ($v) => $v !== null),
         ]);
+
+        $jobs = $children->map(
+            fn (Child $child): SendMassWhatsAppToImportedChildJob => new SendMassWhatsAppToImportedChildJob($child->id, (string) $record->id)
+        )->all();
+
+        $batch = Bus::batch($jobs)
+            ->name('WhatsApp masivo a importados')
+            ->allowFailures()
+            ->dispatch();
+
+        $record->update(['batch_id' => $batch->id]);
 
         return ['batch_id' => $batch->id, 'total' => $children->count()];
     }
@@ -122,6 +138,7 @@ class MassWhatsAppService
             'finished' => $batch->finished(),
             'cancelled' => $batch->cancelled(),
             'created_at' => $record->created_at?->format('d/m/Y H:i'),
+            'failed_children' => $this->getFailedChildren($record->id),
         ];
     }
 
@@ -176,5 +193,25 @@ class MassWhatsAppService
         }
 
         return $query->get(['id']);
+    }
+
+    private function getFailedChildren(?int $recordId): array
+    {
+        if (! $recordId) {
+            return [];
+        }
+
+        return FailedWhatsappChild::query()
+            ->where('batch_id', $recordId)
+            ->with('child:id,name,paterno,materno,code')
+            ->get()
+            ->map(fn (FailedWhatsappChild $fail): array => [
+                'child_id' => $fail->child_id,
+                'name' => $fail->child?->full_name ?? 'Desconocido',
+                'code' => $fail->child?->code ?? '—',
+                'error' => $fail->error_message,
+                'created_at' => $fail->created_at?->format('d/m/Y H:i'),
+            ])
+            ->all();
     }
 }

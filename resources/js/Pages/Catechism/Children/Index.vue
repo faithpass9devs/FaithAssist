@@ -292,6 +292,15 @@ const launchMassWhatsApp = async () => {
 
     const data = await res.json();
 
+    if (res.status === 409) {
+      Swal.fire({
+        title: 'Envio en curso',
+        text: data.message,
+        icon: 'warning',
+      });
+      return;
+    }
+
     if (data.batch_id) {
       whatsappBatch.value = {
         batch_id: data.batch_id,

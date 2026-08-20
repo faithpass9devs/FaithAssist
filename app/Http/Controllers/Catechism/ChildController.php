@@ -212,6 +212,10 @@ class ChildController extends Controller
             $request->input('status'),
         );
 
+        if (isset($result['error'])) {
+            return response()->json(['message' => $result['error']], 409);
+        }
+
         return response()->json($result);
     }
 

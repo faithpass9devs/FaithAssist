@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Catechism\Child;
+use App\Models\FailedWhatsappChild;
 use App\Services\Catechism\ChildQrWhatsappService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -22,6 +23,7 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
 
     public function __construct(
         public readonly int $childId,
+        public readonly ?int $batchId = null,
     ) {}
 
     public function handle(ChildQrWhatsappService $qrService): void
@@ -33,16 +35,13 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
         $child = Child::find($this->childId);
 
         if (! $child) {
-            Log::warning('MassWhatsApp: nino no encontrado', ['child_id' => $this->childId]);
+            $this->recordFailure('Nino no encontrado en la base de datos');
 
             return;
         }
 
         if (! $child->phone || ! $child->phone_lada) {
-            Log::warning('MassWhatsApp: nino sin telefono', [
-                'child_id' => $child->id,
-                'child_code' => $child->code,
-            ]);
+            $this->recordFailure('El nino no tiene telefono registrado');
 
             return;
         }
@@ -61,7 +60,20 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
+            $this->recordFailure($e->getMessage());
+
             throw $e;
         }
+    }
+
+    private function recordFailure(string $message): void
+    {
+        $child = Child::withTrashed()->find($this->childId);
+
+        FailedWhatsappChild::create([
+            'child_id' => $this->childId,
+            'batch_id' => $this->batchId,
+            'error_message' => $message.' | '.$child?->full_name.' ('.$child?->code.')',
+        ]);
     }
 }
