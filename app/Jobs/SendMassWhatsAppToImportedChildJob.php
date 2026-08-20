@@ -110,12 +110,19 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
 
     private function recordFailure(string $message): void
     {
-        $child = Child::withTrashed()->find($this->childId);
+        try {
+            $child = Child::withTrashed()->find($this->childId);
 
-        FailedWhatsappChild::create([
-            'child_id' => $this->childId,
-            'batch_id' => $this->recordId,
-            'error_message' => $message.' | '.$child?->full_name.' ('.$child?->code.')',
-        ]);
+            FailedWhatsappChild::create([
+                'child_id' => $this->childId,
+                'batch_id' => $this->recordId,
+                'error_message' => $message.' | '.$child?->full_name.' ('.$child?->code.')',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('MassWhatsApp: error guardando fallo', [
+                'child_id' => $this->childId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
