@@ -204,6 +204,7 @@ const sendQrWhatsapp = async () => {
 const whatsappBatch = ref(props.latestWhatsappBatch);
 const launchingWhatsApp = ref(false);
 let whatsappPollTimer = null;
+let whatsappPollErrors = 0;
 
 const isWhatsAppBatchActive = computed(
   () => !!whatsappBatch.value && !whatsappBatch.value.finished && !whatsappBatch.value.cancelled,
@@ -228,10 +229,14 @@ const refreshWhatsAppBatch = async () => {
     });
 
     if (!res.ok) {
-      stopWhatsAppPolling();
+      whatsappPollErrors++;
+      if (whatsappPollErrors >= 5) {
+        stopWhatsAppPolling();
+      }
       return;
     }
 
+    whatsappPollErrors = 0;
     const data = await res.json();
     whatsappBatch.value = data;
 
@@ -241,12 +246,16 @@ const refreshWhatsAppBatch = async () => {
 
     stopWhatsAppPolling();
   } catch {
-    stopWhatsAppPolling();
+    whatsappPollErrors++;
+    if (whatsappPollErrors >= 5) {
+      stopWhatsAppPolling();
+    }
   }
 };
 
 const startWhatsAppPolling = () => {
   stopWhatsAppPolling();
+  whatsappPollErrors = 0;
   whatsappPollTimer = setInterval(refreshWhatsAppBatch, 3000);
 };
 
@@ -334,6 +343,42 @@ const launchMassWhatsApp = async () => {
 const finishWhatsAppBatch = () => {
   stopWhatsAppPolling();
   whatsappBatch.value = null;
+};
+
+const dismissingWhatsApp = ref(false);
+
+const dismissWhatsAppBatch = async () => {
+  const confirmed = await Swal.fire({
+    title: '¿Descartar envío?',
+    text: 'Se cancelará el envío masivo actual y se desbloqueará el botón.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, descartar',
+    cancelButtonText: 'No, dejar',
+  });
+
+  if (!confirmed.isConfirmed) return;
+
+  dismissingWhatsApp.value = true;
+
+  try {
+    stopWhatsAppPolling();
+
+    await fetch('/children/mass-whatsapp', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken(),
+      },
+    });
+
+    whatsappBatch.value = null;
+  } catch {
+    toast('error', 'No se pudo descartar el envío.');
+  } finally {
+    dismissingWhatsApp.value = false;
+  }
 };
 
 </script>
@@ -509,6 +554,16 @@ const finishWhatsAppBatch = () => {
           @click="finishWhatsAppBatch"
         >
           Cerrar
+        </button>
+        <button
+          v-else
+          type="button"
+          class="btn btn-xs rounded-xl border border-red-300 bg-white text-red-600 shadow-sm transition hover:bg-red-50 dark:border-red-800 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950/40"
+          :disabled="dismissingWhatsApp"
+          @click="dismissWhatsAppBatch"
+        >
+          <span v-if="dismissingWhatsApp" class="loading loading-spinner loading-xs"></span>
+          <span v-else>Descartar</span>
         </button>
       </div>
 

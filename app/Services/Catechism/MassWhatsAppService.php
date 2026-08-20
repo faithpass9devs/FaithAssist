@@ -114,17 +114,41 @@ class MassWhatsAppService
         return $record ? $this->serializeBatch($record) : null;
     }
 
+    public function dismissBatch(User $user): void
+    {
+        $record = WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->latest('id')
+            ->first();
+
+        if (! $record) {
+            return;
+        }
+
+        if ($record->batch_id) {
+            $batch = Bus::findBatch($record->batch_id);
+
+            if ($batch && ! $batch->finished() && ! $batch->cancelled()) {
+                $batch->cancel();
+            }
+        }
+
+        $record->delete();
+    }
+
     private function serializeBatch(WhatsappMassBatch $record): array
     {
         if (! $record->batch_id) {
+            $stale = $record->created_at && $record->created_at->diffInMinutes(now()) >= 120;
+
             return [
                 'batch_id' => null,
                 'total' => $record->total_jobs,
-                'processed' => 0,
-                'pending' => $record->total_jobs,
+                'processed' => $stale ? $record->total_jobs : 0,
+                'pending' => $stale ? 0 : $record->total_jobs,
                 'failed' => 0,
-                'progress' => 0,
-                'finished' => false,
+                'progress' => $stale ? 100 : 0,
+                'finished' => $stale,
                 'cancelled' => false,
                 'created_at' => $record->created_at?->format('d/m/Y H:i'),
             ];
@@ -147,18 +171,24 @@ class MassWhatsAppService
         }
 
         $processed = max(0, $batch->totalJobs - $batch->pendingJobs);
+        $finished = $batch->finished();
+        $cancelled = $batch->cancelled();
+
+        if (! $finished && ! $cancelled && $record->created_at && $record->created_at->diffInMinutes(now()) >= 120) {
+            $finished = true;
+        }
 
         return [
             'batch_id' => $record->batch_id,
             'total' => $batch->totalJobs,
             'processed' => $processed,
-            'pending' => $batch->pendingJobs,
+            'pending' => $finished ? 0 : $batch->pendingJobs,
             'failed' => $batch->failedJobs,
             'progress' => $batch->totalJobs > 0
                 ? (int) round(($processed / $batch->totalJobs) * 100)
                 : 0,
-            'finished' => $batch->finished(),
-            'cancelled' => $batch->cancelled(),
+            'finished' => $finished,
+            'cancelled' => $cancelled,
             'created_at' => $record->created_at?->format('d/m/Y H:i'),
             'failed_children' => $this->getFailedChildren($record->id),
         ];

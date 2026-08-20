@@ -229,4 +229,13 @@ class ChildController extends Controller
             ? response()->json($data)
             : response()->json(['message' => 'Batch no encontrado.'], 404);
     }
+
+    public function massWhatsAppDismiss(Request $request, MassWhatsAppService $massWhatsapp): JsonResponse
+    {
+        $this->authorize('massWhatsApp', Child::class);
+
+        $massWhatsapp->dismissBatch($request->user());
+
+        return response()->json(['message' => 'Envío descartado.']);
+    }
 }
