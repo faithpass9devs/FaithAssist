@@ -9,11 +9,12 @@ use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
 use App\Models\User;
 use App\Repositories\Catechism\ChildRepository;
-use App\Services\ChildCodeGenerator;
 use App\Services\CatechismPeriodMovementService;
+use App\Services\ChildCodeGenerator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ChildService
 {
@@ -21,6 +22,7 @@ class ChildService
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
         private readonly ChildQrWhatsappService $qrWhatsappService,
+        private readonly MassWhatsAppService $massWhatsapp,
     ) {}
 
     public function indexData(
@@ -62,6 +64,7 @@ class ChildService
             'statusLabels' => $this->statusLabels(),
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
+            'latestWhatsappBatch' => $this->massWhatsapp->latestBatch($user),
         ];
     }
 
@@ -154,7 +157,7 @@ class ChildService
             $this->qrWhatsappService->sendChildQrBadge($child);
         } catch (\Throwable $e) {
             // Log ya registrado en el servicio, simplemente continuamos
-            \Illuminate\Support\Facades\Log::warning('Gafete PDF WhatsApp envío diferido', [
+            Log::warning('Gafete PDF WhatsApp envío diferido', [
                 'child_id' => $child->id,
             ]);
         }

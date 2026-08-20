@@ -8,8 +8,10 @@ use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
 use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\Catechism\ChildService;
+use App\Services\Catechism\MassWhatsAppService;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -194,5 +196,25 @@ class ChildController extends Controller
         $parts = preg_split('/\s+/u', $value) ?: [];
 
         return $parts[0] ?? $fallback;
+    }
+
+    public function massWhatsApp(Request $request, MassWhatsAppService $massWhatsapp): JsonResponse
+    {
+        $this->authorize('massWhatsApp', Child::class);
+
+        $result = $massWhatsapp->createBatch($request->user());
+
+        return response()->json($result);
+    }
+
+    public function massWhatsAppStatus(Request $request, string $batch, MassWhatsAppService $massWhatsapp): JsonResponse
+    {
+        $this->authorize('massWhatsApp', Child::class);
+
+        $data = $massWhatsapp->batchStatus($request->user(), $batch);
+
+        return $data
+            ? response()->json($data)
+            : response()->json(['message' => 'Batch no encontrado.'], 404);
     }
 }

@@ -159,6 +159,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
 
+    Route::post('/children/mass-whatsapp', [ChildController::class, 'massWhatsApp'])->name('children.mass-whatsapp');
+    Route::get('/children/mass-whatsapp/{batch}', [ChildController::class, 'massWhatsAppStatus'])->name('children.mass-whatsapp.show');
+
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
     Route::resource('reinscripciones', ReinscriptionController::class)
@@ -178,11 +181,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('externos.import-batch');
     Route::get('/externos/import-batch/{batch}', [ExternosController::class, 'batchStatus'])
         ->name('externos.import-batch.show');
-
-    Route::post('/externos/mass-whatsapp', [ExternosController::class, 'massWhatsApp'])
-        ->name('externos.mass-whatsapp');
-    Route::get('/externos/mass-whatsapp/{batch}', [ExternosController::class, 'massWhatsAppStatus'])
-        ->name('externos.mass-whatsapp.show');
 
     // Seguridad
     Route::resource('modulos', ModuleController::class)

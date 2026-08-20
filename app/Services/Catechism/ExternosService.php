@@ -19,7 +19,6 @@ class ExternosService
     public function __construct(
         private readonly ExternosRepository $externos,
         private readonly ExternalChildImportService $importer,
-        private readonly MassWhatsAppService $massWhatsapp,
     ) {}
 
     public function indexData(
@@ -42,7 +41,6 @@ class ExternosService
             'sexLabels' => $this->sexLabels(),
             'levelStatusLabels' => $this->levelStatusLabels(),
             'latestImportBatch' => $this->latestImportBatch($user),
-            'latestWhatsappBatch' => $this->massWhatsapp->latestBatch($user),
         ];
     }
 

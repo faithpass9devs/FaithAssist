@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Catechism\ImportExternalChildRequest;
 use App\Models\External\ExternalChild;
 use App\Services\Catechism\ExternosService;
-use App\Services\Catechism\MassWhatsAppService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,26 +82,6 @@ class ExternosController extends Controller
         $this->authorize('importAll', ExternalChild::class);
 
         $data = $this->externos->batchStatus($request->user(), $batch);
-
-        return $data
-            ? response()->json($data)
-            : response()->json(['message' => 'Batch no encontrado.'], 404);
-    }
-
-    public function massWhatsApp(Request $request, MassWhatsAppService $massWhatsapp): JsonResponse
-    {
-        $this->authorize('massWhatsApp', ExternalChild::class);
-
-        $result = $massWhatsapp->createBatch($request->user());
-
-        return response()->json($result);
-    }
-
-    public function massWhatsAppStatus(Request $request, string $batch, MassWhatsAppService $massWhatsapp): JsonResponse
-    {
-        $this->authorize('massWhatsApp', ExternalChild::class);
-
-        $data = $massWhatsapp->batchStatus($request->user(), $batch);
 
         return $data
             ? response()->json($data)

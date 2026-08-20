@@ -6,7 +6,6 @@ import {
   Eye,
   Filter,
   LoaderCircle,
-  MessageCircle,
   RotateCcw,
   Search,
   Users,
@@ -32,7 +31,6 @@ const props = defineProps({
   levelStatusLabels: { type: Object, default: () => ({}) },
   selectedExterno: { type: Object, default: null },
   latestImportBatch: { type: Object, default: null },
-  latestWhatsappBatch: { type: Object, default: null },
 });
 
 const searchTerm = ref(props.search);
@@ -121,10 +119,9 @@ onMounted(() => {
   if (isBatchActive.value) {
     startPolling();
   }
-  if (isWhatsAppBatchActive.value) {
-    startWhatsAppPolling();
-  }
 });
+
+onBeforeUnmount(stopPolling);
 
 const csrfToken = () =>
   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -192,124 +189,6 @@ const finishImport = () => {
   reload();
 };
 
-const whatsappBatch = ref(props.latestWhatsappBatch);
-const launchingWhatsApp = ref(false);
-let whatsappPollTimer = null;
-
-const isWhatsAppBatchActive = computed(
-  () => !!whatsappBatch.value && !whatsappBatch.value.finished && !whatsappBatch.value.cancelled,
-);
-
-const stopWhatsAppPolling = () => {
-  if (whatsappPollTimer) {
-    clearInterval(whatsappPollTimer);
-    whatsappPollTimer = null;
-  }
-};
-
-const refreshWhatsAppBatch = async () => {
-  if (!whatsappBatch.value) return;
-
-  try {
-    const res = await fetch(`/externos/mass-whatsapp/${whatsappBatch.value.batch_id}`, {
-      headers: { Accept: 'application/json' },
-    });
-
-    if (!res.ok) {
-      stopWhatsAppPolling();
-      return;
-    }
-
-    const data = await res.json();
-    whatsappBatch.value = data;
-
-    if (!data.finished && !data.cancelled) {
-      return;
-    }
-
-    stopWhatsAppPolling();
-  } catch {
-    stopWhatsAppPolling();
-  }
-};
-
-const startWhatsAppPolling = () => {
-  stopWhatsAppPolling();
-  whatsappPollTimer = setInterval(refreshWhatsAppBatch, 3000);
-};
-
-onMounted(() => {
-  if (isWhatsAppBatchActive.value) {
-    startWhatsAppPolling();
-  }
-});
-
-onBeforeUnmount(() => {
-  stopPolling();
-  stopWhatsAppPolling();
-});
-
-const launchMassWhatsApp = async () => {
-  const confirmed = await Swal.fire({
-    title: '¿Enviar gafetes por WhatsApp?',
-    text: 'Se enviará el gafete QR por WhatsApp a todos los niños importados que tengan teléfono registrado.',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Sí, enviar',
-    cancelButtonText: 'Cancelar',
-  });
-
-  if (!confirmed.isConfirmed) return;
-
-  launchingWhatsApp.value = true;
-
-  try {
-    const res = await fetch('/externos/mass-whatsapp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-CSRF-TOKEN': csrfToken(),
-      },
-    });
-
-    const data = await res.json();
-
-    if (data.batch_id) {
-      whatsappBatch.value = {
-        batch_id: data.batch_id,
-        total: data.total,
-        processed: 0,
-        pending: data.total,
-        failed: 0,
-        progress: 0,
-        finished: false,
-        cancelled: false,
-      };
-      startWhatsAppPolling();
-    } else {
-      Swal.fire({
-        title: 'No hay niños para enviar',
-        text: 'No hay niños importados con teléfono registrado.',
-        icon: 'info',
-      });
-    }
-  } catch {
-    Swal.fire({
-      title: 'No se pudo iniciar el envío',
-      text: 'El envío masivo no pudo comenzar en este momento.',
-      icon: 'error',
-    });
-  } finally {
-    launchingWhatsApp.value = false;
-  }
-};
-
-const finishWhatsAppBatch = () => {
-  stopWhatsAppPolling();
-  whatsappBatch.value = null;
-};
-
 const detail = ref(props.selectedExterno);
 
 watch(
@@ -363,16 +242,6 @@ const closeDetail = () => {
           >
             <CloudUpload class="h-3.5 w-3.5" />
             {{ launching ? 'Iniciando...' : 'Importación masiva' }}
-          </button>
-          <button
-            v-if="canImportAll"
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-xl border-0 bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-900/20 transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="launchingWhatsApp || isWhatsAppBatchActive"
-            @click="launchMassWhatsApp"
-          >
-            <MessageCircle class="h-3.5 w-3.5" />
-            {{ launchingWhatsApp ? 'Iniciando...' : 'WhatsApp masivo' }}
           </button>
           <button
             v-if="activeFilters"
@@ -491,73 +360,6 @@ const closeDetail = () => {
           Fallidos: {{ batch.failed }}
         </span>
         <span class="text-slate-400">Iniciado: {{ batch.created_at }}</span>
-      </div>
-    </div>
-
-    <div
-      v-if="whatsappBatch"
-      class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm sm:p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30"
-    >
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <LoaderCircle
-            v-if="isWhatsAppBatchActive"
-            class="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-300"
-          />
-          <CheckCircle2
-            v-else
-            class="h-4 w-4 text-emerald-600 dark:text-emerald-300"
-          />
-          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-            Envío masivo de WhatsApp
-          </h3>
-          <span
-            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-          >
-            {{
-              whatsappBatch.cancelled
-                ? 'Cancelada'
-                : whatsappBatch.finished
-                  ? whatsappBatch.failed > 0
-                    ? 'Terminada con errores'
-                    : 'Completada'
-                  : 'En progreso'
-            }}
-          </span>
-        </div>
-        <button
-          v-if="whatsappBatch.finished"
-          type="button"
-          class="btn btn-xs rounded-xl border-0 bg-emerald-600 text-white shadow-md transition hover:bg-emerald-700"
-          @click="finishWhatsAppBatch"
-        >
-          Cerrar
-        </button>
-      </div>
-
-      <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        Enviando gafetes QR por WhatsApp a niños importados con teléfono registrado.
-      </p>
-
-      <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-        <div
-          class="h-full rounded-full bg-emerald-600 transition-all"
-          :style="{ width: whatsappBatch.progress + '%' }"
-        ></div>
-      </div>
-
-      <div
-        class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
-      >
-        <span>
-          Procesados:
-          <strong class="text-slate-700 dark:text-slate-200">{{ whatsappBatch.processed }}</strong>
-          de {{ whatsappBatch.total }}
-        </span>
-        <span v-if="whatsappBatch.failed > 0" class="font-semibold text-amber-600 dark:text-amber-400">
-          Fallidos: {{ whatsappBatch.failed }}
-        </span>
-        <span class="text-slate-400">Iniciado: {{ whatsappBatch.created_at }}</span>
       </div>
     </div>
 
