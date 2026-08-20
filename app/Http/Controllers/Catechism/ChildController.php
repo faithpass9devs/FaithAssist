@@ -129,7 +129,7 @@ class ChildController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Gafete agregado correctamente.\nSe enviará por WhatsApp.",
+                'message' => 'Gafete enviado correctamente por WhatsApp.',
                 'message_id' => $message?->id,
                 'status' => $message?->status,
             ]);

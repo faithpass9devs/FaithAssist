@@ -4,14 +4,16 @@ namespace App\Services\Catechism;
 
 use App\Models\Catechism\Child;
 use App\Models\WhatsappMessage;
-use App\Jobs\ProcessWhatsappQueueBatchJob;
-use Exception;
+use App\Services\WhatsApp\BaileysClient;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -79,7 +81,7 @@ class ChildQrWhatsappService
     /**
      * Genera y guarda temporalmente el PDF del gafete para envío por WhatsApp.
      */
-    private function generateBadgePdfFile(Child $child): ?string
+    public function generateBadgePdfFile(Child $child): ?string
     {
         try {
             $pdfContent = $this->generateChildBadgePdf($child);
@@ -176,11 +178,12 @@ class ChildQrWhatsappService
             $pdfContent = $this->generatePdfContent($html);
 
             // Validar que el PDF tiene contenido
-            if (!$pdfContent || strlen($pdfContent) < 100) {
+            if (! $pdfContent || strlen($pdfContent) < 100) {
                 Log::error('PDF generado vacío o inválido', [
                     'child_id' => $child->id,
                     'size' => strlen($pdfContent ?? ''),
                 ]);
+
                 return null;
             }
 
@@ -214,7 +217,7 @@ class ChildQrWhatsappService
     {
         // Usar ruta absoluta con file:// para que funcione en cualquier contexto
         $qrAbsolutePath = Storage::path($qrImagePath);
-        $qrUrl = file_exists($qrAbsolutePath) ? 'file://' . realpath($qrAbsolutePath) : '';
+        $qrUrl = file_exists($qrAbsolutePath) ? 'file://'.realpath($qrAbsolutePath) : '';
 
         $churchName = $child->church?->name ?? 'No especificada';
         $communityName = $child->community?->name ?? 'No especificada';
@@ -305,8 +308,7 @@ class ChildQrWhatsappService
         ?string $qrImageUrl = null,
         ?string $qrSvg = null,
         ?string $qrMatrixHtml = null
-    ): array
-    {
+    ): array {
         $church = $child->church;
         $community = $child->community;
         $municipality = $church?->municipality ?? $community?->municipality;
@@ -435,7 +437,7 @@ class ChildQrWhatsappService
     {
         try {
             $result = (new Builder(
-                writer: new SvgWriter(),
+                writer: new SvgWriter,
                 data: $childCode,
                 encoding: new Encoding('UTF-8'),
                 errorCorrectionLevel: ErrorCorrectionLevel::High,
@@ -627,7 +629,7 @@ class ChildQrWhatsappService
     {
         try {
             return (new Builder(
-                writer: new PngWriter(),
+                writer: new PngWriter,
                 data: $childCode,
                 encoding: new Encoding('UTF-8'),
                 errorCorrectionLevel: ErrorCorrectionLevel::High,
@@ -658,7 +660,7 @@ class ChildQrWhatsappService
      */
     private function buildQrSectionHtml(string $qrUrl): string
     {
-        if (!$qrUrl) {
+        if (! $qrUrl) {
             return '<div class="qr-section"><p style="color: #999; font-size: 11px;">QR no disponible</p></div>';
         }
 
@@ -685,12 +687,12 @@ class ChildQrWhatsappService
     private function generatePdfWithDompdf(string $html): string
     {
         try {
-            $options = new \Dompdf\Options();
+            $options = new Options;
             $options->set('isHtml5ParserEnabled', true);
             $options->set('isRemoteEnabled', true);
             $options->set('chroot', base_path());
 
-            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
             $dompdf->setPaper('A4', 'portrait');
             $dompdf->render();
@@ -732,8 +734,8 @@ class ChildQrWhatsappService
     private function generatePdfWithWkhtmltopdf(string $html): string
     {
         try {
-            $tempHtmlFile = tempnam(sys_get_temp_dir(), 'badge_') . '.html';
-            $tempPdfFile = tempnam(sys_get_temp_dir(), 'badge_') . '.pdf';
+            $tempHtmlFile = tempnam(sys_get_temp_dir(), 'badge_').'.html';
+            $tempPdfFile = tempnam(sys_get_temp_dir(), 'badge_').'.pdf';
 
             file_put_contents($tempHtmlFile, $html);
 
@@ -778,11 +780,11 @@ class ChildQrWhatsappService
         $child->loadMissing(['church:id,name', 'community:id,name']);
         $fullName = $this->resolveFullName($child);
         $caption = "🎓 GAFETE DE ASISTENCIA\n\n"
-            . "Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
-            . "👤 Nombre: {$fullName}\n\n"
-            . "🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
-            . "⚠️ En caso de detectar alguna información incorrecta, favor de acudir a las *oficinas de la Parroquia del Centro* para solicitar la aclaración correspondiente.\n\n"
-            . '📌 *Mensaje informativo. No es necesario responder a este WhatsApp.*';
+            ."Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
+            ."👤 Nombre: {$fullName}\n\n"
+            ."🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
+            ."⚠️ En caso de detectar alguna información incorrecta, favor de acudir a las *oficinas de la Parroquia del Centro* para solicitar la aclaración correspondiente.\n\n"
+            .'📌 *Mensaje informativo. No es necesario responder a este WhatsApp.*';
 
         $message = WhatsappMessage::query()->create([
             'to_phone' => $phoneNumber,
@@ -792,11 +794,18 @@ class ChildQrWhatsappService
             'pdf_path' => $badgePdfPath,
             'filename' => $this->buildBadgePdfFilename($child),
             'status' => WhatsappMessage::STATUS_PENDING,
-            'max_retries' => config('baileys.retry.max_retries'),
+            'max_retries' => 1,
             'legend_text' => '',
         ]);
 
-        ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
+        $client = new BaileysClient;
+        $result = $client->send($message);
+
+        $message->update([
+            'status' => WhatsappMessage::STATUS_SENT,
+            'baileys_message_id' => $result['message_id'] ?? null,
+            'sent_at' => now(),
+        ]);
 
         return $message;
     }
@@ -866,6 +875,6 @@ class ChildQrWhatsappService
      */
     private function maskPhone(string $phone): string
     {
-        return substr($phone, 0, 3) . '***' . substr($phone, -4);
+        return substr($phone, 0, 3).'***'.substr($phone, -4);
     }
 }

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('whatsapp_mass_batches', function (Blueprint $table) {
             $table->id();
-            $table->string('batch_id')->unique();
+            $table->string('batch_id')->nullable()->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->json('filters')->nullable();
             $table->unsignedInteger('total_jobs')->default(0);

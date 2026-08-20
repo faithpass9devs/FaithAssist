@@ -25,6 +25,7 @@ class MassWhatsAppService
         $activeBatch = WhatsappMassBatch::query()
             ->where('user_id', $user->id)
             ->whereNull('batch_id')
+            ->where('created_at', '>=', now()->subMinutes(30))
             ->exists();
 
         if ($activeBatch) {
@@ -68,16 +69,23 @@ class MassWhatsAppService
             ], fn ($v) => $v !== null),
         ]);
 
-        $jobs = $children->map(
-            fn (Child $child): SendMassWhatsAppToImportedChildJob => new SendMassWhatsAppToImportedChildJob($child->id, (string) $record->id)
-        )->all();
+        try {
+            $jobs = $children->map(
+                fn (Child $child): SendMassWhatsAppToImportedChildJob => new SendMassWhatsAppToImportedChildJob($child->id, $record->id)
+            )->all();
 
-        $batch = Bus::batch($jobs)
-            ->name('WhatsApp masivo a importados')
-            ->allowFailures()
-            ->dispatch();
+            $batch = Bus::batch($jobs)
+                ->name('WhatsApp masivo a importados')
+                ->allowFailures()
+                ->onQueue('whatsapp')
+                ->dispatch();
 
-        $record->update(['batch_id' => $batch->id]);
+            $record->update(['batch_id' => $batch->id]);
+        } catch (\Throwable $e) {
+            $record->delete();
+
+            throw $e;
+        }
 
         return ['batch_id' => $batch->id, 'total' => $children->count()];
     }
@@ -108,6 +116,20 @@ class MassWhatsAppService
 
     private function serializeBatch(WhatsappMassBatch $record): array
     {
+        if (! $record->batch_id) {
+            return [
+                'batch_id' => null,
+                'total' => $record->total_jobs,
+                'processed' => 0,
+                'pending' => $record->total_jobs,
+                'failed' => 0,
+                'progress' => 0,
+                'finished' => false,
+                'cancelled' => false,
+                'created_at' => $record->created_at?->format('d/m/Y H:i'),
+            ];
+        }
+
         $batch = Bus::findBatch($record->batch_id);
 
         if ($batch === null) {

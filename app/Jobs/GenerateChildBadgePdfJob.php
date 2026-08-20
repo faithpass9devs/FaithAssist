@@ -6,7 +6,6 @@ use App\Models\Catechism\Child;
 use App\Models\FailedWhatsappChild;
 use App\Models\WhatsappMessage;
 use App\Services\Catechism\ChildQrWhatsappService;
-use App\Services\WhatsApp\BaileysClient;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,20 +14,20 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SendMassWhatsAppToImportedChildJob implements ShouldQueue
+class GenerateChildBadgePdfJob implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 2;
 
-    public int $timeout = 120;
+    public int $timeout = 60;
 
     public function __construct(
         public readonly int $childId,
         public readonly ?int $recordId = null,
     ) {}
 
-    public function handle(BaileysClient $client): void
+    public function handle(ChildQrWhatsappService $qrService): void
     {
         if ($this->batch()?->cancelled()) {
             return;
@@ -49,15 +48,14 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
         }
 
         try {
-            $fullName = trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' '));
+            $full_name = trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' '));
             $caption = "🎓 GAFETE DE ASISTENCIA\n\n"
                 ."Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
-                ."👤 Nombre: {$fullName}\n\n"
+                ."👤 Nombre: {$full_name}\n\n"
                 ."🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
                 ."⚠️ En caso de detectar alguna información incorrecta, favor de acudir a las *oficinas de la Parroquia del Centro* para solicitar la aclaración correspondiente.\n\n"
                 .'📌 *Mensaje informativo. No es necesario responder a este WhatsApp.*';
 
-            $qrService = app(ChildQrWhatsappService::class);
             $badgePdfPath = $qrService->generateBadgePdfFile($child);
 
             if (! $badgePdfPath) {
@@ -83,22 +81,13 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
                 'legend_text' => '',
             ]);
 
-            $result = $client->send($message);
-
-            $message->update([
-                'status' => 'sent',
-                'baileys_message_id' => $result['message_id'] ?? null,
-                'sent_at' => now(),
-            ]);
-
-            Log::info('MassWhatsApp: gafete enviado', [
+            Log::info('PDF generado y mensaje listo para envío', [
                 'child_id' => $child->id,
-                'child_code' => $child->code,
+                'message_id' => $message->id,
             ]);
         } catch (\Throwable $e) {
-            Log::error('MassWhatsApp: error enviando gafete', [
+            Log::error('Error generando PDF para envío masivo', [
                 'child_id' => $child->id,
-                'child_code' => $child->code,
                 'error' => $e->getMessage(),
             ]);
 
