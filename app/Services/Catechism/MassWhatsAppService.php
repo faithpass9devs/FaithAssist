@@ -22,6 +22,8 @@ class MassWhatsAppService
         ?int $levelId = null,
         ?string $status = null,
     ): array {
+        $this->purgeStaleBatches($user);
+
         $activeBatch = WhatsappMassBatch::query()
             ->where('user_id', $user->id)
             ->whereNull('batch_id')
@@ -116,24 +118,54 @@ class MassWhatsAppService
 
     public function dismissBatch(User $user): void
     {
-        $record = WhatsappMassBatch::query()
+        $records = WhatsappMassBatch::query()
             ->where('user_id', $user->id)
-            ->latest('id')
-            ->first();
+            ->get();
 
-        if (! $record) {
-            return;
-        }
+        foreach ($records as $record) {
+            if ($record->batch_id) {
+                try {
+                    $batch = Bus::findBatch($record->batch_id);
 
-        if ($record->batch_id) {
-            $batch = Bus::findBatch($record->batch_id);
-
-            if ($batch && ! $batch->finished() && ! $batch->cancelled()) {
-                $batch->cancel();
+                    if ($batch && ! $batch->finished() && ! $batch->cancelled()) {
+                        $batch->cancel();
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
-        $record->delete();
+        WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->delete();
+    }
+
+    private function purgeStaleBatches(User $user): void
+    {
+        $staleRecords = WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->where('created_at', '<', now()->subMinutes(120))
+            ->get();
+
+        foreach ($staleRecords as $record) {
+            if ($record->batch_id) {
+                try {
+                    $batch = Bus::findBatch($record->batch_id);
+
+                    if ($batch && ! $batch->finished() && ! $batch->cancelled()) {
+                        $batch->cancel();
+                    }
+                } catch (\Throwable) {
+                    // batch already expired from driver
+                }
+            }
+        }
+
+        WhatsappMassBatch::query()
+            ->where('user_id', $user->id)
+            ->where('created_at', '<', now()->subMinutes(120))
+            ->delete();
     }
 
     private function serializeBatch(WhatsappMassBatch $record): array
