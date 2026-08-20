@@ -280,6 +280,14 @@ const launchMassWhatsApp = async () => {
         Accept: 'application/json',
         'X-CSRF-TOKEN': csrfToken(),
       },
+      body: JSON.stringify({
+        search: searchTerm.value || undefined,
+        church_id: selectedChurch.value || undefined,
+        municipality_id: selectedMunicipality.value || undefined,
+        community_id: selectedCommunity.value || undefined,
+        level_id: selectedLevel.value || undefined,
+        status: selectedStatus.value || undefined,
+      }),
     });
 
     const data = await res.json();
@@ -496,7 +504,11 @@ const finishWhatsAppBatch = () => {
       </div>
 
       <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        Enviando gafetes QR por WhatsApp a niños importados con teléfono registrado.
+        {{
+          activeFilters
+            ? 'Enviando gafetes QR por WhatsApp a los niños filtrados con teléfono registrado.'
+            : 'Enviando gafetes QR por WhatsApp a todos los niños importados con teléfono registrado.'
+        }}
       </p>
 
       <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">

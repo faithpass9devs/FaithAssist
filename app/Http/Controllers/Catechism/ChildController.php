@@ -202,7 +202,15 @@ class ChildController extends Controller
     {
         $this->authorize('massWhatsApp', Child::class);
 
-        $result = $massWhatsapp->createBatch($request->user());
+        $result = $massWhatsapp->createBatch(
+            $request->user(),
+            $request->input('search', ''),
+            $request->integer('church_id') ?: null,
+            $request->integer('municipality_id') ?: null,
+            $request->integer('community_id') ?: null,
+            $request->integer('level_id') ?: null,
+            $request->input('status'),
+        );
 
         return response()->json($result);
     }

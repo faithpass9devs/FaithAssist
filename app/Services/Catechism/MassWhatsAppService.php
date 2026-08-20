@@ -17,9 +17,24 @@ class MassWhatsAppService
         private readonly ExternosRepository $externos,
     ) {}
 
-    public function createBatch(User $user): array
-    {
-        $children = $this->getImportedChildrenWithPhone($user);
+    public function createBatch(
+        User $user,
+        string $search = '',
+        ?int $churchId = null,
+        ?int $municipalityId = null,
+        ?int $communityId = null,
+        ?int $levelId = null,
+        ?string $status = null,
+    ): array {
+        $children = $this->getImportedChildrenWithPhone(
+            $user,
+            $search,
+            $churchId,
+            $municipalityId,
+            $communityId,
+            $levelId,
+            $status,
+        );
 
         if ($children->isEmpty()) {
             return ['batch_id' => null, 'total' => 0];
@@ -38,6 +53,14 @@ class MassWhatsAppService
             'batch_id' => $batch->id,
             'user_id' => $user->id,
             'total_jobs' => $children->count(),
+            'filters' => array_filter([
+                'search' => $search ?: null,
+                'church_id' => $churchId,
+                'municipality_id' => $municipalityId,
+                'community_id' => $communityId,
+                'level_id' => $levelId,
+                'status' => $status,
+            ], fn ($v) => $v !== null),
         ]);
 
         return ['batch_id' => $batch->id, 'total' => $children->count()];
@@ -102,8 +125,15 @@ class MassWhatsAppService
         ];
     }
 
-    private function getImportedChildrenWithPhone(User $user): Collection
-    {
+    private function getImportedChildrenWithPhone(
+        User $user,
+        string $search = '',
+        ?int $churchId = null,
+        ?int $municipalityId = null,
+        ?int $communityId = null,
+        ?int $levelId = null,
+        ?string $status = null,
+    ): Collection {
         $scope = new UserScopeService($user);
 
         $query = Child::query()
@@ -112,7 +142,31 @@ class MassWhatsAppService
             ->where('phone', '!=', '')
             ->whereNotNull('phone_lada')
             ->where('phone_lada', '!=', '')
-            ->whereNull('deleted_at');
+            ->whereNull('deleted_at')
+            ->when($search !== '', function ($q) use ($search): void {
+                $q->where(function ($builder) use ($search): void {
+                    $builder
+                        ->where('code', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('paterno', 'like', "%{$search}%")
+                        ->orWhere('materno', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            })
+            ->when($churchId, fn ($q) => $q->where('church_id', $churchId))
+            ->when($communityId, fn ($q) => $q->where('community_id', $communityId))
+            ->when($levelId, fn ($q) => $q->whereHas(
+                'activeLevelAssignments',
+                fn ($assignment) => $assignment->where('level_id', $levelId),
+            ))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($municipalityId, function ($q) use ($municipalityId): void {
+                $q->where(function ($builder) use ($municipalityId): void {
+                    $builder->whereHas('church', fn ($church) => $church->where('municipality_id', $municipalityId))
+                        ->orWhereHas('community', fn ($community) => $community->where('municipality_id', $municipalityId));
+                });
+            });
 
         if (! $scope->isGlobal()) {
             $query->where(function ($q) use ($scope): void {
