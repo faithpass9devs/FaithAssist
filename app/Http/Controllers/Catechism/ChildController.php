@@ -8,8 +8,10 @@ use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
 use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\Catechism\ChildService;
+use App\Services\Catechism\MassWhatsAppService;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -127,7 +129,7 @@ class ChildController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Gafete agregado correctamente.\nSe enviará por WhatsApp.",
+                'message' => 'Gafete enviado correctamente por WhatsApp.',
                 'message_id' => $message?->id,
                 'status' => $message?->status,
             ]);
@@ -194,5 +196,37 @@ class ChildController extends Controller
         $parts = preg_split('/\s+/u', $value) ?: [];
 
         return $parts[0] ?? $fallback;
+    }
+
+    public function massWhatsApp(Request $request, MassWhatsAppService $massWhatsapp): JsonResponse
+    {
+        $this->authorize('massWhatsApp', Child::class);
+
+        $result = $massWhatsapp->createBatch(
+            $request->user(),
+            $request->input('search', ''),
+            $request->integer('church_id') ?: null,
+            $request->integer('municipality_id') ?: null,
+            $request->integer('community_id') ?: null,
+            $request->integer('level_id') ?: null,
+            $request->input('status'),
+        );
+
+        if (isset($result['error'])) {
+            return response()->json(['message' => $result['error']], 409);
+        }
+
+        return response()->json($result);
+    }
+
+    public function massWhatsAppStatus(Request $request, string $batch, MassWhatsAppService $massWhatsapp): JsonResponse
+    {
+        $this->authorize('massWhatsApp', Child::class);
+
+        $data = $massWhatsapp->batchStatus($request->user(), $batch);
+
+        return $data
+            ? response()->json($data)
+            : response()->json(['message' => 'Batch no encontrado.'], 404);
     }
 }

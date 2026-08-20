@@ -39,6 +39,54 @@ class BaileysClient
         return $response->json();
     }
 
+    /**
+     * Envía múltiples mensajes en una sola llamada HTTP.
+     *
+     * @param  array<array{message: WhatsappMessage, caption: string}>  $items
+     * @return array{sent: int, failed: int, results: array}
+     */
+    public function sendBatch(array $items): array
+    {
+        if (! config('baileys.enabled')) {
+            throw new RuntimeException('El servicio de WhatsApp no está habilitado.');
+        }
+
+        $messages = [];
+
+        foreach ($items as $item) {
+            /** @var WhatsappMessage $message */
+            $message = $item['message'];
+
+            if ($message->pdf_path && ! Storage::exists($message->pdf_path)) {
+                continue;
+            }
+
+            $payload = [
+                'to' => $message->to_phone,
+                'text' => trim($item['caption']),
+            ];
+
+            if ($message->pdf_path) {
+                $payload['document_path'] = Storage::path($message->pdf_path);
+                $payload['filename'] = $message->filename ?: 'gafete.pdf';
+            }
+
+            $messages[] = $payload;
+        }
+
+        if ($messages === []) {
+            return ['sent' => 0, 'failed' => 0, 'results' => []];
+        }
+
+        $response = $this->request()->timeout(120)->post('/send-batch', ['messages' => $messages]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException((string) ($response->json('message') ?: 'Baileys no pudo procesar el lote.'));
+        }
+
+        return $response->json();
+    }
+
     public function status(): array
     {
         return $this->request()->get('/status')->json();

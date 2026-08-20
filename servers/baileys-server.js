@@ -203,6 +203,67 @@ async function connect() {
 
 app.get('/status', (request, response) => response.json({ connected }));
 
+app.post('/send-batch', async (request, response) => {
+  if (!connected || !socket) return response.status(503).json({ message: 'WhatsApp no está conectado.' });
+
+  const { messages } = request.body;
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return response.status(422).json({ message: 'El campo messages debe ser un array no vacío.' });
+  }
+
+  const results = [];
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  for (const msg of messages) {
+    const { to, text, document_path: documentPath, filename } = msg;
+    const phone = String(to).replace(/\D/g, '');
+
+    try {
+      const contacts = await socket.onWhatsApp(phone);
+      const contact = contacts?.find((item) => item.exists && item.jid);
+      const jid = contact?.jid || `${phone}@s.whatsapp.net`;
+
+      if (!contact) {
+        results.push({ to: phone, success: false, error: 'Sin cuenta WhatsApp' });
+        continue;
+      }
+
+      let result;
+      if (documentPath) {
+        const allowedRoot = path.resolve(process.cwd(), 'storage/app');
+        const resolvedPath = path.resolve(String(documentPath));
+
+        if (!resolvedPath.startsWith(`${allowedRoot}${path.sep}`)) {
+          results.push({ to: phone, success: false, error: 'Ruta no permitida' });
+          continue;
+        }
+
+        result = await socket.sendMessage(jid, {
+          document: await fs.readFile(resolvedPath),
+          mimetype: 'application/pdf',
+          fileName: filename || 'gafete.pdf',
+          caption: text || undefined,
+        });
+      } else {
+        result = await socket.sendMessage(jid, { text });
+      }
+
+      const messageId = result?.key?.id || null;
+      results.push({ to: phone, success: true, message_id: messageId });
+      await delay(300);
+    } catch (error) {
+      results.push({ to: phone, success: false, error: error.message || 'Error desconocido' });
+    }
+  }
+
+  const sent = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success).length;
+  console.log(`Batch completado: ${sent} enviados, ${failed} fallidos de ${messages.length}`);
+
+  response.json({ sent, failed, total: messages.length, results });
+});
+
 app.post('/send', async (request, response) => {
   if (!connected || ! socket) return response.status(503).json({ message: 'WhatsApp no está conectado.' });
   const { to, text, document_path: documentPath, filename } = request.body;
