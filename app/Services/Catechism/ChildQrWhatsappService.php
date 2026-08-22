@@ -5,6 +5,7 @@ namespace App\Services\Catechism;
 use App\Models\Catechism\Child;
 use App\Models\WhatsappMessage;
 use App\Services\WhatsApp\BaileysClient;
+use App\Services\WhatsApp\PhoneNormalizer;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Endroid\QrCode\Builder\Builder;
@@ -844,14 +845,19 @@ class ChildQrWhatsappService
      */
     private function getNormalizedPhone(Child $child): ?string
     {
-        $phone = $child->phone;
-        $lada = $child->phone_lada;
+        $normalized = PhoneNormalizer::normalize($child->phone_lada, $child->phone);
 
-        if (! $phone || ! $lada) {
+        if ($normalized['error']) {
+            Log::warning('Teléfono del niño inválido, omitiendo envío de gafete', [
+                'child_id' => $child->id,
+                'child_code' => $child->code,
+                'error' => $normalized['error'],
+            ]);
+
             return null;
         }
 
-        return "{$lada}{$phone}";
+        return $normalized['number'];
     }
 
     /**

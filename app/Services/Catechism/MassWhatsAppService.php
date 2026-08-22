@@ -4,9 +4,10 @@ namespace App\Services\Catechism;
 
 use App\Jobs\SendMassWhatsAppToImportedChildJob;
 use App\Models\Catechism\Child;
-use App\Models\FailedWhatsappChild;
+use App\Models\ChildWhatsappDelivery;
 use App\Models\User;
 use App\Models\WhatsappMassBatch;
+use App\Models\WhatsappMessage;
 use App\Services\UserScopeService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
@@ -40,7 +41,9 @@ class MassWhatsAppService
             ->latest('id')
             ->first();
 
-        if ($runningBatch && ! Bus::findBatch($runningBatch->batch_id)?->finished()) {
+        $runningBusBatch = $runningBatch ? Bus::findBatch($runningBatch->batch_id) : null;
+
+        if ($runningBusBatch && ! $runningBusBatch->finished()) {
             return ['error' => 'Ya hay un envio masivo en curso. Espera a que termine.'];
         }
 
@@ -83,6 +86,8 @@ class MassWhatsAppService
                 ->dispatch();
 
             $record->update(['batch_id' => $batch->id]);
+
+            $this->createDeliveries($children, $record->id);
         } catch (\Throwable $e) {
             $record->delete();
 
@@ -134,11 +139,62 @@ class MassWhatsAppService
                     report($e);
                 }
             }
+
+            $this->cancelRecordDeliveries($record->id);
         }
 
         WhatsappMassBatch::query()
             ->where('user_id', $user->id)
             ->delete();
+    }
+
+    private function cancelRecordDeliveries(int $recordId): void
+    {
+        $queuedMessageIds = ChildWhatsappDelivery::query()
+            ->where('whatsapp_mass_batch_id', $recordId)
+            ->where('status', ChildWhatsappDelivery::STATUS_QUEUED)
+            ->pluck('whatsapp_message_id')
+            ->filter()
+            ->values();
+
+        if ($queuedMessageIds->isNotEmpty()) {
+            WhatsappMessage::query()
+                ->whereIn('id', $queuedMessageIds)
+                ->where('status', WhatsappMessage::STATUS_PENDING)
+                ->update([
+                    'status' => WhatsappMessage::STATUS_FAILED,
+                    'error_message' => 'Envío cancelado por el usuario.',
+                ]);
+        }
+
+        ChildWhatsappDelivery::query()
+            ->where('whatsapp_mass_batch_id', $recordId)
+            ->where('status', ChildWhatsappDelivery::STATUS_QUEUED)
+            ->update([
+                'status' => ChildWhatsappDelivery::STATUS_FAILED,
+                'error_message' => 'Envío cancelado por el usuario.',
+            ]);
+    }
+
+    private function createDeliveries(Collection $children, int $recordId): void
+    {
+        $now = now();
+
+        $rows = $children
+            ->map(fn (Child $child): array => [
+                'child_id' => $child->id,
+                'whatsapp_mass_batch_id' => $recordId,
+                'status' => ChildWhatsappDelivery::STATUS_QUEUED,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->all();
+
+        ChildWhatsappDelivery::upsert(
+            $rows,
+            ['child_id', 'whatsapp_mass_batch_id'],
+            ['status', 'updated_at'],
+        );
     }
 
     private function purgeStaleBatches(User $user): void
@@ -170,55 +226,43 @@ class MassWhatsAppService
 
     private function serializeBatch(WhatsappMassBatch $record): array
     {
-        if (! $record->batch_id) {
-            $stale = $record->created_at && $record->created_at->diffInMinutes(now()) >= 120;
+        $counts = ChildWhatsappDelivery::query()
+            ->where('whatsapp_mass_batch_id', $record->id)
+            ->toBase()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
-            return [
-                'batch_id' => null,
-                'total' => $record->total_jobs,
-                'processed' => $stale ? $record->total_jobs : 0,
-                'pending' => $stale ? 0 : $record->total_jobs,
-                'failed' => 0,
-                'progress' => $stale ? 100 : 0,
-                'finished' => $stale,
-                'cancelled' => false,
-                'created_at' => $record->created_at?->format('d/m/Y H:i'),
-            ];
+        $sent = (int) ($counts[ChildWhatsappDelivery::STATUS_SENT] ?? 0);
+        $failed = (int) ($counts[ChildWhatsappDelivery::STATUS_FAILED] ?? 0);
+        $queued = (int) ($counts[ChildWhatsappDelivery::STATUS_QUEUED] ?? 0);
+
+        $total = max($record->total_jobs, $sent + $failed + $queued);
+        $processed = $sent + $failed;
+        $cancelled = false;
+
+        if ($record->batch_id) {
+            try {
+                $cancelled = (bool) Bus::findBatch($record->batch_id)?->cancelled();
+            } catch (\Throwable) {
+                $cancelled = false;
+            }
         }
 
-        $batch = Bus::findBatch($record->batch_id);
+        $finished = ($total > 0 && $processed >= $total);
 
-        if ($batch === null) {
-            return [
-                'batch_id' => $record->batch_id,
-                'total' => $record->total_jobs,
-                'processed' => 0,
-                'pending' => 0,
-                'failed' => 0,
-                'progress' => 0,
-                'finished' => true,
-                'cancelled' => false,
-                'created_at' => $record->created_at?->format('d/m/Y H:i'),
-            ];
-        }
-
-        $processed = max(0, $batch->totalJobs - $batch->pendingJobs);
-        $finished = $batch->finished();
-        $cancelled = $batch->cancelled();
-
-        if (! $finished && ! $cancelled && $record->created_at && $record->created_at->diffInMinutes(now()) >= 120) {
+        if (! $finished && $record->created_at && $record->created_at->diffInMinutes(now()) >= 120) {
             $finished = true;
         }
 
         return [
             'batch_id' => $record->batch_id,
-            'total' => $batch->totalJobs,
+            'total' => $total,
+            'sent' => $sent,
+            'pending' => $finished ? 0 : $queued,
             'processed' => $processed,
-            'pending' => $finished ? 0 : $batch->pendingJobs,
-            'failed' => $batch->failedJobs,
-            'progress' => $batch->totalJobs > 0
-                ? (int) round(($processed / $batch->totalJobs) * 100)
-                : 0,
+            'failed' => $failed,
+            'progress' => $total > 0 ? (int) round(($processed / $total) * 100) : 0,
             'finished' => $finished,
             'cancelled' => $cancelled,
             'created_at' => $record->created_at?->format('d/m/Y H:i'),
@@ -285,16 +329,17 @@ class MassWhatsAppService
             return [];
         }
 
-        return FailedWhatsappChild::query()
-            ->where('batch_id', $recordId)
+        return ChildWhatsappDelivery::query()
+            ->where('whatsapp_mass_batch_id', $recordId)
+            ->where('status', ChildWhatsappDelivery::STATUS_FAILED)
             ->with('child:id,name,paterno,materno,code')
             ->get()
-            ->map(fn (FailedWhatsappChild $fail): array => [
+            ->map(fn (ChildWhatsappDelivery $fail): array => [
                 'child_id' => $fail->child_id,
-                'name' => $fail->child?->full_name ?? 'Desconocido',
+                'name' => trim(collect([$fail->child?->name, $fail->child?->paterno, $fail->child?->materno])->filter()->implode(' ')) ?: 'Desconocido',
                 'code' => $fail->child?->code ?? '—',
                 'error' => $fail->error_message,
-                'created_at' => $fail->created_at?->format('d/m/Y H:i'),
+                'created_at' => $fail->updated_at?->format('d/m/Y H:i'),
             ])
             ->all();
     }

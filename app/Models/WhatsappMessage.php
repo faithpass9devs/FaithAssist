@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class WhatsappMessage extends Model
 {
@@ -34,4 +35,9 @@ class WhatsappMessage extends Model
         'retry_count' => 'integer',
         'max_retries' => 'integer',
     ];
+
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(ChildWhatsappDelivery::class, 'whatsapp_message_id');
+    }
 }

@@ -245,6 +245,7 @@ const refreshWhatsAppBatch = async () => {
     }
 
     stopWhatsAppPolling();
+    router.reload({ preserveScroll: true, preserveState: true });
   } catch {
     whatsappPollErrors++;
     if (whatsappPollErrors >= 5) {
@@ -270,7 +271,7 @@ onBeforeUnmount(stopWhatsAppPolling);
 const launchMassWhatsApp = async () => {
   const confirmed = await Swal.fire({
     title: '¿Enviar gafetes por WhatsApp?',
-    text: 'Se enviará el gafete QR por WhatsApp a todos los niños importados que tengan teléfono registrado.',
+    text: 'Se enviará el gafete QR por WhatsApp a todos los niños importados que tengan teléfono registrado. El envío es gradual (~500 mensajes/día por límite diario) y podrá seguirse en la tarjeta de progreso.',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, enviar',
@@ -310,22 +311,33 @@ const launchMassWhatsApp = async () => {
       return;
     }
 
+    if (!res.ok) {
+      Swal.fire({
+        title: 'No se pudo iniciar el envío',
+        text: data.message || `Error ${res.status}`,
+        icon: 'error',
+      });
+      return;
+    }
+
     if (data.batch_id) {
       whatsappBatch.value = {
         batch_id: data.batch_id,
         total: data.total,
+        sent: 0,
         processed: 0,
         pending: data.total,
         failed: 0,
         progress: 0,
         finished: false,
         cancelled: false,
+        failed_children: [],
       };
       startWhatsAppPolling();
     } else {
       Swal.fire({
         title: 'No hay niños para enviar',
-        text: 'No hay niños importados con teléfono registrado.',
+        text: 'No hay niños importados con teléfono registrado que coincidan con los filtros actuales.',
         icon: 'info',
       });
     }
@@ -374,6 +386,7 @@ const dismissWhatsAppBatch = async () => {
     });
 
     whatsappBatch.value = null;
+    router.reload({ preserveScroll: true, preserveState: true });
   } catch {
     toast('error', 'No se pudo descartar el envío.');
   } finally {
@@ -586,15 +599,42 @@ const dismissWhatsAppBatch = async () => {
         class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
       >
         <span>
-          Procesados:
-          <strong class="text-slate-700 dark:text-slate-200">{{ whatsappBatch.processed }}</strong>
+          Enviados:
+          <strong class="text-emerald-700 dark:text-emerald-300">{{ whatsappBatch.sent ?? 0 }}</strong>
           de {{ whatsappBatch.total }}
+        </span>
+        <span v-if="whatsappBatch.pending > 0">
+          En cola: <strong class="text-slate-700 dark:text-slate-200">{{ whatsappBatch.pending }}</strong>
         </span>
         <span v-if="whatsappBatch.failed > 0" class="font-semibold text-amber-600 dark:text-amber-400">
           Fallidos: {{ whatsappBatch.failed }}
         </span>
         <span class="text-slate-400">Iniciado: {{ whatsappBatch.created_at }}</span>
       </div>
+
+      <details
+        v-if="whatsappBatch.failed_children?.length"
+        class="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/20"
+      >
+        <summary
+          class="cursor-pointer list-none text-xs font-bold text-amber-700 marker:hidden dark:text-amber-400"
+        >
+          Ver niños con envío fallido ({{ whatsappBatch.failed_children.length }})
+        </summary>
+        <ul class="mt-2 max-h-48 space-y-1.5 overflow-y-auto pr-1">
+          <li
+            v-for="fail in whatsappBatch.failed_children"
+            :key="`${fail.child_id}-${fail.created_at}`"
+            class="flex flex-col gap-0.5 border-b border-amber-100 pb-1.5 text-xs last:border-0 dark:border-amber-900/30"
+          >
+            <span class="font-semibold text-slate-700 dark:text-slate-200">
+              {{ fail.name }}
+              <span class="font-mono text-[10px] font-normal text-slate-400">{{ fail.code }}</span>
+            </span>
+            <span class="text-amber-700 dark:text-amber-400">{{ fail.error || 'Error desconocido' }}</span>
+          </li>
+        </ul>
+      </details>
     </div>
 
     <div
@@ -612,6 +652,7 @@ const dismissWhatsAppBatch = async () => {
             <th class="px-4 py-3 font-semibold">Comunidad</th>
             <th class="px-4 py-3 font-semibold">Nacimiento</th>
             <th class="px-4 py-3 font-semibold">Estado</th>
+            <th class="px-4 py-3 font-semibold">Gafete</th>
             <th class="px-4 py-3 text-right font-semibold">Acciones</th>
           </tr>
         </thead>
@@ -657,6 +698,29 @@ const dismissWhatsAppBatch = async () => {
                 {{ statusLabels[child.status] ?? child.status }}
               </span>
             </td>
+            <td class="px-4 py-3">
+              <span
+                v-if="child.last_delivery?.status === 'sent'"
+                class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                :title="`Enviado ${child.last_delivery.sent_at ?? ''}`"
+              >
+                Enviado
+              </span>
+              <span
+                v-else-if="child.last_delivery?.status === 'failed'"
+                class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/40 dark:text-red-300"
+                :title="child.last_delivery.error_message ?? 'Error desconocido'"
+              >
+                Fallido
+              </span>
+              <span
+                v-else-if="child.last_delivery?.status === 'queued'"
+                class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+              >
+                En cola
+              </span>
+              <span v-else class="text-xs text-slate-300 dark:text-slate-600">—</span>
+            </td>
             <td class="px-4 py-3 text-right">
               <div class="inline-flex items-center gap-1">
                 <button
@@ -690,7 +754,7 @@ const dismissWhatsAppBatch = async () => {
 
           <tr v-if="children.data.length === 0">
             <td
-              colspan="8"
+              colspan="9"
               class="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500"
             >
               <span v-if="activeFilters"

@@ -324,7 +324,7 @@ function waitForAck(messageId) {
 
     const timeout = setTimeout(() => {
       pendingAcks.delete(messageId);
-      reject(new Error('WhatsApp no confirmó la entrega dentro del tiempo esperado.'));
+      resolve(null);
     }, 15000);
 
     pendingAcks.set(messageId, {

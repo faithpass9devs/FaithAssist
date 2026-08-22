@@ -3,10 +3,10 @@
 namespace App\Jobs;
 
 use App\Models\Catechism\Child;
-use App\Models\FailedWhatsappChild;
+use App\Models\ChildWhatsappDelivery;
 use App\Models\WhatsappMessage;
 use App\Services\Catechism\ChildQrWhatsappService;
-use App\Services\WhatsApp\BaileysClient;
+use App\Services\WhatsApp\PhoneNormalizer;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,7 +28,7 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
         public readonly ?int $recordId = null,
     ) {}
 
-    public function handle(BaileysClient $client): void
+    public function handle(): void
     {
         if ($this->batch()?->cancelled()) {
             return;
@@ -37,13 +37,13 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
         $child = Child::find($this->childId);
 
         if (! $child) {
-            $this->recordFailure('Nino no encontrado en la base de datos');
+            $this->markDelivery(ChildWhatsappDelivery::STATUS_FAILED, 'Nino no encontrado en la base de datos');
 
             return;
         }
 
         if (! $child->phone || ! $child->phone_lada) {
-            $this->recordFailure('El nino no tiene telefono registrado');
+            $this->markDelivery(ChildWhatsappDelivery::STATUS_FAILED, 'El nino no tiene telefono registrado');
 
             return;
         }
@@ -61,65 +61,81 @@ class SendMassWhatsAppToImportedChildJob implements ShouldQueue
             $badgePdfPath = $qrService->generateBadgePdfFile($child);
 
             if (! $badgePdfPath) {
-                $this->recordFailure('No se pudo generar el PDF del gafete');
+                $this->markDelivery(ChildWhatsappDelivery::STATUS_FAILED, 'No se pudo generar el PDF del gafete');
 
                 return;
             }
 
-            $phoneNumber = "{$child->phone_lada}{$child->phone}";
+            $phone = PhoneNormalizer::normalize($child->phone_lada, $child->phone);
+
+            if ($phone['error'] || ! $phone['number']) {
+                $this->markDelivery(ChildWhatsappDelivery::STATUS_FAILED, $phone['error'] ?? 'Teléfono inválido.');
+
+                return;
+            }
+
             $firstName = trim($child->name ?? '') !== '' ? explode(' ', trim($child->name))[0] : 'NINO';
             $firstLastName = trim($child->paterno ?? '') !== '' ? explode(' ', trim($child->paterno))[0] : 'SIN_APELLIDO';
             $displayName = preg_replace('/[^\pL\pN\s\-]/u', '', trim($firstName.' '.$firstLastName)) ?: 'NINO SIN_APELLIDO';
 
             $message = WhatsappMessage::create([
-                'to_phone' => $phoneNumber,
-                'country_code' => $child->phone_lada,
+                'to_phone' => $phone['number'],
+                'country_code' => $phone['country'],
                 'message_type' => 'document',
                 'message_body' => $caption,
                 'pdf_path' => $badgePdfPath,
                 'filename' => 'Gafete de Asistencia '.$displayName.'.pdf',
-                'status' => 'pending',
-                'max_retries' => 1,
+                'status' => WhatsappMessage::STATUS_PENDING,
+                'max_retries' => (int) config('baileys.retry.max_retries', 3),
                 'legend_text' => '',
             ]);
 
-            $result = $client->send($message);
+            ChildWhatsappDelivery::updateOrCreate(
+                [
+                    'child_id' => $this->childId,
+                    'whatsapp_mass_batch_id' => $this->recordId,
+                ],
+                [
+                    'whatsapp_message_id' => $message->id,
+                    'status' => ChildWhatsappDelivery::STATUS_QUEUED,
+                    'error_message' => null,
+                ],
+            );
 
-            $message->update([
-                'status' => 'sent',
-                'baileys_message_id' => $result['message_id'] ?? null,
-                'sent_at' => now(),
-            ]);
+            ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
 
-            Log::info('MassWhatsApp: gafete enviado', [
+            Log::info('MassWhatsApp: gafete encolado', [
                 'child_id' => $child->id,
                 'child_code' => $child->code,
+                'message_id' => $message->id,
             ]);
         } catch (\Throwable $e) {
-            Log::error('MassWhatsApp: error enviando gafete', [
-                'child_id' => $child->id,
-                'child_code' => $child->code,
+            Log::error('MassWhatsApp: error encolando gafete', [
+                'child_id' => $this->childId,
                 'error' => $e->getMessage(),
             ]);
 
-            $this->recordFailure($e->getMessage());
+            $this->markDelivery(ChildWhatsappDelivery::STATUS_FAILED, $e->getMessage());
 
             throw $e;
         }
     }
 
-    private function recordFailure(string $message): void
+    private function markDelivery(string $status, ?string $error = null): void
     {
         try {
-            $child = Child::withTrashed()->find($this->childId);
-
-            FailedWhatsappChild::create([
-                'child_id' => $this->childId,
-                'batch_id' => $this->recordId,
-                'error_message' => $message.' | '.$child?->full_name.' ('.$child?->code.')',
-            ]);
+            ChildWhatsappDelivery::updateOrCreate(
+                [
+                    'child_id' => $this->childId,
+                    'whatsapp_mass_batch_id' => $this->recordId,
+                ],
+                [
+                    'status' => $status,
+                    'error_message' => $error,
+                ],
+            );
         } catch (\Throwable $e) {
-            Log::error('MassWhatsApp: error guardando fallo', [
+            Log::error('MassWhatsApp: error guardando estado del envio', [
                 'child_id' => $this->childId,
                 'error' => $e->getMessage(),
             ]);

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ChildWhatsappDelivery;
 use App\Models\WhatsappMessage;
 use App\Services\WhatsApp\BaileysClient;
 use Illuminate\Bus\Queueable;
@@ -23,7 +24,7 @@ class SendWhatsappMessageJob implements ShouldQueue
     {
         $message = WhatsappMessage::query()->find($this->messageId);
 
-        if (! $message || $message->status === WhatsappMessage::STATUS_SENT) {
+        if (! $message || $message->status !== WhatsappMessage::STATUS_PENDING) {
             return;
         }
 
@@ -33,6 +34,12 @@ class SendWhatsappMessageJob implements ShouldQueue
             $message->update([
                 'status' => WhatsappMessage::STATUS_SENT,
                 'baileys_message_id' => $result['message_id'] ?? null,
+                'sent_at' => now(),
+                'error_message' => null,
+            ]);
+
+            $message->delivery?->update([
+                'status' => ChildWhatsappDelivery::STATUS_SENT,
                 'sent_at' => now(),
                 'error_message' => null,
             ]);
@@ -51,6 +58,13 @@ class SendWhatsappMessageJob implements ShouldQueue
                     : WhatsappMessage::STATUS_PENDING,
                 'error_message' => $exception->getMessage(),
             ]);
+
+            if ($retryCount >= $message->max_retries) {
+                $message->delivery?->update([
+                    'status' => ChildWhatsappDelivery::STATUS_FAILED,
+                    'error_message' => $exception->getMessage(),
+                ]);
+            }
 
             if ($retryCount < $message->max_retries) {
                 self::dispatch($message->id)

@@ -3,6 +3,7 @@
 namespace App\Models\Catechism;
 
 use App\Globals\Status;
+use App\Models\ChildWhatsappDelivery;
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\MassAttendance;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -102,6 +104,16 @@ class Child extends Model
     public function massAttendanceIncidents(): HasMany
     {
         return $this->hasMany(MassAttendanceIncident::class, 'child_id');
+    }
+
+    public function whatsappDeliveries(): HasMany
+    {
+        return $this->hasMany(ChildWhatsappDelivery::class, 'child_id');
+    }
+
+    public function lastDelivery(): HasOne
+    {
+        return $this->hasOne(ChildWhatsappDelivery::class, 'child_id')->latestOfMany();
     }
 
     public function levels(): BelongsToMany

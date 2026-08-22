@@ -26,7 +26,7 @@ class ChildRepository
         $scope = new UserScopeService($user);
 
         $query = Child::query()
-            ->with(['church:id,name', 'community:id,name', 'activeLevelAssignments.level:id,name'])
+            ->with(['church:id,name', 'community:id,name', 'activeLevelAssignments.level:id,name', 'lastDelivery'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder
@@ -77,6 +77,7 @@ class ChildRepository
     public function update(Child $child, array $data): Child
     {
         $child->update($data);
+
         return $child->fresh();
     }
 
@@ -165,6 +166,11 @@ class ChildRepository
                 ->values()
                 ->all(),
             'created_at' => $child->created_at?->format('d/m/Y'),
+            'last_delivery' => $child->lastDelivery ? [
+                'status' => $child->lastDelivery->status,
+                'sent_at' => $child->lastDelivery->sent_at?->format('d/m/Y H:i'),
+                'error_message' => $child->lastDelivery->error_message,
+            ] : null,
         ];
     }
 
