@@ -780,11 +780,13 @@ class ChildQrWhatsappService
         $child->loadMissing(['church:id,name', 'community:id,name']);
         $fullName = $this->resolveFullName($child);
         $caption = "🎓 GAFETE DE ASISTENCIA\n\n"
+            ."CICLO CATEQUISTICO 2026 - 2027\n\n"
             ."Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
             ."👤 Nombre: {$fullName}\n\n"
             ."🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
-            ."⚠️ En caso de detectar alguna información incorrecta, favor de acudir a las *oficinas de la Parroquia del Centro* para solicitar la aclaración correspondiente.\n\n"
-            .'📌 *Mensaje informativo. No es necesario responder a este WhatsApp.*';
+            ."⚠️ En caso de detectar alguna información incorrecta, favor de acudir con su catequista para solicitar la aclaración correspondiente.\n\n"
+            .'📌 Mensaje informativo. No es necesario responder a este WhatsApp.\n\n'
+            .'⛪ Parroquia de la Asunción de María, Coatepec harinas.';
 
         $message = WhatsappMessage::query()->create([
             'to_phone' => $phoneNumber,
