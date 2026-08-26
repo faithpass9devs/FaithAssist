@@ -8,6 +8,7 @@ use App\Globals\Status;
 use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
 use App\Models\User;
+use App\Models\WhatsappMessage;
 use App\Repositories\Catechism\ChildRepository;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\ChildCodeGenerator;
@@ -22,7 +23,6 @@ class ChildService
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
         private readonly ChildQrWhatsappService $qrWhatsappService,
-        private readonly MassWhatsAppService $massWhatsapp,
     ) {}
 
     public function indexData(
@@ -32,7 +32,8 @@ class ChildService
         ?int $municipalityId = null,
         ?int $communityId = null,
         ?int $levelId = null,
-        ?string $status = null
+        ?string $status = null,
+        ?string $origin = null
     ): array {
         $children = $this->children->paginateWithFilters(
             $user,
@@ -41,13 +42,47 @@ class ChildService
             $municipalityId,
             $communityId,
             $levelId,
-            $status
+            $status,
+            $origin
         );
 
         $filterOptions = $this->children->getFilterOptions($user);
 
+        $serialized = $children->through(fn (Child $child) => $this->children->serializeChild($child));
+
+        if ($user->hasRole('Superadmin')) {
+            $phones = $serialized->getCollection()
+                ->map(fn (array $child) => trim(($child['phone_lada'] ?? '').($child['phone'] ?? '')))
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($phones !== []) {
+                $sentPhones = WhatsappMessage::query()
+                    ->whereIn('to_phone', $phones)
+                    ->where('status', WhatsappMessage::STATUS_SENT)
+                    ->where('message_type', 'document')
+                    ->pluck('to_phone')
+                    ->flip();
+
+                $serialized = $serialized->through(function (array $child) use ($sentPhones) {
+                    $child['whatsapp_sent'] = $sentPhones->has(
+                        trim(($child['phone_lada'] ?? '').($child['phone'] ?? ''))
+                    );
+
+                    return $child;
+                });
+            } else {
+                $serialized = $serialized->through(function (array $child) {
+                    $child['whatsapp_sent'] = false;
+
+                    return $child;
+                });
+            }
+        }
+
         return [
-            'children' => $children->through(fn (Child $child) => $this->children->serializeChild($child)),
+            'children' => $serialized,
             'search' => $search,
             'filters' => [
                 'church_id' => $churchId,
@@ -55,6 +90,7 @@ class ChildService
                 'community_id' => $communityId,
                 'level_id' => $levelId,
                 'status' => $status,
+                'origin' => $origin,
             ],
             'churches' => $filterOptions['churches'],
             'municipalities' => $filterOptions['municipalities'],
@@ -64,7 +100,6 @@ class ChildService
             'statusLabels' => $this->statusLabels(),
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
-            'latestWhatsappBatch' => $this->massWhatsapp->latestBatch($user),
         ];
     }
 
