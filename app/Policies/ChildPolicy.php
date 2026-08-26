@@ -55,11 +55,6 @@ class ChildPolicy extends BasePermissionPolicy
         return $this->can($user, 'export');
     }
 
-    public function massWhatsApp(User $user): bool
-    {
-        return $this->can($user, 'export');
-    }
-
     private function withinScope(User $user, Child $child): bool
     {
         $scope = new UserScopeService($user);

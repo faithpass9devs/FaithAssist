@@ -159,9 +159,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
 
-    Route::post('/children/mass-whatsapp', [ChildController::class, 'massWhatsApp'])->name('children.mass-whatsapp');
-    Route::get('/children/mass-whatsapp/{batch}', [ChildController::class, 'massWhatsAppStatus'])->name('children.mass-whatsapp.show');
-    Route::delete('/children/mass-whatsapp', [ChildController::class, 'massWhatsAppDismiss'])->name('children.mass-whatsapp.dismiss');
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');

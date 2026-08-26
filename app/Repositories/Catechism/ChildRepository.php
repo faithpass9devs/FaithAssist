@@ -21,7 +21,8 @@ class ChildRepository
         ?int $municipalityId = null,
         ?int $communityId = null,
         ?int $levelId = null,
-        ?string $status = null
+        ?string $status = null,
+        ?string $origin = null
     ) {
         $scope = new UserScopeService($user);
 
@@ -47,6 +48,7 @@ class ChildRepository
                 fn ($assignment) => $assignment->where('level_id', $levelId)
             ))
             ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($origin, fn ($query) => $query->where('origin', $origin))
             ->when($municipalityId, function ($query) use ($municipalityId) {
                 $query->where(function ($builder) use ($municipalityId) {
                     $builder->whereHas('church', fn ($church) => $church->where('municipality_id', $municipalityId))
