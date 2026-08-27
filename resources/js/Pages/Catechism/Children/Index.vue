@@ -356,7 +356,7 @@ const sendQrWhatsapp = async () => {
             <th class="px-4 py-3 font-semibold">Iglesia</th>
             <th class="px-4 py-3 font-semibold">Niveles</th>
             <th class="px-4 py-3 font-semibold">Comunidad</th>
-            <th class="px-4 py-3 font-semibold">Nacimiento</th>
+            <th class="px-4 py-3 font-semibold">Teléfono</th>
             <th class="px-4 py-3 font-semibold">Estado</th>
             <th class="px-4 py-3 text-right font-semibold">Acciones</th>
           </tr>
@@ -394,7 +394,10 @@ const sendQrWhatsapp = async () => {
               {{ child.community }}
             </td>
             <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-              {{ child.birthdate }}
+              <p v-if="child.phone" class="font-medium text-slate-600 dark:text-slate-300">
+                {{ child.phone_lada }}{{ child.phone }}
+              </p>
+              <p v-else class="text-slate-400">Sin teléfono</p>
             </td>
             <td class="px-4 py-3">
               <span
@@ -412,6 +415,23 @@ const sendQrWhatsapp = async () => {
                 >
                   <CheckCircle2 class="h-4 w-4" />
                 </span>
+                <span
+                  :class="child.badge_pdf_downloaded
+                    ? 'text-emerald-500 dark:text-emerald-400'
+                    : 'text-slate-300 dark:text-slate-600'"
+                  :title="child.badge_pdf_downloaded
+                    ? `Gafete PDF descargado (${child.badge_pdf_downloaded_at})`
+                    : 'Gafete PDF no descargado'"
+                >
+                  <Download class="h-4 w-4" />
+                </span>
+                <a
+                  :href="`/children/${child.id}/badge-pdf?download=1`"
+                  class="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                  title="Descargar gafete PDF"
+                >
+                  <Download class="h-3.5 w-3.5" />
+                </a>
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"

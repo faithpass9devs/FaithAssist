@@ -166,9 +166,18 @@ class ChildController extends Controller
         );
         $fileName = $this->buildBadgePdfFilename($child);
 
+        $isDownload = $request->query('download') === '1';
+        $disposition = $isDownload ? 'attachment' : 'inline';
+
+        $child->withoutEvents(function () use ($child): void {
+            if (empty($child->badge_pdf_downloaded_at)) {
+                $child->forceFill(['badge_pdf_downloaded_at' => now()])->saveQuietly();
+            }
+        });
+
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+            'Content-Disposition' => $disposition.'; filename="'.$fileName.'"',
             'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
             'Pragma' => 'no-cache',
         ]);

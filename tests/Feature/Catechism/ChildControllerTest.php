@@ -291,6 +291,21 @@ class ChildControllerTest extends TestCase
         $this->assertStringContainsString('inline', $response->headers->get('Content-Disposition') ?? '');
     }
 
+    public function test_badge_pdf_download_returns_attachment_and_marks_downloaded(): void
+    {
+        $chain = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('children.read');
+
+        $response = $this->actingAs($user)->get("/children/{$child->id}/badge-pdf?download=1");
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type') ?? '');
+        $this->assertStringContainsString('attachment', $response->headers->get('Content-Disposition') ?? '');
+
+        $this->assertNotNull($child->fresh()->badge_pdf_downloaded_at);
+    }
+
     public function test_badge_pdf_is_forbidden_outside_scope(): void
     {
         $chain1 = $this->createChain();
