@@ -154,6 +154,8 @@ class ChildRepository
             'blood_type' => $child->blood_type,
             'observations' => $child->observations,
             'privacy_terms' => $child->privacy_terms,
+            'badge_pdf_downloaded_at' => $child->badge_pdf_downloaded_at?->format('Y-m-d H:i:s'),
+            'badge_pdf_downloaded' => ! empty($child->badge_pdf_downloaded_at),
             'status' => $child->status,
             'church' => $child->church?->name,
             'community' => $child->community?->name,

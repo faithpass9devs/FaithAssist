@@ -38,6 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'blood_type',
     'observations',
     'privacy_terms',
+    'badge_pdf_downloaded_at',
     'status',
     'created_by',
     'updated_by',
@@ -65,6 +66,7 @@ class Child extends Model
         return [
             'birthdate' => 'date',
             'privacy_terms' => 'boolean',
+            'badge_pdf_downloaded_at' => 'datetime',
             'status' => 'string',
         ];
     }
