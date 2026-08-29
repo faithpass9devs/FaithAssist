@@ -1,7 +1,18 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { CheckCircle2, Download, Filter, Pencil, Plus, RotateCcw, QrCode, Search, Trash2, Users } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import {
+  CheckCircle2,
+  Download,
+  Filter,
+  Pencil,
+  Plus,
+  RotateCcw,
+  QrCode,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
 import AppPagination from '../../../components/AppPagination.vue';
@@ -30,6 +41,7 @@ const props = defineProps({
   statusLabels: { type: Object, default: () => ({}) },
   sexLabels: { type: Object, default: () => ({}) },
   bloodTypeLabels: { type: Object, default: () => ({}) },
+  latestPdfExportBatch: { type: Object, default: null },
 });
 
 const searchTerm = ref(props.search);
@@ -130,12 +142,167 @@ const exportChildren = () => {
 
   if (searchTerm.value) url.searchParams.set('search', searchTerm.value);
   if (selectedChurch.value) url.searchParams.set('church_id', selectedChurch.value);
-  if (selectedMunicipality.value) url.searchParams.set('municipality_id', selectedMunicipality.value);
+  if (selectedMunicipality.value)
+    url.searchParams.set('municipality_id', selectedMunicipality.value);
   if (selectedCommunity.value) url.searchParams.set('community_id', selectedCommunity.value);
   if (selectedLevel.value) url.searchParams.set('level_id', selectedLevel.value);
   if (selectedStatus.value) url.searchParams.set('status', selectedStatus.value);
 
   window.location.assign(url.toString());
+};
+
+const pdfBatch = ref(props.latestPdfExportBatch);
+const launchingPdf = ref(false);
+const downloadingPdf = ref(false);
+let pdfPollTimer = null;
+let pdfPollStaleCount = 0;
+
+const isPdfBatchActive = computed(
+  () =>
+    !!pdfBatch.value &&
+    !pdfBatch.value.cancelled &&
+    (!pdfBatch.value.finished || !pdfBatch.value.has_result),
+);
+
+const stopPdfPolling = () => {
+  if (pdfPollTimer) {
+    clearInterval(pdfPollTimer);
+    pdfPollTimer = null;
+  }
+};
+
+const refreshPdfBatch = async () => {
+  if (!pdfBatch.value) return;
+
+  try {
+    const res = await fetch(`/children/export-pdf/${pdfBatch.value.batch_id}`, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      stopPdfPolling();
+      return;
+    }
+
+    const data = await res.json();
+    pdfBatch.value = data;
+
+    if (data.cancelled) {
+      stopPdfPolling();
+      return;
+    }
+
+    if (data.finished && data.has_result) {
+      stopPdfPolling();
+      return;
+    }
+
+    if (data.finished && !data.has_result) {
+      pdfPollStaleCount += 1;
+      if (pdfPollStaleCount >= 40) {
+        stopPdfPolling();
+      }
+      return;
+    }
+  } catch {
+    stopPdfPolling();
+  }
+};
+
+const startPdfPolling = () => {
+  stopPdfPolling();
+  pdfPollStaleCount = 0;
+  pdfPollTimer = setInterval(refreshPdfBatch, 3000);
+};
+
+onMounted(() => {
+  if (isPdfBatchActive.value) {
+    startPdfPolling();
+  }
+});
+
+onBeforeUnmount(stopPdfPolling);
+
+const csrfToken = () =>
+  document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const pdfFilterParams = () => ({
+  search: searchTerm.value || undefined,
+  church_id: selectedChurch.value || undefined,
+  municipality_id: selectedMunicipality.value || undefined,
+  community_id: selectedCommunity.value || undefined,
+  level_id: selectedLevel.value || undefined,
+  status: selectedStatus.value || undefined,
+  origin: selectedOrigin.value || undefined,
+});
+
+const launchPdfExport = async () => {
+  if (!canExport.value) return;
+
+  const confirmed = await Swal.fire({
+    title: '¿Exportar gafetes PDF?',
+    text: 'Se generarán los gafetes de todos los niños que coincidan con los filtros actuales y se combinarán en un solo PDF. Esto puede tardar unos momentos.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, exportar',
+    cancelButtonText: 'Cancelar',
+  });
+
+  if (!confirmed.isConfirmed) return;
+
+  launchingPdf.value = true;
+
+  try {
+    const res = await fetch('/children/export-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken(),
+      },
+      body: JSON.stringify(pdfFilterParams()),
+    });
+
+    const data = await res.json();
+
+    if (data.batch_id) {
+      pdfBatch.value = {
+        batch_id: data.batch_id,
+        total: data.total,
+        processed: 0,
+        pending: data.total,
+        failed: 0,
+        progress: 0,
+        finished: false,
+        cancelled: false,
+        has_result: false,
+      };
+      startPdfPolling();
+    } else {
+      Swal.fire({
+        title: data.message || 'No hay registros para exportar',
+        text: 'No hay niños que coincidan con los filtros actuales.',
+        icon: 'info',
+      });
+    }
+  } catch {
+    Swal.fire({
+      title: 'No se pudo iniciar la exportación',
+      text: 'La exportación no pudo comenzar en este momento.',
+      icon: 'error',
+    });
+  } finally {
+    launchingPdf.value = false;
+  }
+};
+
+const downloadPdfExport = () => {
+  if (!pdfBatch.value?.has_result) return;
+  downloadingPdf.value = true;
+  window.location.assign(`/children/export-pdf/${pdfBatch.value.batch_id}/download`);
+  setTimeout(() => {
+    downloadingPdf.value = false;
+  }, 2000);
 };
 
 const destroyChild = (child) => {
@@ -156,7 +323,9 @@ const closeQr = () => {
   qrDataUrl.value = '';
 };
 
-const badgePdfHref = computed(() => (qrChild.value ? `/children/${qrChild.value.id}/badge-pdf` : '#'));
+const badgePdfHref = computed(() =>
+  qrChild.value ? `/children/${qrChild.value.id}/badge-pdf` : '#',
+);
 
 const toast = (icon, title) => {
   Swal.fire({
@@ -206,8 +375,6 @@ const sendQrWhatsapp = async () => {
     isSendingQr.value = false;
   }
 };
-
-
 </script>
 
 <template>
@@ -220,6 +387,18 @@ const sendQrWhatsapp = async () => {
       :icon="Users"
     >
       <template #actions>
+        <button
+          v-if="canExport"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5"
+          :disabled="isPdfBatchActive || launchingPdf"
+          @click="launchPdfExport"
+        >
+          <span v-if="launchingPdf" class="loading loading-spinner loading-sm"></span>
+          <Download class="h-4 w-4" v-else />
+          Exportar PDF
+        </button>
+
         <button
           v-if="canExport"
           type="button"
@@ -244,7 +423,9 @@ const sendQrWhatsapp = async () => {
     <section
       class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+      >
         <h2
           class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
         >
@@ -305,7 +486,11 @@ const sendQrWhatsapp = async () => {
             class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
           >
             <option :value="null">Todas las comunidades</option>
-            <option v-for="community in availableCommunities" :key="community.id" :value="community.id">
+            <option
+              v-for="community in availableCommunities"
+              :key="community.id"
+              :value="community.id"
+            >
               {{ community.name }}
             </option>
           </select>
@@ -342,6 +527,62 @@ const sendQrWhatsapp = async () => {
         </div>
       </div>
     </section>
+
+    <div
+      v-if="pdfBatch"
+      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3
+          class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
+        >
+          <span class="text-sky-600 dark:text-sky-400">
+            <Download class="h-4 w-4" v-if="!isPdfBatchActive" />
+            <span v-else class="loading loading-spinner loading-sm"></span>
+          </span>
+          Exportación masiva de gafetes
+        </h3>
+        <button
+          v-if="pdfBatch.has_result && !isPdfBatchActive"
+          type="button"
+          class="btn btn-primary btn-sm gap-1.5 rounded-xl"
+          :disabled="downloadingPdf"
+          @click="downloadPdfExport"
+        >
+          <span v-if="downloadingPdf" class="loading loading-spinner loading-sm"></span>
+          <Download class="h-4 w-4" v-else />
+          Descargar PDF
+        </button>
+      </div>
+
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        <template v-if="isPdfBatchActive"
+          >Generando los gafetes de los niños que coinciden con los filtros aplicados.</template
+        >
+        <template v-else-if="!pdfBatch.has_result">Finalizando la generación del PDF…</template>
+        <template v-else>El PDF con todos los gafetes está listo para descargar.</template>
+      </p>
+
+      <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+        <div
+          class="h-full rounded-full bg-sky-600 transition-all"
+          :style="{ width: pdfBatch.progress + '%' }"
+        ></div>
+      </div>
+
+      <div
+        class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+      >
+        <span>
+          Procesados:
+          <strong class="text-slate-700 dark:text-slate-200">{{ pdfBatch.processed }}</strong>
+          de {{ pdfBatch.total }}
+        </span>
+        <span v-if="pdfBatch.failed > 0" class="font-semibold text-amber-600 dark:text-amber-400">
+          Fallidos: {{ pdfBatch.failed }}
+        </span>
+      </div>
+    </div>
 
     <div
       class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -387,7 +628,9 @@ const sendQrWhatsapp = async () => {
             </td>
             <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{{ child.church }}</td>
             <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-              <span v-if="child.levels.length">{{ child.levels.map((level) => level.name).join(', ') }}</span>
+              <span v-if="child.levels.length">{{
+                child.levels.map((level) => level.name).join(', ')
+              }}</span>
               <span v-else class="text-slate-400">Sin nivel</span>
             </td>
             <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
@@ -416,12 +659,16 @@ const sendQrWhatsapp = async () => {
                   <CheckCircle2 class="h-4 w-4" />
                 </span>
                 <span
-                  :class="child.badge_pdf_downloaded
-                    ? 'text-emerald-500 dark:text-emerald-400'
-                    : 'text-slate-300 dark:text-slate-600'"
-                  :title="child.badge_pdf_downloaded
-                    ? `Gafete PDF descargado (${child.badge_pdf_downloaded_at})`
-                    : 'Gafete PDF no descargado'"
+                  :class="
+                    child.badge_pdf_downloaded
+                      ? 'text-emerald-500 dark:text-emerald-400'
+                      : 'text-slate-300 dark:text-slate-600'
+                  "
+                  :title="
+                    child.badge_pdf_downloaded
+                      ? `Gafete PDF descargado (${child.badge_pdf_downloaded_at})`
+                      : 'Gafete PDF no descargado'
+                  "
                 >
                   <Download class="h-4 w-4" />
                 </span>
@@ -488,13 +735,20 @@ const sendQrWhatsapp = async () => {
       class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
       @click.self="closeQr"
     >
-      <div class="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-slate-900">
-        <h2 class="text-lg font-black text-slate-800 dark:text-slate-100">{{ qrChild.full_name }}</h2>
+      <div
+        class="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-slate-900"
+      >
+        <h2 class="text-lg font-black text-slate-800 dark:text-slate-100">
+          {{ qrChild.full_name }}
+        </h2>
         <p class="mt-1 font-mono text-xs text-slate-500">{{ qrChild.code }}</p>
-        <img v-if="qrDataUrl" :src="qrDataUrl" :alt="`QR ${qrChild.code}`" class="mx-auto my-5 h-64 w-64" />
-        <p class="text-xs text-slate-400">
-          Este QR contiene únicamente el código único del niño.
-        </p>
+        <img
+          v-if="qrDataUrl"
+          :src="qrDataUrl"
+          :alt="`QR ${qrChild.code}`"
+          class="mx-auto my-5 h-64 w-64"
+        />
+        <p class="text-xs text-slate-400">Este QR contiene únicamente el código único del niño.</p>
         <div class="mt-5 flex gap-3">
           <button
             type="button"

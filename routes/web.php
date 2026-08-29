@@ -156,6 +156,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+    Route::post('/children/export-pdf', [ChildController::class, 'exportPdfBatch'])->name('children.export-pdf');
+    Route::get('/children/export-pdf/{batch}', [ChildController::class, 'pdfBatchStatus'])->name('children.export-pdf.status');
+    Route::get('/children/export-pdf/{batch}/download', [ChildController::class, 'downloadPdfBatch'])->name('children.export-pdf.download');
     Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
 

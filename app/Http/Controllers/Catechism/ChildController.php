@@ -6,16 +6,20 @@ use App\Exports\Catechism\ChildrenExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
+use App\Services\Catechism\ChildBatchPdfService;
 use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\Catechism\ChildService;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Excel as ExcelWriter;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ChildController extends Controller
 {
@@ -96,6 +100,70 @@ class ChildController extends Controller
             $fileName,
             ExcelWriter::XLSX
         );
+    }
+
+    public function exportPdfBatch(Request $request, ChildBatchPdfService $service): JsonResponse
+    {
+        $this->authorize('export', Child::class);
+
+        $search = $request->input('search', '');
+        $churchId = $request->integer('church_id') ?: null;
+        $municipalityId = $request->integer('municipality_id') ?: null;
+        $communityId = $request->integer('community_id') ?: null;
+        $levelId = $request->integer('level_id') ?: null;
+        $status = $request->input('status');
+        $origin = $request->input('origin');
+
+        try {
+            $result = $service->createBatch(
+                $request->user(),
+                $search,
+                $churchId,
+                $municipalityId,
+                $communityId,
+                $levelId,
+                $status,
+                $origin
+            );
+
+            return response()->json($result);
+        } catch (NotFoundHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            \Log::error('Error creando export PDF masivo', ['error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'No se pudo iniciar la exportación.'], 500);
+        }
+    }
+
+    public function pdfBatchStatus(Request $request, string $batch, ChildBatchPdfService $service): JsonResponse
+    {
+        $this->authorize('export', Child::class);
+
+        $data = $service->batchStatus($request->user(), $batch);
+
+        if ($data === null) {
+            return response()->json(['message' => 'Exportación no encontrada.'], 404);
+        }
+
+        return response()->json($data);
+    }
+
+    public function downloadPdfBatch(Request $request, string $batch, ChildBatchPdfService $service)
+    {
+        $this->authorize('export', Child::class);
+
+        $path = $service->download($request->user(), $batch);
+
+        $fileName = 'gafetes_'.now()->format('Ymd_His').'.pdf';
+
+        return response()->streamDownload(function () use ($path): void {
+            echo Storage::disk('local')->get($path);
+        }, $fileName, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
@@ -205,6 +273,4 @@ class ChildController extends Controller
 
         return $parts[0] ?? $fallback;
     }
-
-
 }

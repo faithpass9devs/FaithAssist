@@ -23,6 +23,7 @@ class ChildService
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
         private readonly ChildQrWhatsappService $qrWhatsappService,
+        private readonly ChildBatchPdfService $pdfBatchService,
     ) {}
 
     public function indexData(
@@ -100,6 +101,7 @@ class ChildService
             'statusLabels' => $this->statusLabels(),
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
+            'latestPdfExportBatch' => $this->pdfBatchService->latestBatch($user),
         ];
     }
 
