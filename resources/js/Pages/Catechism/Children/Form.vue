@@ -155,40 +155,29 @@ const submit = () => {
 
         <div class="space-y-9">
           <UnderlineSection title="Datos personales">
-            <p
-              v-if="isEditing"
-              class="-mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400"
-            >
-              Los datos personales no se pueden modificar después del registro.
-            </p>
-
             <div class="grid gap-x-9 gap-y-7 md:grid-cols-2 lg:grid-cols-3">
               <UnderlineField
                 v-model="form.name"
                 label="Nombre"
                 :error="form.errors.name"
-                :disabled="isEditing"
                 required
               />
               <UnderlineField
                 v-model="form.paterno"
                 label="Paterno"
                 :error="form.errors.paterno"
-                :disabled="isEditing"
                 required
               />
               <UnderlineField
                 v-model="form.materno"
                 label="Materno"
                 :error="form.errors.materno"
-                :disabled="isEditing"
               />
               <UnderlineField
                 v-model="form.birthdate"
                 label="Fecha de nacimiento"
                 type="date"
                 :error="form.errors.birthdate"
-                :disabled="isEditing"
                 required
               />
               <UnderlineField
@@ -198,7 +187,6 @@ const submit = () => {
                 placeholder="Selecciona..."
                 :options="sexes"
                 :error="form.errors.sex"
-                :disabled="isEditing"
                 required
               />
               <UnderlineField
@@ -207,7 +195,6 @@ const submit = () => {
                 as="select"
                 :options="bloodTypes"
                 :error="form.errors.blood_type"
-                :disabled="isEditing"
                 required
               />
             </div>
@@ -224,7 +211,6 @@ const submit = () => {
                 :error="form.errors.church_id"
                 number-value
                 required
-                disabled=true
               />
               <UnderlineField
                 :model-value="selectedChurch?.municipality_id ?? null"
@@ -252,7 +238,6 @@ const submit = () => {
                 :options="statuses"
                 :error="form.errors.status"
                 required
-                disabled=true
               />
               <div v-if="!isEditing" class="md:col-span-2">
                 <div class="mb-2 flex items-center justify-between gap-3">
