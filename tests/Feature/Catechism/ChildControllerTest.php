@@ -228,7 +228,7 @@ class ChildControllerTest extends TestCase
             ->assertSessionHasErrors(['sex', 'blood_type']);
     }
 
-    public function test_update_does_not_modify_personal_data(): void
+    public function test_update_modifies_all_editable_child_data(): void
     {
         $chain = $this->createChain();
         $child = Child::query()->create($this->childRow($chain));
@@ -252,12 +252,12 @@ class ChildControllerTest extends TestCase
 
         $child->refresh();
 
-        $this->assertSame('JUAN', $child->name);
-        $this->assertSame('PEREZ', $child->paterno);
-        $this->assertSame('GOMEZ', $child->materno);
-        $this->assertSame('2018-03-14', $child->birthdate->format('Y-m-d'));
-        $this->assertSame(Sex::MALE, $child->sex);
-        $this->assertSame(BloodType::O_POSITIVE, $child->blood_type);
+        $this->assertSame('CARLOS', $child->name);
+        $this->assertSame('LOPEZ', $child->paterno);
+        $this->assertSame('RAMOS', $child->materno);
+        $this->assertSame('2019-04-15', $child->birthdate->format('Y-m-d'));
+        $this->assertSame(Sex::FEMALE, $child->sex);
+        $this->assertSame(BloodType::A_NEGATIVE, $child->blood_type);
         $this->assertSame('nuevo@example.com', $child->email);
         $this->assertSame('5500000000', $child->phone);
         $this->assertSame(Status::INACTIVE, $child->status);
