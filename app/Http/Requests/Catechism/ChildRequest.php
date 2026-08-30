@@ -89,7 +89,7 @@ class ChildRequest extends FormRequest
                 }
 
                 if ($scope->isGlobal()) {
-                    $this->validateInitialLevels($validator, $churchId);
+                    $this->validateLevels($validator, $churchId);
 
                     return;
                 }
@@ -98,7 +98,7 @@ class ChildRequest extends FormRequest
                 $communityOk = $communityId && $scope->communityIds()->contains($communityId);
 
                 if ($churchOk || $communityOk) {
-                    $this->validateInitialLevels($validator, $churchId);
+                    $this->validateLevels($validator, $churchId);
 
                     return;
                 }
@@ -111,9 +111,9 @@ class ChildRequest extends FormRequest
         ];
     }
 
-    private function validateInitialLevels($validator, ?int $churchId): void
+    private function validateLevels($validator, ?int $churchId): void
     {
-        if (! $this->isMethod('post') || ! $churchId || $validator->errors()->isNotEmpty()) {
+        if (! $churchId || $validator->errors()->isNotEmpty()) {
             return;
         }
 
@@ -121,7 +121,7 @@ class ChildRequest extends FormRequest
         $dioceseId = $church?->deanery?->diocese_id;
         $levelIds = collect($this->input('level_ids', []))->filter()->unique()->values();
 
-        if (! $dioceseId || $levelIds->isEmpty()) {
+        if (! $dioceseId || ($levelIds->isEmpty() && $this->isMethod('post'))) {
             return;
         }
 
@@ -137,7 +137,7 @@ class ChildRequest extends FormRequest
             return;
         }
 
-        if (! app(CatechismPeriodMovementService::class)->activeMovementForChurch($church, CatechismPeriodMovementService::INSCRIPTIONS)) {
+        if ($this->isMethod('post') && ! app(CatechismPeriodMovementService::class)->activeMovementForChurch($church, CatechismPeriodMovementService::INSCRIPTIONS)) {
             $validator->errors()->add('church_id', 'No hay un movimiento de inscripciones activo para la parroquia seleccionada.');
         }
     }

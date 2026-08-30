@@ -64,9 +64,13 @@ class ChildController extends Controller
         return Inertia::render('Catechism/Children/Form', $this->children->getEditData($request->user(), $child));
     }
 
-    public function update(ChildRequest $request, Child $child): RedirectResponse
+    public function update(
+        ChildRequest $request,
+        Child $child,
+        CatechismPeriodMovementService $movementService
+    ): RedirectResponse
     {
-        $this->children->updateChild($child, $request->validated());
+        $this->children->updateChild($child, $request->validated(), $request->user(), $movementService);
 
         return redirect()->route('children.index')
             ->with('success', 'Niño actualizado correctamente.');

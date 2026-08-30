@@ -7,6 +7,7 @@ use App\Globals\Sex;
 use App\Globals\Status;
 use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
+use App\Models\Catechism\ChildReinscription;
 use App\Models\User;
 use App\Models\WhatsappMessage;
 use App\Repositories\Catechism\ChildRepository;
@@ -202,26 +203,82 @@ class ChildService
         return $child;
     }
 
-    public function updateChild(Child $child, array $data): Child
+    public function updateChild(
+        Child $child,
+        array $data,
+        User $user,
+        CatechismPeriodMovementService $movementService
+    ): Child
     {
-        return $this->children->update($child, Arr::only($data, [
-            'church_id',
-            'community_id',
-            'name',
-            'paterno',
-            'materno',
-            'birthdate',
-            'sex',
-            'email',
-            'phone_lada',
-            'phone',
-            'emergency_phone_lada',
-            'emergency_phone',
-            'blood_type',
-            'observations',
-            'privacy_terms',
-            'status',
-        ]));
+        $levelIds = collect($data['level_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->sort()->values();
+        $activeLevelIds = $child->activeLevelAssignments()->pluck('level_id')->map(fn ($id) => (int) $id)->sort()->values();
+        $levelsChanged = $levelIds->isNotEmpty() && $levelIds->all() !== $activeLevelIds->all();
+
+        return DB::transaction(function () use ($child, $data, $user, $movementService, $levelIds, $activeLevelIds, $levelsChanged): Child {
+            $this->children->update($child, Arr::only($data, [
+                'church_id',
+                'community_id',
+                'name',
+                'paterno',
+                'materno',
+                'birthdate',
+                'sex',
+                'email',
+                'phone_lada',
+                'phone',
+                'emergency_phone_lada',
+                'emergency_phone',
+                'blood_type',
+                'observations',
+                'privacy_terms',
+                'status',
+            ]));
+
+            if (! $levelsChanged) {
+                return $child;
+            }
+
+            $child->loadMissing('church:id,name,deanery_id');
+            $movement = $movementService->requireActiveMovementForChurch(
+                $child->church,
+                CatechismPeriodMovementService::REINSCRIPTIONS,
+                'level_ids'
+            );
+
+            ChildReinscription::create([
+                'child_id' => $child->id,
+                'period_id' => $movement->period_id,
+                'period_movement_id' => $movement->id,
+                'from_level_ids' => $activeLevelIds->all(),
+                'to_level_ids' => $levelIds->all(),
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+            ]);
+
+            ChildLevelAssignment::query()
+                ->where('child_id', $child->id)
+                ->where('status', Status::ACTIVE)
+                ->update([
+                    'status' => Status::COMPLETED,
+                    'ended_at' => now()->toDateString(),
+                    'updated_by' => $user->id,
+                ]);
+
+            foreach ($levelIds as $levelId) {
+                ChildLevelAssignment::create([
+                    'child_id' => $child->id,
+                    'level_id' => $levelId,
+                    'period_id' => $movement->period_id,
+                    'period_movement_id' => $movement->id,
+                    'status' => Status::ACTIVE,
+                    'assigned_at' => now()->toDateString(),
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+            }
+
+            return $child;
+        });
     }
 
     public function deleteChild(Child $child): void

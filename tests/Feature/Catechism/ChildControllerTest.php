@@ -232,6 +232,11 @@ class ChildControllerTest extends TestCase
     {
         $chain = $this->createChain();
         $child = Child::query()->create($this->childRow($chain));
+        $currentLevel = $this->createLevel($chain, ['name' => 'PRIMERO']);
+        $newLevel = $this->createLevel($chain, ['name' => 'SEGUNDO']);
+        $inscriptionMovement = $this->createActiveMovement($chain, CatechismPeriodMovementService::INSCRIPTIONS);
+        $reinscriptionMovement = $this->createActiveMovement($chain, CatechismPeriodMovementService::REINSCRIPTIONS);
+        $currentAssignment = $this->assignLevel($child, $currentLevel, $inscriptionMovement);
         $user = $this->makeGlobalUser('children.update');
 
         $payload = $this->payload($chain, [
@@ -244,6 +249,7 @@ class ChildControllerTest extends TestCase
             'email' => 'nuevo@example.com',
             'phone' => '5500000000',
             'status' => Status::INACTIVE,
+            'level_ids' => [$newLevel->id],
         ]);
 
         $this->actingAs($user)
@@ -261,6 +267,16 @@ class ChildControllerTest extends TestCase
         $this->assertSame('nuevo@example.com', $child->email);
         $this->assertSame('5500000000', $child->phone);
         $this->assertSame(Status::INACTIVE, $child->status);
+        $this->assertDatabaseHas('child_level_assignments', [
+            'id' => $currentAssignment->id,
+            'status' => Status::COMPLETED,
+        ]);
+        $this->assertDatabaseHas('child_level_assignments', [
+            'child_id' => $child->id,
+            'level_id' => $newLevel->id,
+            'period_movement_id' => $reinscriptionMovement->id,
+            'status' => Status::ACTIVE,
+        ]);
     }
 
     public function test_export_returns_xlsx_for_authorized_user(): void
