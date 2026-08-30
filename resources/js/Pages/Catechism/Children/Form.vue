@@ -239,7 +239,7 @@ const submit = () => {
                 :error="form.errors.status"
                 required
               />
-              <div v-if="!isEditing" class="md:col-span-2">
+              <div class="md:col-span-2">
                 <div class="mb-2 flex items-center justify-between gap-3">
                   <label class="block text-sm font-bold text-slate-600 dark:text-slate-300">
                     Niveles <span class="text-red-500">*</span>
@@ -283,12 +283,6 @@ const submit = () => {
                   {{ levelEmptyMessage }}
                 </p>
               </div>
-              <UnderlineField
-                v-else
-                :model-value="currentLevelNames"
-                label="Niveles asignados"
-                disabled
-              />
             </div>
           </UnderlineSection>
 
