@@ -237,6 +237,7 @@ const submit = () => {
                 as="select"
                 :options="statuses"
                 :error="form.errors.status"
+                :disabled="isEditing"
                 required
               />
               <div class="md:col-span-2">
