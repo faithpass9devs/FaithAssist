@@ -81,6 +81,8 @@ class SyncRolePermissionsSeeder extends Seeder
                 'externos.scope.all',
                 'externos.import',
                 'externos.import_all',
+                'ajustes.read',
+                'ajustes.update',
             ]
         ));
 

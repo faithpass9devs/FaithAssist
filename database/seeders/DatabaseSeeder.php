@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             UsersPerRoleSeeder::class,
             ProfileSeeder::class,
             ModuleSeeder::class,
+            SettingCategorySeeder::class,
+            SettingsSeeder::class,
             StateSeeder::class,
             DioceseSeeder::class,
             MunicipalitySeeder::class,
