@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Masses;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Masses\ManualAttendanceRequest;
 use App\Models\Masses\ManualAttendance;
+use App\Models\Masses\Weekend;
 use App\Services\ManualAttendanceService;
 use App\Services\Masses\ManualAttendanceDataService;
 use Illuminate\Http\JsonResponse;
@@ -45,8 +46,10 @@ class ManualAttendanceController extends Controller
 
     public function store(ManualAttendanceRequest $request): JsonResponse
     {
-        // Validate that manual attendance movement is currently active
-        if (! $this->dataService->isManualAttendanceCaptureActive($request->user())) {
+        // Validate that manual attendance movement is currently active for the selected parish
+        $churchId = Weekend::query()->whereKey($request->integer('weekend_id'))->value('church_id');
+
+        if (! $this->dataService->isManualAttendanceCaptureActive($request->user(), $churchId)) {
             return response()->json([
                 'success' => false,
                 'message' => 'No hay un movimiento activo de asistencia manual. No se pueden registrar asistencias en este momento.',
