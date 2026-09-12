@@ -26,6 +26,7 @@ use App\Http\Controllers\Security\ModuleController;
 use App\Http\Controllers\Security\PermissionController;
 use App\Http\Controllers\Security\RoleController;
 use App\Http\Controllers\Security\UserController;
+use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\UserThemeController;
 use App\Http\Controllers\WhatsappMessageController;
 use Illuminate\Support\Facades\Route;
@@ -162,7 +163,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
 
-
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');
     Route::resource('reinscripciones', ReinscriptionController::class)
@@ -205,4 +205,12 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/whatsapp/history', [WhatsappMessageController::class, 'history'])->name('whatsapp.history');
 
     Route::get('/whatsapp/history-json', [WhatsappMessageController::class, 'historyJson'])->name('whatsapp.history-json');
+
+    // Ajustes
+    Route::prefix('ajustes')->name('ajustes.')->group(function () {
+        Route::get('/', [SettingsController::class, 'index'])->name('index');
+        Route::patch('/', [SettingsController::class, 'update'])->name('update');
+        Route::post('/files', [SettingsController::class, 'storeFile'])->name('files.store');
+        Route::post('/reset', [SettingsController::class, 'reset'])->name('reset');
+    });
 });

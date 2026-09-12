@@ -22,6 +22,7 @@ use App\Models\Operation\PeriodMovementType;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\Regions\State;
+use App\Models\Settings\Setting;
 use App\Models\WhatsappMessage;
 use App\Policies\ChapelPolicy;
 use App\Policies\ChildPolicy;
@@ -42,6 +43,7 @@ use App\Policies\PeriodMovementPolicy;
 use App\Policies\PeriodMovementTypePolicy;
 use App\Policies\PeriodPolicy;
 use App\Policies\PermissionPolicy;
+use App\Policies\SettingsPolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
 use App\Policies\WhatsappMessagePolicy;
@@ -86,5 +88,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(IncidenceType::class, IncidenceTypePolicy::class);
         Gate::policy(MassAttendanceIncident::class, MassAttendanceIncidentPolicy::class);
         Gate::policy(ExternalChild::class, ExternosPolicy::class);
+        Gate::policy(Setting::class, SettingsPolicy::class);
     }
 }

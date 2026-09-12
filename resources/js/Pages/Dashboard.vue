@@ -16,6 +16,7 @@ import {
   MapPinned,
   MessageCircle,
   QrCode,
+  Settings,
   ShieldCheck,
   Tags,
   Users,
@@ -219,6 +220,20 @@ const modules = computed(() =>
           href: '/whatsapp',
           moduleKey: 'whatsapp',
           permission: 'whatsapp.send',
+        },
+      ],
+    },
+    {
+      name: 'Configuración',
+      accent: 'from-amber-200 via-orange-100 to-slate-100',
+      titleClass: 'text-sky-700',
+      items: [
+        {
+          label: 'Ajustes',
+          icon: Settings,
+          href: '/ajustes',
+          moduleKey: 'settings',
+          permission: 'ajustes.read',
         },
       ],
     },
