@@ -11,7 +11,7 @@ class SettingsSeeder extends Seeder
 {
     public function run(): void
     {
-        $superadmin = User::query()->where('email', 'superadmin@faithassistqr.test')->first();
+        $superadmin = User::query()->where('email', 'd.g.adrian28@gmail.com')->first();
         $badge = SettingCategory::query()->where('key', 'badge')->first();
 
         if (! $badge) {

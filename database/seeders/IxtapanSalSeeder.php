@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Globals\Status;
 use App\Models\Ecclesiastes\Church;
+use App\Models\Ecclesiastes\Deanery;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\Regions\State;
@@ -80,6 +81,14 @@ class IxtapanSalSeeder extends Seeder
 
         $this->command?->info('Comunidades de Ixtapan de la Sal creadas exitosamente.');
 
+        $deanery = Deanery::where('name', 'NUESTRA SENORA DE LA ASUNCION')->first();
+
+        if (! $deanery) {
+            $this->command?->warn('Decanato NUESTRA SENORA DE LA ASUNCION no encontrado. Ejecuta DeanerySeeder primero.');
+
+            return;
+        }
+
         Church::updateOrCreate(
             ['name' => 'PARROQUIA DE LA ASUNCIÓN DE MARIA DE IXTAPAN DE LA SAL.MEX.'],
             [
@@ -88,6 +97,7 @@ class IxtapanSalSeeder extends Seeder
                 'phone' => '7311430481',
                 'address' => 'ALVARO O REGIN NO.2',
                 'municipality_id' => $municipality->id,
+                'deanery_id' => $deanery->id,
                 'status' => Status::ACTIVE,
                 'created_by' => $superadmin->id,
                 'updated_by' => $superadmin->id,
