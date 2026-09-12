@@ -38,6 +38,26 @@ class UserScopeService
             && $this->user->chapel_id === null;
     }
 
+    /**
+     * Whether the user may access the Externos module: global admins and
+     * users scoped to the Coatepec church, regardless of assigned permissions.
+     */
+    public function canAccessExternosModule(): bool
+    {
+        if ($this->isGlobal()) {
+            return true;
+        }
+
+        if ($this->user->church_id !== null) {
+            return Church::query()
+                ->whereKey($this->user->church_id)
+                ->whereHas('municipality', fn ($q) => $q->where('name', 'Coatepec Harinas'))
+                ->exists();
+        }
+
+        return false;
+    }
+
     /** Returns 'global' | 'diocese' | 'deanery' | 'church' | 'chapel'. */
     public function level(): string
     {

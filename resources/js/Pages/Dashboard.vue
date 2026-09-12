@@ -27,7 +27,13 @@ const page = usePage();
 
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 
+const canSeeExternos = computed(() => page.props.auth?.scope?.can_see_externos === true);
+
 const hasPermission = (item) => {
+  if (item.coatepecOnly && !canSeeExternos.value) {
+    return false;
+  }
+
   if (item.permission) {
     return permissions.value.includes(item.permission);
   }
@@ -132,7 +138,7 @@ const modules = computed(() =>
           href: '/reinscripciones',
           moduleKey: 'reinscripciones',
         },
-        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos' },
+        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos', coatepecOnly: true },
       ],
     },
     {
