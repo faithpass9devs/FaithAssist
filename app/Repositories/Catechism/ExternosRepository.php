@@ -13,11 +13,9 @@ use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\User;
 use App\Services\UserScopeService;
-use App\Support\HostingerCache;
 use App\Support\SplitLastNames;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 class ExternosRepository
 {
@@ -27,7 +25,9 @@ class ExternosRepository
         ?int $levelId = null,
         ?int $communityId = null
     ): LengthAwarePaginator {
-        $filtered = $this->applyFilters($this->allChildren($user), $search, $levelId, $communityId);
+        $filtered = $this->applyFilters($this->allChildren($user), $search, $levelId, $communityId)
+            ->filter(fn (array $child): bool => ! $this->isOnLastLevel($child, $this->externalLastLevelIds($user)))
+            ->values();
 
         $importedSet = array_fill_keys(
             ExternalChildImport::query()
@@ -63,21 +63,16 @@ class ExternosRepository
         ?int $levelId = null,
         ?int $communityId = null
     ): Collection {
+        $lastLevelIds = $this->externalLastLevelIds($user);
+
         return $this->applyFilters($this->allChildren($user), $search, $levelId, $communityId)
+            ->filter(fn (array $child): bool => ! $this->isOnLastLevel($child, $lastLevelIds))
             ->pluck('id');
     }
 
     public function allChildren(User $user): Collection
     {
-        $key = $this->allKey($user);
-
-        $data = Cache::tags(HostingerCache::tags())->remember(
-            $key,
-            HostingerCache::ttl('all'),
-            fn () => $this->loadAllChildren($user)
-        );
-
-        return collect($data);
+        return collect($this->loadAllChildren($user));
     }
 
     private function loadAllChildren(User $user): array
@@ -134,6 +129,40 @@ class ExternosRepository
             ->values();
     }
 
+    private function externalLastLevelIds(User $user): array
+    {
+        $levels = collect($this->getFilterOptions($user)['levels']);
+
+        if ($levels->isEmpty()) {
+            return [];
+        }
+
+        $max = $levels->max(fn (array $level): int =>
+            (int) preg_replace('/\D+/', '', (string) $level['name']) ?: PHP_INT_MAX
+        );
+
+        return $levels
+            ->filter(fn (array $level): bool =>
+                ((int) preg_replace('/\D+/', '', (string) $level['name']) ?: PHP_INT_MAX) === $max
+            )
+            ->pluck('id')
+            ->all();
+    }
+
+    private function isOnLastLevel(array $child, array $lastLevelIds): bool
+    {
+        if ($lastLevelIds === []) {
+            return false;
+        }
+
+        $lastLevelIdSet = array_fill_keys($lastLevelIds, true);
+
+        return collect($child['levels'])
+            ->contains(fn (array $level): bool =>
+                $level['is_primary'] === true && isset($lastLevelIdSet[$level['level_id']])
+            );
+    }
+
     public function findOrFail(int $id): ExternalChild
     {
         return ExternalChild::query()
@@ -143,13 +172,7 @@ class ExternosRepository
 
     public function getFilterOptions(User $user): array
     {
-        $key = $this->filtersKey($user);
-
-        return Cache::tags(HostingerCache::tags())->remember(
-            $key,
-            HostingerCache::ttl('filters'),
-            fn () => $this->loadFilterOptions($user)
-        );
+        return $this->loadFilterOptions($user);
     }
 
     private function loadFilterOptions(User $user): array
@@ -286,13 +309,5 @@ class ExternosRepository
         return 'churches:'.md5(collect($scope->churchIds())->sort()->implode('-'));
     }
 
-    private function filtersKey(User $user): string
-    {
-        return config('hostinger_cache.prefix').':filters:'.$this->scopeKey($user);
-    }
-
-    private function allKey(User $user): string
-    {
-        return config('hostinger_cache.prefix').':all:'.$this->scopeKey($user);
-    }
+    // Cache desactivada temporalmente: no se usa HostingerCache ni Cache en este repositorio.
 }

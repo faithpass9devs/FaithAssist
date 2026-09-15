@@ -127,9 +127,26 @@ const csrfToken = () =>
   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
 const launchImport = async () => {
+  const previewing = await fetchPreview();
+
+  if (previewing === null) return;
+
+  const { total } = previewing;
+
+  if (total === 0) {
+    Swal.fire({
+      title: 'No hay registros para importar',
+      text: 'No hay registros externos que coincidan con los filtros actuales.',
+      icon: 'info',
+    });
+    return;
+  }
+
   const confirmed = await Swal.fire({
     title: '¿Importar registros externos?',
-    text: 'Se importarán los registros que coincidan con los filtros actuales y se enviará el gafete por WhatsApp a cada persona.',
+    text: `Se importarán ${total} ${
+      total === 1 ? 'registro' : 'registros'
+    } externos que coincidan con los filtros actuales.`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, importar',
@@ -183,6 +200,24 @@ const launchImport = async () => {
   }
 };
 
+const fetchPreview = async () => {
+  try {
+    const query = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params()).filter(([, value]) => value !== undefined && value !== ''),
+      ),
+    );
+
+    const res = await fetch(`/externos/import-batch/preview?${query.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+};
+
 const finishImport = () => {
   stopPolling();
   batch.value = null;
@@ -225,7 +260,9 @@ const closeDetail = () => {
     <section
       class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        class="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+      >
         <h2
           class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
         >
@@ -302,13 +339,8 @@ const closeDetail = () => {
             v-if="isBatchActive"
             class="h-4 w-4 animate-spin text-sky-600 dark:text-sky-300"
           />
-          <CheckCircle2
-            v-else
-            class="h-4 w-4 text-emerald-600 dark:text-emerald-300"
-          />
-          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">
-            Importación masiva
-          </h3>
+          <CheckCircle2 v-else class="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Importación masiva</h3>
           <span
             class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
           >

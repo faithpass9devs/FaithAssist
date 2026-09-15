@@ -77,6 +77,18 @@ class ExternosController extends Controller
         return response()->json($result);
     }
 
+    public function previewImportBatch(Request $request): JsonResponse
+    {
+        $this->authorize('importAll', ExternalChild::class);
+
+        return response()->json($this->externos->previewImportBatch(
+            $request->user(),
+            $request->input('search', ''),
+            $request->integer('level_id') ?: null,
+            $request->integer('community_id') ?: null,
+        ));
+    }
+
     public function batchStatus(Request $request, string $batch): JsonResponse
     {
         $this->authorize('importAll', ExternalChild::class);

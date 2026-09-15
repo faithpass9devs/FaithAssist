@@ -180,6 +180,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
 
     Route::post('/externos/import-batch', [ExternosController::class, 'importBatch'])
         ->name('externos.import-batch');
+    Route::get('/externos/import-batch/preview', [ExternosController::class, 'previewImportBatch'])
+        ->name('externos.import-batch.preview');
     Route::get('/externos/import-batch/{batch}', [ExternosController::class, 'batchStatus'])
         ->name('externos.import-batch.show');
 
