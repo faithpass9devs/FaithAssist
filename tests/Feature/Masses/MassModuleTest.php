@@ -9,6 +9,7 @@ use App\Models\Catechism\Child;
 use App\Models\Ecclesiastes\Chapel;
 use App\Models\Masses\Mass;
 use App\Models\Masses\Weekend;
+use App\Models\Regions\Community;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Concerns\ControllerTestHelpers;
@@ -207,6 +208,43 @@ class MassModuleTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['child_code']);
+    }
+
+    public function test_mass_attendance_allows_child_from_another_community(): void
+    {
+        $chain = $this->createChain();
+        $otherCommunity = Community::query()->create([
+            'name' => 'Comunidad Vecina',
+            'municipality_id' => $chain['municipality']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $chapel = Chapel::query()->create([
+            'name' => 'Capilla Vecina',
+            'community_id' => $otherCommunity->id,
+            'church_id' => $chain['church']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'chapel_id' => $chapel->id,
+            'name' => 'MISA DE CAPILLA VECINA',
+            'starts_at' => '2026-07-05 18:00',
+            'ends_at' => '2026-07-05 19:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.scan');
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_IN,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.valid', false);
     }
 
     public function test_scan_permission_can_capture_without_attendance_read_or_mass_show(): void

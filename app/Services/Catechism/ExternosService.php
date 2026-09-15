@@ -82,6 +82,20 @@ class ExternosService
         return ['batch_id' => $batch->id, 'total' => $ids->count()];
     }
 
+    /**
+     * @return array{total:int}
+     */
+    public function previewImportBatch(
+        User $user,
+        string $search,
+        ?int $levelId = null,
+        ?int $communityId = null
+    ): array {
+        $ids = $this->externos->externosForBulkImport($user, $search, $levelId, $communityId);
+
+        return ['total' => $ids->count()];
+    }
+
     public function batchStatus(User $user, string $batchId): ?array
     {
         $record = ExternalChildImportBatch::query()
