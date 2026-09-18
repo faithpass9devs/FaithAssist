@@ -15,7 +15,6 @@ import {
   LayoutGrid,
   MapPinned,
   MessageCircle,
-  QrCode,
   ShieldCheck,
   Tags,
   Users,
@@ -150,12 +149,6 @@ const modules = computed(() =>
           icon: Church,
           href: '/misas',
           moduleKey: 'masses',
-        },
-        {
-          label: 'Asistencias',
-          icon: QrCode,
-          href: '/asistencias',
-          moduleKey: 'mass_attendance',
         },
         {
           label: 'Asistencia manual',

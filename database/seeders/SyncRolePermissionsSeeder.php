@@ -77,6 +77,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'masses.scope.all',
                 'mass_attendance.scope.all',
                 'mass_attendance.scan',
+                'mass_attendance.manage',
                 'asistencias_manuales.scope.all',
                 'externos.scope.all',
                 'externos.import',

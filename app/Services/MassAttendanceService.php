@@ -14,9 +14,15 @@ class MassAttendanceService
 {
     public function register(Mass $mass, string $childCode, string $action, User $user): MassAttendance
     {
-        if ($mass->attendance_status !== Status::IN_PROGRESS) {
+        $captureStatus = $action === Status::CHECK_IN
+            ? $mass->attendance_check_in_status
+            : $mass->attendance_check_out_status;
+
+        if ($captureStatus !== Status::IN_PROGRESS) {
             throw ValidationException::withMessages([
-                'mass' => 'La captura de asistencias de esta misa no está en curso.',
+                'mass' => $action === Status::CHECK_IN
+                    ? 'La captura de entradas de esta misa no está en curso.'
+                    : 'La captura de salidas de esta misa no está en curso.',
             ]);
         }
 
@@ -52,40 +58,40 @@ class MassAttendanceService
         });
     }
 
-private function checkIn(Mass $mass, Child $child, User $user, ?MassAttendance $attendance): MassAttendance
-{
-    if ($attendance?->check_in_at) {
-        throw ValidationException::withMessages([
-            'child_code' => 'Este niño ya tiene entrada registrada en esta misa.',
-        ]);
-    }
+    private function checkIn(Mass $mass, Child $child, User $user, ?MassAttendance $attendance): MassAttendance
+    {
+        if ($attendance?->check_in_at) {
+            throw ValidationException::withMessages([
+                'child_code' => 'Este niño ya tiene entrada registrada en esta misa.',
+            ]);
+        }
 
-    if ($attendance) {
-        $attendance->update([
+        if ($attendance) {
+            $attendance->update([
+                'child_code' => $child->code,
+                'church_id' => $mass->church_id,
+                'chapel_id' => $mass->chapel_id,
+                'check_in_at' => now(),
+                'check_in_by' => $user->id,
+                'check_out_at' => null,
+                'check_out_by' => null,
+                'status' => Status::CHECK_IN,
+            ]);
+
+            return $attendance->fresh(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
+        }
+
+        return MassAttendance::query()->create([
+            'mass_id' => $mass->id,
+            'child_id' => $child->id,
             'child_code' => $child->code,
             'church_id' => $mass->church_id,
             'chapel_id' => $mass->chapel_id,
             'check_in_at' => now(),
             'check_in_by' => $user->id,
-            'check_out_at' => null,
-            'check_out_by' => null,
             'status' => Status::CHECK_IN,
-        ]);
-
-        return $attendance->fresh(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
+        ])->load(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
     }
-
-    return MassAttendance::query()->create([
-        'mass_id' => $mass->id,
-        'child_id' => $child->id,
-        'child_code' => $child->code,
-        'church_id' => $mass->church_id,
-        'chapel_id' => $mass->chapel_id,
-        'check_in_at' => now(),
-        'check_in_by' => $user->id,
-        'status' => Status::CHECK_IN,
-    ])->load(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
-}
 
     private function checkOut(User $user, ?MassAttendance $attendance): MassAttendance
     {
@@ -108,5 +114,28 @@ private function checkIn(Mass $mass, Child $child, User $user, ?MassAttendance $
         ]);
 
         return $attendance->fresh(['child:id,name,paterno,materno,code', 'church:id,name', 'chapel:id,name']);
+    }
+
+    public function setCaptureStatus(Mass $mass, string $capture, string $status): Mass
+    {
+        if (! in_array($capture, [Status::CHECK_IN, Status::CHECK_OUT], true)) {
+            throw ValidationException::withMessages([
+                'capture' => 'Tipo de captura inválido.',
+            ]);
+        }
+
+        if (! in_array($status, [Status::IN_PROGRESS, Status::COMPLETED], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Estatus de captura inválido.',
+            ]);
+        }
+
+        $field = $capture === Status::CHECK_IN
+            ? 'attendance_check_in_status'
+            : 'attendance_check_out_status';
+
+        $mass->update([$field => $status]);
+
+        return $mass->fresh(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name']);
     }
 }

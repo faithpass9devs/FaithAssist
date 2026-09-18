@@ -22,7 +22,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'starts_at',
     'ends_at',
     'status',
-    'attendance_status',
+    'attendance_check_in_status',
+    'attendance_check_out_status',
     'notes',
     'created_by',
     'updated_by',
@@ -43,7 +44,8 @@ class Mass extends Model
             'starts_at' => 'datetime:Y-m-d H:i',
             'ends_at' => 'datetime:Y-m-d H:i',
             'status' => 'string',
-            'attendance_status' => 'string',
+            'attendance_check_in_status' => 'string',
+            'attendance_check_out_status' => 'string',
         ];
     }
 

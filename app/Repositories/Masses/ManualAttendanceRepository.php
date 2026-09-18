@@ -7,6 +7,7 @@ use App\Models\Catechism\Child;
 use App\Models\Masses\Mass;
 use App\Models\Masses\Weekend;
 use App\Models\Operation\Level;
+use App\Models\Operation\PeriodMovement;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\User;
@@ -112,7 +113,7 @@ class ManualAttendanceRepository
                 ->where('weekend_id', $weekendId)
                 ->orderBy('starts_at')
         )
-            ->get(['id', 'weekend_id', 'church_id', 'chapel_id', 'name', 'starts_at', 'ends_at', 'attendance_status'])
+            ->get(['id', 'weekend_id', 'church_id', 'chapel_id', 'name', 'starts_at', 'ends_at', 'attendance_check_in_status', 'attendance_check_out_status'])
             ->map(fn (Mass $mass): array => [
                 'id' => $mass->id,
                 'weekend_id' => $mass->weekend_id,
@@ -125,7 +126,8 @@ class ManualAttendanceRepository
                 'ends_at' => $mass->ends_at?->format('Y-m-d h:i A'),
                 'church' => $mass->church?->name,
                 'chapel' => $mass->chapel?->name,
-                'attendance_status' => $mass->attendance_status,
+                'attendance_check_in_status' => $mass->attendance_check_in_status,
+                'attendance_check_out_status' => $mass->attendance_check_out_status,
             ])
             ->values()
             ->all();
@@ -188,9 +190,9 @@ class ManualAttendanceRepository
         $now = now()->toDateString();
 
         // Count active manual attendance movements
-        return \App\Models\Operation\PeriodMovement::query()
+        return PeriodMovement::query()
             ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
-            ->where('status', \App\Globals\Status::IN_PROGRESS)
+            ->where('status', Status::IN_PROGRESS)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
             ->whereHas('period', fn ($q) => $scope->isGlobal()
@@ -210,10 +212,10 @@ class ManualAttendanceRepository
 
         $now = now()->toDateString();
 
-        $movement = \App\Models\Operation\PeriodMovement::query()
+        $movement = PeriodMovement::query()
             ->with(['periodMovementType:id,name', 'period:id,diocese_id,name,years'])
             ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
-            ->where('status', \App\Globals\Status::IN_PROGRESS)
+            ->where('status', Status::IN_PROGRESS)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
             ->whereHas('period', fn ($q) => $scope->isGlobal()

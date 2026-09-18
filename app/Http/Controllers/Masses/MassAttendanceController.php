@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Masses;
 
+use App\Globals\Status;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Masses\MassAttendanceCaptureStatusRequest;
 use App\Http\Requests\Masses\MassAttendanceScanRequest;
 use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Services\MassAttendanceService;
 use App\Services\Masses\MassAttendanceDataService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,24 +21,6 @@ class MassAttendanceController extends Controller
         private readonly MassAttendanceDataService $dataService,
         private readonly MassAttendanceService $attendanceService,
     ) {}
-
-    public function landing(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        $canRead = $user->can('mass_attendance.read');
-        $canScan = $user->can('mass_attendance.scan');
-
-        abort_unless($canRead || $canScan, 403);
-
-        $mass = $this->dataService->getFirstAvailableMass($user);
-
-        if (! $mass) {
-            return redirect()->route('misas.index')
-                ->with('warning', 'No hay misas disponibles para registrar asistencias.');
-        }
-
-        return redirect()->route('misas.asistencias.index', $mass);
-    }
 
     public function index(Request $request, Mass $misa): Response
     {
@@ -95,6 +78,27 @@ class MassAttendanceController extends Controller
             'message' => $attendance->isValidAttendance()
                 ? 'Salida registrada. La asistencia ya es válida.'
                 : 'Entrada registrada correctamente.',
+        ]);
+    }
+
+    public function updateCaptureStatus(
+        MassAttendanceCaptureStatusRequest $request,
+        Mass $misa
+    ): JsonResponse {
+        $this->authorize('manage', [MassAttendance::class, $misa]);
+
+        $mass = $this->attendanceService->setCaptureStatus(
+            $misa,
+            $request->string('capture')->toString(),
+            $request->string('status')->toString()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->string('status')->toString() === Status::COMPLETED
+                ? 'Captura terminada correctamente.'
+                : 'Captura reabierta correctamente.',
+            'data' => $this->dataService->serializeMass($mass),
         ]);
     }
 }

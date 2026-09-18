@@ -3,6 +3,7 @@
 namespace App\Services\Masses;
 
 use App\Models\Masses\Mass;
+use App\Models\Masses\MassAttendance;
 use App\Models\User;
 use App\Repositories\Masses\MassAttendanceRepository;
 
@@ -20,13 +21,15 @@ class MassAttendanceDataService
         return [
             'mass' => $this->repository->serializeMass($mass),
             'attendances' => $attendances,
-            'weekendOptions' => $this->repository->getWeekendOptions($user),
             'canScan' => $canScan,
+            'canManage' => $user->can('manage', [MassAttendance::class, $mass]),
         ];
     }
 
-    public function getFirstAvailableMass(User $user): ?Mass
+    public function serializeMass(Mass $mass): array
     {
-        return $this->repository->getAvailableMasses($user)->first();
+        $mass->loadMissing(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name']);
+
+        return $this->repository->serializeMass($mass);
     }
 }

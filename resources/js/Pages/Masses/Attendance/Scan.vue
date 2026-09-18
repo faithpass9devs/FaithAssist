@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
-import { Camera, Home, LogIn, LogOut, QrCode, Square } from 'lucide-vue-next';
+import { Camera, Home, Play, QrCode, Square, SwitchCamera } from 'lucide-vue-next';
 import { Html5Qrcode } from 'html5-qrcode';
 import Swal from 'sweetalert2';
 import AppPagination from '../../../components/AppPagination.vue';
@@ -11,28 +11,9 @@ import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 const props = defineProps({
   mass: { type: Object, required: true },
   attendances: { type: Object, required: true },
-  weekendOptions: { type: Array, default: () => [] },
   canScan: { type: Boolean, default: false },
+  canManage: { type: Boolean, default: false },
 });
-
-const selectedWeekendId = ref(props.mass.weekend_id);
-const selectedMassId = ref(props.mass.id);
-
-const availableMasses = computed(
-  () =>
-    props.weekendOptions.find((weekend) => String(weekend.id) === String(selectedWeekendId.value))
-      ?.masses ?? [],
-);
-
-const selectedMassLabel = computed(
-  () => availableMasses.value.find((massOption) => String(massOption.id) === String(selectedMassId.value))?.label ?? '',
-);
-
-const selectedMassShortLabel = computed(
-  () =>
-    availableMasses.value.find((massOption) => String(massOption.id) === String(selectedMassId.value))
-      ?.short_label ?? '',
-);
 
 const rows = ref([]);
 watch(
@@ -42,54 +23,58 @@ watch(
   },
   { immediate: true },
 );
-watch(
-  () => props.mass,
-  (mass) => {
-    selectedWeekendId.value = mass.weekend_id;
-    selectedMassId.value = mass.id;
-  },
-  { immediate: true },
-);
-const childCode = ref('');
+
 const loading = ref(false);
-const errors = ref({});
-const selectedAction = ref('check_in');
 const scanner = ref(null);
 const scannerRunning = ref(false);
 const scannerError = ref('');
+const scannerLoading = ref(false);
+const cameras = ref([]);
+const selectedCameraId = ref('');
+const cameraError = ref('');
+const cameraLoading = ref(false);
+const captureLoading = ref('');
 const lastScan = ref({ code: '', at: 0 });
 const qrRegionId = 'mass-attendance-qr-reader';
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
-const openAttendance = (massId) => {
-  if (!massId || String(massId) === String(props.mass.id)) return;
+const checkInStatus = computed(() => props.mass.attendance_check_in_status);
+const checkOutStatus = computed(() => props.mass.attendance_check_out_status);
 
-  router.get(`/misas/${massId}/asistencias`, {}, { preserveScroll: true });
+const captureStatus = (capture) => (capture === 'check_in' ? checkInStatus.value : checkOutStatus.value);
+
+const statusPillClass = (status) =>
+  status === 'in_progress'
+    ? 'bg-amber-100 text-amber-800'
+    : status === 'completed'
+      ? 'bg-emerald-100 text-emerald-800'
+      : 'bg-sky-100 text-sky-800';
+
+const statusLabel = (status) =>
+  status === 'in_progress' ? 'En curso' : status === 'completed' ? 'Completada' : 'No iniciada';
+
+const noActiveCapture = computed(
+  () => checkInStatus.value !== 'in_progress' && checkOutStatus.value !== 'in_progress',
+);
+
+const inferAction = (code) => {
+  if (checkInStatus.value === 'in_progress' && checkOutStatus.value === 'in_progress') {
+    const openCheckIn = rows.value.find(
+      (row) => row.child_code === code && row.check_in_at && !row.check_out_at,
+    );
+
+    return openCheckIn ? 'check_out' : 'check_in';
+  }
+
+  if (checkInStatus.value === 'in_progress') return 'check_in';
+  if (checkOutStatus.value === 'in_progress') return 'check_out';
+
+  return null;
 };
 
-const onWeekendChange = (event) => {
-  const weekendId = event.target.value;
-  selectedWeekendId.value = weekendId;
-
-  const weekend = props.weekendOptions.find((item) => String(item.id) === String(weekendId));
-  const firstMassId = weekend?.masses?.[0]?.id;
-
-  if (!firstMassId) return;
-
-  selectedMassId.value = firstMassId;
-  openAttendance(firstMassId);
-};
-
-const onMassChange = (event) => {
-  const massId = event.target.value;
-  selectedMassId.value = massId;
-  openAttendance(massId);
-};
-
-const scan = async (action, code = childCode.value) => {
+const scan = async (action, code) => {
   if (!props.canScan) return;
 
-  errors.value = {};
   loading.value = true;
 
   try {
@@ -109,7 +94,6 @@ const scan = async (action, code = childCode.value) => {
     const json = await response.json();
 
     if (!response.ok) {
-      errors.value = json.errors ?? {};
       throw new Error(json.message ?? 'No se pudo registrar la asistencia.');
     }
 
@@ -120,7 +104,6 @@ const scan = async (action, code = childCode.value) => {
       rows.value[index] = json.data;
     }
 
-    childCode.value = '';
     Swal.fire({
       toast: true,
       position: 'top-end',
@@ -143,26 +126,62 @@ const scan = async (action, code = childCode.value) => {
   }
 };
 
+const onDecoded = async (decodedText) => {
+  if (loading.value) return;
+  const now = Date.now();
+  if (lastScan.value.code === decodedText && now - lastScan.value.at < 2500) return;
+  lastScan.value = { code: decodedText, at: now };
+
+  const action = inferAction(decodedText);
+  if (!action) return;
+
+  await scan(action, decodedText);
+};
+
+const loadCameras = async () => {
+  cameraError.value = '';
+  cameraLoading.value = true;
+
+  try {
+    const list = await Html5Qrcode.getCameras();
+
+    if (list.length === 0) {
+      cameraError.value = 'No se detectaron cámaras en este dispositivo.';
+      return;
+    }
+
+    cameras.value = list.map((device) => ({ id: device.id, label: device.label }));
+    const preferred =
+      list.find((device) => /back|rear|trasera|environment/i.test(device.label)) ??
+      list.find((device) => /front|delantera|user/i.test(device.label)) ??
+      list[0];
+    selectedCameraId.value = preferred?.id ?? '';
+  } catch (error) {
+    cameraError.value = error?.message ?? 'No se pudieron detectar las cámaras.';
+  } finally {
+    cameraLoading.value = false;
+  }
+};
+
 const startCamera = async () => {
-  if (!props.canScan) return;
+  if (!props.canScan || noActiveCapture.value) return;
 
   scannerError.value = '';
+  scannerLoading.value = true;
 
   try {
     if (!scanner.value) {
       scanner.value = new Html5Qrcode(qrRegionId);
     }
 
+    if (cameras.value.length === 0 && !cameraError.value) {
+      await loadCameras();
+    }
+
     await scanner.value.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 260, height: 260 } },
-      async (decodedText) => {
-        if (loading.value) return;
-        const now = Date.now();
-        if (lastScan.value.code === decodedText && now - lastScan.value.at < 2500) return;
-        lastScan.value = { code: decodedText, at: now };
-        await scan(selectedAction.value, decodedText);
-      },
+      selectedCameraId.value || { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 300, height: 300 } },
+      onDecoded,
     );
 
     scannerRunning.value = true;
@@ -176,6 +195,32 @@ const startCamera = async () => {
       timer: 3000,
       showConfirmButton: false,
     });
+  } finally {
+    scannerLoading.value = false;
+  }
+};
+
+const switchCamera = async () => {
+  if (cameraLoading.value) return;
+
+  if (!scannerRunning.value) {
+    await startCamera();
+    return;
+  }
+
+  cameraLoading.value = true;
+
+  try {
+    await scanner.value?.stop();
+    await scanner.value?.start(
+      selectedCameraId.value || { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 300, height: 300 } },
+      onDecoded,
+    );
+  } catch (error) {
+    scannerError.value = error?.message ?? 'No se pudo cambiar de cámara.';
+  } finally {
+    cameraLoading.value = false;
   }
 };
 
@@ -184,6 +229,51 @@ const stopCamera = async () => {
 
   await scanner.value.stop();
   scannerRunning.value = false;
+};
+
+const toggleCapture = async (capture) => {
+  const target = captureStatus(capture) === 'in_progress' ? 'completed' : 'in_progress';
+  captureLoading.value = capture;
+
+  try {
+    const response = await fetch(`/misas/${props.mass.id}/asistencias/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrf(),
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ capture, status: target }),
+    });
+    const json = await response.json();
+
+    if (!response.ok) {
+      throw new Error(json.message ?? 'No se pudo actualizar la captura.');
+    }
+
+    await router.reload({ only: ['mass'] });
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: json.message,
+      timer: 2500,
+      showConfirmButton: false,
+    });
+  } catch (error) {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'error',
+      title: error.message,
+      timer: 3000,
+      showConfirmButton: false,
+    });
+  } finally {
+    captureLoading.value = '';
+  }
 };
 
 const formatAttendanceTime = (value) => {
@@ -247,106 +337,69 @@ onBeforeUnmount(() => {
     </CatalogHeader>
 
     <section
+      v-if="canManage"
       class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <div class="mb-4">
         <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-          Seleccion de misa
+          Control de captura
         </h2>
         <p class="mt-1 text-xs text-slate-400">
-          Elige el fin de semana y la misa que usaras para registrar asistencias.
+          Inicia o termina la captura de entradas y salidas de esta misa.
         </p>
       </div>
 
       <div class="grid gap-3 md:grid-cols-2">
-        <label class="block">
-          <span class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Fin de semana
-          </span>
-          <select
-            :value="selectedWeekendId"
-            class="select select-bordered w-full"
-            @change="onWeekendChange"
-          >
-            <option v-for="weekend in weekendOptions" :key="weekend.id" :value="weekend.id">
-              {{ weekend.label }}
-            </option>
-          </select>
-        </label>
-
-        <label class="block">
-          <span class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Misa
-          </span>
-          <select
-            :value="selectedMassId"
-            class="select select-bordered w-full text-xs sm:text-sm"
-            @change="onMassChange"
-          >
-            <option v-for="massOption in availableMasses" :key="massOption.id" :value="massOption.id">
-              {{ massOption.short_label || massOption.label }}
-            </option>
-          </select>
-          <p v-if="selectedMassShortLabel" class="mt-2 text-xs font-medium text-slate-700 md:hidden">
-            {{ selectedMassShortLabel }}
-          </p>
-          <p v-if="selectedMassLabel" class="mt-2 text-xs leading-5 text-slate-500 md:hidden wrap-break-word">
-            {{ selectedMassLabel }}
-          </p>
-        </label>
-      </div>
-
-      <p class="mt-4 text-xs text-slate-400">
-        Al entrar desde el módulo de asistencias se carga automáticamente la misa del fin de semana más próximo disponible.
-      </p>
-    </section>
-
-    <section
-      class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-    >
-      <h2 class="mb-4 text-sm font-semibold text-red-600 dark:text-red-400">
-        ¿No puedes escanear el QR? Registra manualmente.
-      </h2>
-
-      <div v-if="!canScan" class="alert alert-warning mb-4 text-sm">
-        No tienes permiso para capturar códigos QR en esta misa.
-      </div>
-
-      <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-        Código único del niño
-      </label>
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <input
-          v-model="childCode"
-          class="input input-bordered w-full font-mono"
-          :class="{ 'input-error': errors.child_code }"
-          placeholder="Escribe el código del QR"
-          autocomplete="off"
-          autofocus
-          :disabled="!canScan"
-          @keyup.enter="scan('check_in')"
-        />
-        <button
-          class="btn btn-primary gap-1.5"
-          :disabled="loading || !canScan"
-          @click="scan('check_in')"
+        <div
+          class="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700"
         >
-          <LogIn class="h-4 w-4" />
-          Entrada
-        </button>
-        <button
-          class="btn btn-outline gap-1.5"
-          :disabled="loading || !canScan"
-          @click="scan('check_out')"
+          <div>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Captura de entradas</p>
+            <span
+              class="mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+              :class="statusPillClass(checkInStatus)"
+            >
+              {{ statusLabel(checkInStatus) }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm gap-1.5 rounded-xl px-4"
+            :class="checkInStatus === 'in_progress' ? 'btn-error' : 'btn-primary'"
+            :disabled="captureLoading !== ''"
+            @click="toggleCapture('check_in')"
+          >
+            <Square v-if="checkInStatus === 'in_progress'" class="h-4 w-4" />
+            <Play v-else class="h-4 w-4" />
+            {{ checkInStatus === 'in_progress' ? 'Terminar captura' : checkInStatus === 'completed' ? 'Reabrir captura' : 'Iniciar captura' }}
+          </button>
+        </div>
+
+        <div
+          class="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700"
         >
-          <LogOut class="h-4 w-4" />
-          Salida
-        </button>
+          <div>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Captura de salidas</p>
+            <span
+              class="mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+              :class="statusPillClass(checkOutStatus)"
+            >
+              {{ statusLabel(checkOutStatus) }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm gap-1.5 rounded-xl px-4"
+            :class="checkOutStatus === 'in_progress' ? 'btn-error' : 'btn-primary'"
+            :disabled="captureLoading !== ''"
+            @click="toggleCapture('check_out')"
+          >
+            <Square v-if="checkOutStatus === 'in_progress'" class="h-4 w-4" />
+            <Play v-else class="h-4 w-4" />
+            {{ checkOutStatus === 'in_progress' ? 'Terminar captura' : checkOutStatus === 'completed' ? 'Reabrir captura' : 'Iniciar captura' }}
+          </button>
+        </div>
       </div>
-      <p v-if="errors.child_code" class="mt-2 text-xs text-red-500">{{ errors.child_code[0] }}</p>
-      <p class="mt-2 text-xs text-slate-400">
-        Una asistencia cuenta como válida cuando el niño tiene entrada y salida en esta misa.
-      </p>
     </section>
 
     <section
@@ -360,44 +413,68 @@ onBeforeUnmount(() => {
             Scanner QR con cámara
           </h2>
           <p class="mx-auto mt-1 max-w-xl text-xs leading-5 text-slate-500 dark:text-slate-400 lg:mx-0">
-            Selecciona si la lectura registrará entrada o salida antes de escanear.
+            La lectura registrará entrada o salida automáticamente según la captura que esté en curso.
           </p>
-          <span
-            class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-            :class="
-              mass.attendance_status === 'in_progress'
-                ? 'bg-amber-100 text-amber-800'
-                : mass.attendance_status === 'completed'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-sky-100 text-sky-800'
-            "
-          >
-            Captura: {{ mass.attendance_status }}
-          </span>
+          <div class="mt-3 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+              :class="statusPillClass(checkInStatus)"
+            >
+              Entradas: {{ statusLabel(checkInStatus) }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+              :class="statusPillClass(checkOutStatus)"
+            >
+              Salidas: {{ statusLabel(checkOutStatus) }}
+            </span>
+          </div>
         </div>
-        <div class="w-full lg:max-w-55">
-          <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-            Tipo de lectura
-          </label>
-          <select
-            v-model="selectedAction"
-            class="select h-11 w-full rounded-xl border text-sm font-medium shadow-sm transition-colors"
-            :class="
-              selectedAction === 'check_in'
-                ? 'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-900/40 dark:text-orange-100'
-                : 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100'
-            "
-          >
-            <option class="bg-white text-slate-900" value="check_in">Entrada</option>
-            <option class="bg-white text-slate-900" value="check_out">Salida</option>
-          </select>
+        <div class="w-full space-y-3 lg:max-w-55">
+          <div v-if="cameras.length > 0 || cameraError">
+            <label
+              class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400"
+            >
+              Cámara
+            </label>
+            <div class="flex items-center gap-2">
+              <select
+                v-model="selectedCameraId"
+                class="select h-11 w-full rounded-xl border text-sm shadow-sm transition-colors"
+                :disabled="cameraLoading || !scannerRunning"
+                @change="switchCamera"
+              >
+                <option v-for="cam in cameras" :key="cam.id" :value="cam.id">
+                  {{ cam.label || 'Cámara disponible' }}
+                </option>
+              </select>
+              <button
+                v-if="cameras.length > 1"
+                type="button"
+                class="btn btn-outline btn-sm gap-1.5 rounded-xl"
+                :disabled="cameraLoading"
+                title="Cambiar de cámara"
+                @click="switchCamera"
+              >
+                <SwitchCamera class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div v-if="!canScan" class="alert alert-warning mb-4 text-sm">
+        No tienes permiso para capturar códigos QR en esta misa.
+      </div>
+
+      <div v-else-if="noActiveCapture" class="alert alert-info mb-4 text-sm">
+        No hay una captura activa. El coordinador debe iniciar la captura de entradas o de salidas.
       </div>
 
       <div class="border-t border-slate-200 pt-5 dark:border-slate-800">
         <div
           id="mass-attendance-qr-reader"
-          class="mx-auto max-w-md overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
+          class="mx-auto max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
         ></div>
 
         <p class="mt-3 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -417,11 +494,11 @@ onBeforeUnmount(() => {
           v-if="!scannerRunning"
           type="button"
           class="btn btn-primary gap-1.5 rounded-xl px-5 sm:btn-sm"
-          :disabled="loading || !canScan"
+          :disabled="loading || scannerLoading || !canScan || noActiveCapture"
           @click="startCamera"
         >
           <Camera class="h-4 w-4" />
-          Iniciar cámara
+          {{ scannerLoading ? 'Iniciando...' : 'Iniciar cámara' }}
         </button>
         <button
           v-else

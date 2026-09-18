@@ -131,9 +131,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
-    Route::get('asistencias', [MassAttendanceController::class, 'landing'])
-        ->name('asistencias.index');
-
     Route::resource('asistencias-manuales', ManualAttendanceController::class)
         ->only(['index', 'store'])
         ->parameters(['asistencias-manuales' => 'manualAttendance']);
@@ -142,6 +139,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('misas.asistencias.index');
     Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
         ->name('misas.asistencias.scan');
+    Route::post('misas/{misa}/asistencias/status', [MassAttendanceController::class, 'updateCaptureStatus'])
+        ->name('misas.asistencias.status');
 
     Route::resource('tipos-incidencias', IncidenceTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])
@@ -161,7 +160,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/children/export-pdf/{batch}/download', [ChildController::class, 'downloadPdfBatch'])->name('children.export-pdf.download');
     Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
-
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
         ->name('reinscripciones.create');

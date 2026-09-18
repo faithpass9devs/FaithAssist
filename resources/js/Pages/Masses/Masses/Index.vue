@@ -301,18 +301,32 @@ const destroyMass = (mass) => {
                 <td>{{ mass.starts_at }}</td>
                 <td>{{ mass.ends_at || 'Pendiente' }}</td>
                 <td>
-                  <span
-                    class="badge badge-sm"
-                    :class="
-                      mass.attendance_status === 'in_progress'
-                        ? 'badge-warning'
-                        : mass.attendance_status === 'completed'
-                          ? 'badge-success'
-                          : 'badge-info'
-                    "
-                  >
-                    {{ mass.attendance_status }}
-                  </span>
+                  <div class="flex flex-col items-start gap-1">
+                    <span
+                      class="badge badge-sm"
+                      :class="
+                        mass.attendance_check_in_status === 'in_progress'
+                          ? 'badge-warning'
+                          : mass.attendance_check_in_status === 'completed'
+                            ? 'badge-success'
+                            : 'badge-info'
+                      "
+                    >
+                      E: {{ mass.attendance_check_in_status }}
+                    </span>
+                    <span
+                      class="badge badge-sm"
+                      :class="
+                        mass.attendance_check_out_status === 'in_progress'
+                          ? 'badge-warning'
+                          : mass.attendance_check_out_status === 'completed'
+                            ? 'badge-success'
+                            : 'badge-info'
+                      "
+                    >
+                      S: {{ mass.attendance_check_out_status }}
+                    </span>
+                  </div>
                 </td>
                 <td class="whitespace-nowrap text-right">
                   <div class="inline-flex items-center justify-end gap-1">

@@ -47,7 +47,12 @@ class MassRequest extends FormRequest
                 Status::IN_PROGRESS,
                 Status::COMPLETED,
             ])],
-            'attendance_status' => ['required', Rule::in([
+            'attendance_check_in_status' => ['required', Rule::in([
+                Status::UPCOMING,
+                Status::IN_PROGRESS,
+                Status::COMPLETED,
+            ])],
+            'attendance_check_out_status' => ['required', Rule::in([
                 Status::UPCOMING,
                 Status::IN_PROGRESS,
                 Status::COMPLETED,

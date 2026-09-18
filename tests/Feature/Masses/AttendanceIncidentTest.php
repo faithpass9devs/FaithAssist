@@ -193,7 +193,8 @@ class AttendanceIncidentTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
     }
 
