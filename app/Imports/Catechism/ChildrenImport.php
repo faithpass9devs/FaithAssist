@@ -2,12 +2,15 @@
 
 namespace App\Imports\Catechism;
 
+use DateTimeImmutable;
 use DateTimeInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ChildrenImport
@@ -16,6 +19,19 @@ class ChildrenImport
      * Fila (1-indexada) donde empiezan los datos.
      */
     public const HEADING_ROW = 1;
+
+    /**
+     * Serial del último día que Excel puede representar como fecha (31/12/9999).
+     */
+    private const MAX_SERIAL = 2958465.0;
+
+    /**
+     * Serial del día de hoy, para acotar las fechas de nacimiento.
+     */
+    private static function todaySerial(): float
+    {
+        return Date::PHPToExcel(new DateTimeImmutable('today'));
+    }
 
     /**
      * Encabezados aceptados, ya normalizados (minúsculas, sin acentos, con _).
@@ -56,7 +72,7 @@ class ChildrenImport
                     continue;
                 }
 
-                $raw[$heading] = static::normalizeValue($sheet->getCell($column.$line)->getValue());
+                $raw[$heading] = static::cellValue($sheet, $column.$line, $heading);
             }
 
             if (static::isBlank($raw)) {
@@ -136,6 +152,63 @@ class ChildrenImport
         }
 
         return trim((string) $value);
+    }
+
+    /**
+     * Excel no guarda fechas como texto: las guarda como números seriales
+     * (días desde 1899-12-30) con un formato de celda de fecha. Por eso hay que
+     * mirar la celda completa y no sólo su valor.
+     */
+    private static function cellValue(Worksheet $sheet, string $coordinate, string $heading): string
+    {
+        $cell = $sheet->getCell($coordinate);
+        $value = $cell->getValue();
+
+        if ($heading === 'birthdate') {
+            $date = static::excelDate($value, $cell);
+
+            if ($date !== null) {
+                return $date;
+            }
+        }
+
+        return static::normalizeValue($value);
+    }
+
+    /**
+     * Convierte un número serial de Excel a Y-m-d, o devuelve null si el valor
+     * no es una fecha.
+     */
+    private static function excelDate(mixed $value, Cell $cell): ?string
+    {
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $serial = (float) $value;
+
+        // Descarta temprano lo que no puede ser un serial, para no pagar la
+        // búsqueda del formato de celda en valores que claramente no son fechas.
+        if ($serial < 1 || $serial > static::MAX_SERIAL) {
+            return null;
+        }
+
+        if (Date::isDateTime($cell, $value)) {
+            return Date::excelToDateTimeObject($serial, 'UTC')->format('Y-m-d');
+        }
+
+        // Formato "General": hay exportadores que escriben el serial sin formato
+        // de fecha. En la columna birthdate un entero nunca es otro dato que una
+        // fecha de nacimiento, así que basta con acotarlo a 1900-hoy.
+        if (floor($serial) !== $serial || $serial > static::todaySerial()) {
+            return null;
+        }
+
+        return Date::excelToDateTimeObject($serial, 'UTC')->format('Y-m-d');
     }
 
     private static function sheet(string $path): Worksheet
