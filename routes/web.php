@@ -157,6 +157,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('/children/export', [ChildController::class, 'export'])->name('children.export');
+    Route::get('/children/import/template', [ChildController::class, 'importTemplate'])->name('children.import.template');
+    Route::post('/children/import', [ChildController::class, 'importBatch'])->name('children.import');
+    Route::get('/children/import/{batch}', [ChildController::class, 'importBatchStatus'])->name('children.import.status');
+    Route::get('/children/import/{batch}/errors', [ChildController::class, 'importBatchErrors'])->name('children.import.errors');
     Route::post('/children/export-pdf', [ChildController::class, 'exportPdfBatch'])->name('children.export-pdf');
     Route::get('/children/export-pdf/{batch}', [ChildController::class, 'pdfBatchStatus'])->name('children.export-pdf.status');
     Route::get('/children/export-pdf/{batch}/download', [ChildController::class, 'downloadPdfBatch'])->name('children.export-pdf.download');
