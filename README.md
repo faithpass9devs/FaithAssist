@@ -138,7 +138,7 @@ Ejecutar pruebas con Pest directamente:
 composer test:pest
 ```
 
-Ejecutar un archivo o filtro especifico con Pest:
+Ejecutar un archivo o filtro específico con Pest:
 
 ```bash
 ./vendor/bin/pest tests/Feature/Auth/ForgotPasswordWhatsappTest.php
