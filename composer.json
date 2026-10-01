@@ -30,6 +30,8 @@
     "laravel/pint": "^1.27",
     "mockery/mockery": "^1.6",
     "nunomaduro/collision": "^8.6",
+    "pestphp/pest": "^4.7",
+    "pestphp/pest-plugin-laravel": "^4.1",
     "phpunit/phpunit": "^12.5.12"
   },
   "autoload": {
@@ -61,7 +63,19 @@
       "Composer\\Config::disableProcessTimeout",
       "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#fbbf24,#34d399\" \"php artisan serve\" \"php artisan queue:work\" \"npm run dev\" \"php artisan schedule:work\" \"pnpm run baileys\" --names=server,queue,vite,scheduler,baileys --kill-others"
     ],
+    "format:check": "vendor/bin/pint --dirty --test",
+    "precommit": [
+      "@format:check",
+      "@test:pest"
+    ],
     "test": [
+      "@test:pest"
+    ],
+    "test:pest": [
+      "@php artisan config:clear --ansi @no_additional_args",
+      "vendor/bin/pest"
+    ],
+    "test:phpunit": [
       "@php artisan config:clear --ansi @no_additional_args",
       "@php artisan test"
     ],
