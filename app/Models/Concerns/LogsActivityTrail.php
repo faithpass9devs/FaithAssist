@@ -10,13 +10,6 @@ trait LogsActivityTrail
 {
     use LogsActivity;
 
-    /**
-     * Keep restores in the audit trail for soft-deleted models.
-     *
-     * @var array<int, string>
-     */
-    protected static array $recordEvents = ['created', 'updated', 'deleted', 'restored'];
-
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -41,8 +34,13 @@ trait LogsActivityTrail
         $properties = $activity->properties?->toArray() ?? [];
         $properties['module'] = class_basename($this);
 
-        if (!app()->runningInConsole()) {
-            $request = request();
+        $request = request();
+
+        if ($request->hasSession()) {
+            $properties['session_id'] = $request->session()->getId();
+        }
+
+        if (! app()->runningInConsole()) {
             $properties['ip_address'] = $request->ip();
             $properties['user_agent'] = $request->userAgent();
             $properties['url'] = $request->fullUrl();

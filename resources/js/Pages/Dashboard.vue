@@ -199,6 +199,12 @@ const modules = computed(() =>
           href: '/usuarios',
           moduleKey: 'usuarios',
         },
+        {
+          label: 'Dispositivos y sesiones',
+          icon: ShieldCheck,
+          href: '/dispositivos-sesiones',
+          moduleKey: 'dispositivos_sesiones',
+        },
       ],
     },
     {

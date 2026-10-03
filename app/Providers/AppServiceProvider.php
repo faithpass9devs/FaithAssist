@@ -14,6 +14,7 @@ use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Masses\Weekend;
+use App\Models\DeviceSession;
 use App\Models\Module;
 use App\Models\Operation\Level;
 use App\Models\Operation\Period;
@@ -65,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Module::class, ModulePolicy::class);
+        Gate::policy(DeviceSession::class, \App\Policies\DeviceSessionPolicy::class);
         Gate::policy(Child::class, ChildPolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(State::class, StatePolicy::class);

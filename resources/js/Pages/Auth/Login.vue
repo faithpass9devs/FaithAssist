@@ -13,8 +13,10 @@ import {
   SunMedium,
 } from 'lucide-vue-next';
 import { useTheme } from '../../composables/useTheme';
+import { getDeviceModel } from '../../utils/deviceModel';
 
 const showPassword = ref(false);
+const locationError = ref('');
 const {
   theme,
   isDark,
@@ -38,6 +40,10 @@ const form = useForm({
   theme: theme.value,
   palette: palette.value,
   custom_color: customColor.value,
+  latitude: null,
+  longitude: null,
+  location_accuracy: null,
+  device_model: null,
 });
 
 watch(
@@ -75,9 +81,37 @@ const forgotPasswordHref = computed(() => {
 });
 
 const submit = () => {
-  form.post('/login', {
+  locationError.value = '';
+
+  const sendLogin = () => form.post('/login', {
     onFinish: () => form.reset('password'),
   });
+
+  if (window.isSecureContext === false) {
+    locationError.value = 'Se requiere permitir el uso de tu ubicación para usar el sistema, y solo es posible mediante una conexión segura (HTTPS).';
+    return;
+  }
+
+  if (! navigator.geolocation) {
+    locationError.value = 'Se requiere permitir el uso de tu ubicación para usar el sistema y este navegador no lo permite. Ingresa desde un navegador actualizado.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      form.latitude = Number(coords.latitude.toFixed(7));
+      form.longitude = Number(coords.longitude.toFixed(7));
+      form.location_accuracy = Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null;
+      form.device_model = await getDeviceModel();
+      sendLogin();
+    },
+    (error) => {
+      locationError.value = error.code === error.PERMISSION_DENIED
+        ? 'Se requiere permitir el uso de tu ubicación para usar el sistema. Habilita el permiso de Ubicación en tu navegador e inténtalo de nuevo.'
+        : 'No pudimos leer tu ubicación. Enciende la ubicación del dispositivo e inténtalo de nuevo.';
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+  );
 };
 </script>
 
@@ -124,6 +158,13 @@ const submit = () => {
               class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
             >
               {{ status }}
+            </div>
+
+            <div
+              v-if="locationError"
+              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
+            >
+              {{ locationError }}
             </div>
 
             <div class="space-y-2">

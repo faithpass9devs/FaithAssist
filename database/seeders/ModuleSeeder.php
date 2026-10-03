@@ -38,6 +38,11 @@ class ModuleSeeder extends Seeder
                 'key' => 'security',
             ],
             [
+                'name' => 'Dispositivos y sesiones',
+                'description' => 'Módulo para visualizar y gestionar dispositivos y sesiones de usuarios.',
+                'key' => 'dispositivos_sesiones',
+            ],
+            [
                 'name' => 'Operación',
                 'description' => 'Módulo para la gestión de operaciones y actividades.',
                 'key' => 'operation',

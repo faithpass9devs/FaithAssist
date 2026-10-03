@@ -2,7 +2,9 @@
 
 namespace App\Models\Masses;
 
+use App\Globals\Status;
 use App\Models\Catechism\Child;
+use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Church;
 use App\Models\User;
@@ -26,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class MassAttendance extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivityTrail;
 
     protected $table = 'mass_attendance';
 
@@ -99,7 +101,7 @@ class MassAttendance extends Model
             ->with('incidenceType:id,name')
             ->where('weekend_id', $weekendId)
             ->where('child_id', $this->child_id)
-            ->where('status', \App\Globals\Status::ACTIVE)
+            ->where('status', Status::ACTIVE)
             ->first();
     }
 }

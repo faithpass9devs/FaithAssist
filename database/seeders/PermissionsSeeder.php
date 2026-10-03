@@ -15,6 +15,8 @@ class PermissionsSeeder extends Seeder
         $modules = [
             'modulos' => 'security',
             'permisos' => 'security',
+            'dispositivos_sesiones' => 'security',
+            'moderacion_cuentas' => 'security',
             'estados' => 'regions',
             'municipios' => 'regions',
             'comunidades' => 'regions',

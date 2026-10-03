@@ -1,8 +1,9 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { MoonStar, Palette, RotateCcw, SunMedium, X } from 'lucide-vue-next';
+import { Bell, CircleAlert, MapPin, MoonStar, Palette, RotateCcw, ShieldAlert, SunMedium, X } from 'lucide-vue-next';
 import { useTheme } from '../../composables/useTheme';
+import { getDeviceModel } from '../../utils/deviceModel';
 
 defineProps({
   pageTitle: {
@@ -46,6 +47,154 @@ const displayName = computed(() => {
 });
 const initials = computed(() => authUser.value?.initials ?? 'U');
 const photoUrl = computed(() => authUser.value?.photo_url ?? null);
+const moderationNotification = ref(page.props.auth?.pending_moderation_notification ?? null);
+const moderationAcknowledged = ref(false);
+let moderationPoll = null;
+let locationPoll = null;
+let locationPermission = null;
+let deviceModelPromise = null;
+
+const locationStatus = ref('checking');
+const locationRetrying = ref(false);
+
+const locationBlocked = computed(
+  () => !!authUser.value && ['denied', 'unsupported', 'insecure', 'unavailable'].includes(locationStatus.value),
+);
+
+const locationTitle = computed(() => ({
+  denied: 'Permiso de ubicación bloqueado',
+  unsupported: 'Ubicación no disponible en este navegador',
+  insecure: 'Conexión no segura',
+})[locationStatus.value] ?? 'No pudimos obtener tu ubicación');
+
+const locationDescription = computed(() => ({
+  denied:
+    'Para usar el sistema debes permitir el acceso a tu ubicación. Ábrelo en el candado de la barra de direcciones, cambia el permiso de Ubicación a "Permitir" y vuelve a intentarlo.',
+  unsupported:
+    'Este navegador no permite compartir la ubicación. Ingresa desde un navegador actualizado para continuar usando el sistema.',
+  insecure:
+    'La ubicación solo puede obtenerse mediante una conexión segura (HTTPS). Ingresa por la dirección segura del sistema para continuar.',
+})[locationStatus.value] ?? 'No fue posible leer tu ubicación en este momento. Verifica que la ubicación del dispositivo esté encendida y vuelve a intentarlo.');
+
+const postLocation = (coords, deviceModel) =>
+  fetch('/mi-sesion/ubicacion', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({
+      latitude: Number(coords.latitude.toFixed(7)),
+      longitude: Number(coords.longitude.toFixed(7)),
+      accuracy: Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null,
+      device_model: deviceModel,
+    }),
+  }).catch(() => {
+    // Location reporting is best effort and must not interrupt the current page.
+  });
+
+const requestLocation = () => {
+  if (!authUser.value) return;
+
+  if (window.isSecureContext === false) {
+    locationStatus.value = 'insecure';
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    locationStatus.value = 'unsupported';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      locationStatus.value = 'granted';
+      locationRetrying.value = false;
+      deviceModelPromise ??= getDeviceModel();
+      postLocation(coords, await deviceModelPromise);
+    },
+    (error) => {
+      locationStatus.value = error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable';
+      locationRetrying.value = false;
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+  );
+};
+
+const retryLocation = () => {
+  locationRetrying.value = true;
+  requestLocation();
+};
+
+const isRestrictedModeration = computed(() => ['moderada', 'grave'].includes(moderationNotification.value?.level));
+const moderationTitle = computed(() => ({
+  leve: 'Primera advertencia',
+  moderada: 'Segunda advertencia',
+  grave: 'Advertencia final',
+})[moderationNotification.value?.level] ?? 'Aviso importante');
+const moderationDescription = computed(() => {
+  if (moderationNotification.value?.level === 'moderada') {
+    return 'Tu cuenta quedará suspendida durante 24 horas. Durante este periodo no podrás utilizar el sistema.';
+  }
+
+  if (moderationNotification.value?.level === 'grave') {
+    return 'Tu cuenta ha sido bloqueada y no podrás utilizar el sistema hasta nuevo aviso.';
+  }
+
+  return 'Se ha registrado una advertencia en tu cuenta. Lee el mensaje y confirma que estás enterado para continuar.';
+});
+
+const fetchModerationNotification = async () => {
+  try {
+    const response = await fetch('/notificaciones/pendiente', {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+
+    if (response.ok && !moderationAcknowledged.value) {
+      const data = await response.json();
+      moderationNotification.value = data.notification;
+    }
+  } catch {
+    // Notification polling is best effort and must not interrupt the current page.
+  }
+};
+
+const acknowledgeModeration = async () => {
+  if (!moderationNotification.value) return;
+
+  if (isRestrictedModeration.value) {
+    if (moderationNotification.value.id) {
+      await fetch(`/notificaciones/${moderationNotification.value.id}/confirmar`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+    }
+    moderationAcknowledged.value = true;
+    logout();
+    return;
+  }
+
+  const response = await fetch(`/notificaciones/${moderationNotification.value.id}/confirmar`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  });
+
+  if (response.ok) {
+    moderationNotification.value = null;
+  }
+};
 
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value;
@@ -236,14 +385,37 @@ watch(showPalettePicker, (open) => {
   document.body.style.overflow = open ? 'hidden' : '';
 });
 
+watch(locationBlocked, (blocked) => {
+  document.body.style.overflow = blocked ? 'hidden' : '';
+});
+
 onMounted(() => {
   window.addEventListener('click', onWindowClick);
   window.addEventListener('keydown', onKeydown);
+  moderationPoll = window.setInterval(fetchModerationNotification, 10000);
+  requestLocation();
+  locationPoll = window.setInterval(requestLocation, 60000);
+
+  navigator.permissions?.query?.({ name: 'geolocation' })
+    .then((status) => {
+      locationPermission = status;
+      status.onchange = requestLocation;
+    })
+    .catch(() => {
+      // The Permissions API is optional; the periodic retry keeps the gate in sync.
+    });
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('click', onWindowClick);
   window.removeEventListener('keydown', onKeydown);
+  window.clearInterval(moderationPoll);
+  window.clearInterval(locationPoll);
+
+  if (locationPermission) {
+    locationPermission.onchange = null;
+  }
+
   document.body.style.overflow = '';
 });
 </script>
@@ -479,6 +651,99 @@ onBeforeUnmount(() => {
       </div>
     </main>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="locationBlocked && !moderationNotification"
+      class="fixed inset-0 z-[95] flex min-h-screen items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="location-gate-title"
+    >
+      <section class="flex w-full max-w-xl flex-col overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex-1 px-5 py-8 text-center sm:px-10 sm:py-10">
+          <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
+            <MapPin class="h-11 w-11" />
+          </div>
+
+          <p class="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Permiso requerido</p>
+          <h2 id="location-gate-title" class="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100 sm:text-3xl">
+            {{ locationTitle }}
+          </h2>
+          <p class="mx-auto mt-4 max-w-lg text-base leading-7 text-slate-600 dark:text-slate-300">
+            Se requiere permitir el uso de tu ubicación para poder usar el sistema.
+          </p>
+
+          <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left dark:border-slate-700 dark:bg-slate-800/70">
+            <p class="text-sm leading-6 text-slate-700 dark:text-slate-200">{{ locationDescription }}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2 border-t border-slate-200 p-5 dark:border-slate-700 sm:flex-row sm:px-10">
+          <button
+            type="button"
+            class="btn flex-1 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:opacity-70"
+            :disabled="locationRetrying"
+            @click="retryLocation"
+          >
+            {{ locationRetrying ? 'Comprobando ubicación...' : 'Permitir ubicación' }}
+          </button>
+          <button type="button" class="btn btn-ghost flex-1 rounded-xl" @click="logout">Cerrar sesión</button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
+
+  <Teleport to="body">
+    <div
+      v-if="moderationNotification"
+      class="fixed inset-0 z-[100] flex min-h-screen items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+      :class="isRestrictedModeration ? 'p-0 sm:p-6' : ''"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="`moderation-title-${moderationNotification.id}`"
+    >
+      <section
+        class="flex w-full flex-col overflow-y-auto border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        :class="isRestrictedModeration ? 'min-h-screen rounded-none sm:min-h-0 sm:max-h-[90vh] sm:max-w-2xl sm:rounded-3xl' : 'max-h-[90vh] max-w-xl rounded-3xl'"
+      >
+        <div class="flex-1 px-5 py-8 text-center sm:px-10 sm:py-10">
+          <div
+            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full"
+            :class="isRestrictedModeration ? 'bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300'"
+          >
+            <ShieldAlert v-if="isRestrictedModeration" class="h-11 w-11" />
+            <CircleAlert v-else class="h-11 w-11" />
+          </div>
+
+          <p class="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Notificación de cuenta</p>
+          <h2 :id="`moderation-title-${moderationNotification.id}`" class="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100 sm:text-3xl">
+            {{ moderationTitle }}
+          </h2>
+          <p class="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">{{ moderationDescription }}</p>
+
+          <div class="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left dark:border-slate-700 dark:bg-slate-800/70">
+            <div class="flex items-start gap-3">
+              <Bell class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <p class="whitespace-pre-line text-sm leading-6 text-slate-700 dark:text-slate-200">{{ moderationNotification.message }}</p>
+            </div>
+          </div>
+
+          <p v-if="!isRestrictedModeration" class="mt-5 text-sm font-medium text-slate-500 dark:text-slate-400">Confirma que has leído esta notificación para continuar.</p>
+        </div>
+
+        <div class="border-t border-slate-200 p-5 dark:border-slate-700 sm:px-10">
+          <button
+            type="button"
+            class="btn w-full rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800"
+            @click="acknowledgeModeration"
+          >
+            {{ isRestrictedModeration ? 'Entendido, cerrar sesión' : 'Entendido, continuar' }}
+          </button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>

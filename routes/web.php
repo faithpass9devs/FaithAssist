@@ -15,6 +15,7 @@ use App\Http\Controllers\Masses\MassAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceIncidentController;
 use App\Http\Controllers\Masses\MassController;
 use App\Http\Controllers\Masses\WeekendController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Operation\LevelController;
 use App\Http\Controllers\Operation\PeriodController;
 use App\Http\Controllers\Operation\PeriodMovementController;
@@ -54,6 +55,12 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'password.changed'])->group(function () {
+    Route::get('/notificaciones/pendiente', [NotificationController::class, 'pending'])->name('notifications.pending');
+    Route::patch('/notificaciones/{notification}/confirmar', [NotificationController::class, 'acknowledge'])->name('notifications.acknowledge');
+    Route::get('/cuenta/restringida', function () {
+        return Inertia::render('Account/Restricted');
+    })->name('account.restricted');
+
     Route::get('/', function () {
         return Inertia::render('Dashboard');
     })->name('home');
@@ -191,6 +198,25 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::resource('permisos', PermissionController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['permisos' => 'permiso']);
+
+    Route::post('/mi-sesion/ubicacion', [\App\Http\Controllers\Security\DeviceSessionController::class, 'updateOwnLocation'])
+        ->name('sesion.ubicacion.update');
+    Route::get('/dispositivos-sesiones', [\App\Http\Controllers\Security\DeviceSessionController::class, 'index'])
+        ->name('dispositivos-sesiones.index');
+    Route::get('/dispositivos-sesiones/usuario/{usuario}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'show'])
+        ->name('dispositivos-sesiones.usuario.show');
+    Route::delete('/dispositivos-sesiones/{session}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'destroy'])
+        ->name('dispositivos-sesiones.destroy');
+    Route::delete('/dispositivos-sesiones/usuario/{usuario}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'closeUserSessions'])
+        ->name('dispositivos-sesiones.usuario.destroy');
+    Route::get('/dispositivos-sesiones/usuario/{usuario}/historial', [\App\Http\Controllers\Security\DeviceSessionController::class, 'downloadHistory'])
+        ->name('dispositivos-sesiones.usuario.history');
+    Route::post('/dispositivos-sesiones/usuario/{usuario}/advertencia', [\App\Http\Controllers\Security\DeviceSessionController::class, 'sendWarning'])
+        ->name('dispositivos-sesiones.usuario.warning');
+    Route::patch('/dispositivos-sesiones/usuario/{usuario}/estado', [\App\Http\Controllers\Security\DeviceSessionController::class, 'updateAccountStatus'])
+        ->name('dispositivos-sesiones.usuario.status');
+    Route::delete('/dispositivos-sesiones/usuario/{usuario}/advertencia/{warning}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'deleteWarning'])
+        ->name('dispositivos-sesiones.usuario.warning.destroy');
 
     Route::resource('roles', RoleController::class)->only(['index', 'create', 'store', 'edit', 'update']);
 
