@@ -2,6 +2,7 @@
 
 namespace App\Services\Masses;
 
+use App\Models\Masses\Weekend;
 use App\Models\User;
 use App\Repositories\Masses\ManualAttendanceRepository;
 
@@ -35,10 +36,14 @@ class ManualAttendanceDataService
             ? $this->manualAttendance->getMasses($user, $weekendId)
             : [];
 
+        $churchId = $weekendId
+            ? Weekend::query()->whereKey($weekendId)->value('church_id')
+            : null;
+
         // Check if manual attendance capture is currently active
-        $isManualAttendanceActive = $this->manualAttendance->isManualAttendanceCaptureActive($user);
+        $isManualAttendanceActive = $this->manualAttendance->isManualAttendanceCaptureActive($user, $churchId);
         $activeMovement = $isManualAttendanceActive
-            ? $this->manualAttendance->getActiveManualAttendanceMovementInfo($user)
+            ? $this->manualAttendance->getActiveManualAttendanceMovementInfo($user, $churchId)
             : null;
 
         return [
@@ -72,8 +77,8 @@ class ManualAttendanceDataService
      * Check if manual attendance capture is currently active.
      * This method validates if a manual attendance movement is active and available for use.
      */
-    public function isManualAttendanceCaptureActive(User $user): bool
+    public function isManualAttendanceCaptureActive(User $user, ?int $churchId = null): bool
     {
-        return $this->manualAttendance->isManualAttendanceCaptureActive($user);
+        return $this->manualAttendance->isManualAttendanceCaptureActive($user, $churchId);
     }
 }

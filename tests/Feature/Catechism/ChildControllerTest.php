@@ -400,6 +400,7 @@ class ChildControllerTest extends TestCase
 
         return PeriodMovement::query()->create([
             'period_id' => $period->id,
+            'church_id' => $chain['church']->id,
             'period_movement_type_id' => $type->id,
             'status' => Status::IN_PROGRESS,
             'start_date' => now()->subWeek()->toDateString(),

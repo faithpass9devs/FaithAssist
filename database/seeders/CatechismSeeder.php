@@ -60,9 +60,12 @@ class CatechismSeeder extends Seeder
             return;
         }
 
+        $defaultChurchId = \App\Models\Ecclesiastes\Church::query()->orderBy('id')->value('id');
+
         $inscriptionsMovement = PeriodMovement::query()->updateOrCreate(
             [
                 'period_id' => $period->id,
+                'church_id' => $defaultChurchId,
                 'period_movement_type_id' => $inscriptionsType->id,
             ],
             [
@@ -78,6 +81,7 @@ class CatechismSeeder extends Seeder
         $reinscriptionsMovement = PeriodMovement::query()->updateOrCreate(
             [
                 'period_id' => $period->id,
+                'church_id' => $defaultChurchId,
                 'period_movement_type_id' => $reinscriptionsType->id,
             ],
             [

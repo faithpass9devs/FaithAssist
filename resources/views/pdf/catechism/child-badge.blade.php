@@ -87,9 +87,9 @@
         .logo-fallback {
             width: 20mm;
             height: 20mm;
-            border: 1.2mm solid #d4af37;
+            border: 1.2mm solid {{ $accentColor ?? '#d4af37' }};
             border-radius: 50%;
-            color: #d4af37;
+            color: {{ $accentColor ?? '#d4af37' }};
             font-size: 7mm;
             font-weight: 700;
             line-height: 20mm;
@@ -98,6 +98,7 @@
 
         .church-name {
             margin: 0;
+            color: {{ $bodyTextColor ?? '#111827' }};
             font-size: 15pt;
             font-weight: 800;
             line-height: 1.15;
@@ -106,6 +107,7 @@
 
         .location {
             margin-top: 3mm;
+            color: {{ $bodyTextColor ?? '#111827' }};
             font-size: 8pt;
             letter-spacing: 2px;
             text-transform: uppercase;
@@ -115,9 +117,9 @@
             margin: 8mm auto 6mm;
             display: inline-block;
             padding: 3mm 6mm;
-            border: 1px solid #d4af37;
+            border: 1px solid {{ $accentColor ?? '#d4af37' }};
             border-radius: 6px;
-            color: #d4af37;
+            color: {{ $accentColor ?? '#d4af37' }};
             font-size: 13pt;
             font-weight: 800;
             line-height: 1.05;
@@ -126,6 +128,7 @@
 
         .child-name {
             margin: 0 0 4mm;
+            color: {{ $bodyTextColor ?? '#111827' }};
             font-size: 14pt;
             font-weight: 800;
             text-transform: uppercase;
@@ -134,6 +137,7 @@
         .child-data {
             margin: 0 auto;
             max-width: 130mm;
+            color: {{ $bodyTextColor ?? '#111827' }};
             font-size: 10pt;
             line-height: 1.55;
             font-weight: 700;
@@ -153,7 +157,7 @@
             margin: 8mm auto 5mm;
             padding: 0.8mm;
             box-sizing: border-box;
-            border: 1px solid #d1d5db;
+            border: 1px solid {{ $qrBorderColor ?? '#d1d5db' }};
             background: #ffffff;
             display: flex;
             align-items: center;
@@ -177,8 +181,8 @@
             margin-top: 2mm;
             padding: 2mm 6mm;
             border-radius: 999px;
-            background: #111827;
-            color: #ffffff;
+            background: {{ $chipBgColor ?? '#111827' }};
+            color: {{ $chipTextColor ?? '#ffffff' }};
             font-size: 8.5pt;
             font-weight: 700;
         }
@@ -217,15 +221,15 @@
         }
 
         .attendance-table thead th {
-            background: #d892ad;
+            background: {{ $tableHeaderColor ?? '#d892ad' }};
             color: #ffffff;
-            border: 1px solid #d892ad;
+            border: 1px solid {{ $tableHeaderColor ?? '#d892ad' }};
             padding: 2.5mm 1mm;
             font-weight: 800;
         }
 
         .attendance-table tbody td {
-            border: 1px solid #e5b7c6;
+            border: 1px solid {{ $tableBorderColor ?? '#e5b7c6' }};
             height: 7.2mm;
             padding: 2mm 1.5mm;
         }
@@ -264,7 +268,7 @@
             <h1 class="church-name">{{ mb_strtoupper($churchName) }}</h1>
             <div class="location">{{ mb_strtoupper(trim($municipalityName . ($stateName ? ', ' . $stateName : ''))) }}</div>
 
-            <div class="badge-title">Gafete de catequesis</div>
+            <div class="badge-title">{{ $badgeTitleText ?? 'Gafete de catequesis' }}</div>
 
             <div class="child-name">{{ mb_strtoupper($childName) }}</div>
 
@@ -292,8 +296,7 @@
             <div class="code-chip">Código único: {{ $childCode }}</div>
 
             <div class="footer-note">
-                Para registrar su asistencia dominical, será necesario presentar el código QR asignado al momento de su llegada.
-                Sin este código, no podrá ser validada su participación.
+                {{ $footerText ?? 'Para registrar su asistencia dominical, será necesario presentar el código QR asignado al momento de su llegada. Sin este código, no podrá ser validada su participación.' }}
             </div>
         </div>
     </section>

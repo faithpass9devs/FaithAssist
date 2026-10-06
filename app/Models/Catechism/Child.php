@@ -137,4 +137,29 @@ class Child extends Model
     {
         return $query->where('status', Status::ACTIVE);
     }
+
+    public function scopeSearch(Builder $query, string $search): Builder
+    {
+        $terms = array_values(array_filter(preg_split('/\s+/', trim($search)) ?: []));
+
+        if ($terms === []) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($terms): void {
+            foreach ($terms as $term) {
+                $builder->where(function (Builder $field) use ($term): void {
+                    $field
+                        ->where('code', 'like', "%{$term}%")
+                        ->orWhere('name', 'like', "%{$term}%")
+                        ->orWhere('paterno', 'like', "%{$term}%")
+                        ->orWhere('materno', 'like', "%{$term}%")
+                        ->orWhere('email', 'like', "%{$term}%")
+                        ->orWhere('phone', 'like', "%{$term}%")
+                        ->orWhereHas('church', fn (Builder $church) => $church->where('name', 'like', "%{$term}%"))
+                        ->orWhereHas('community', fn (Builder $community) => $community->where('name', 'like', "%{$term}%"));
+                });
+            }
+        });
+    }
 }

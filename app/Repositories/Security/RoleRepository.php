@@ -26,8 +26,8 @@ class RoleRepository
             ->get(['id', 'name', 'description', 'module_key'])
             ->groupBy('module_key')
             ->map(fn ($perms, $key) => [
-                'key'         => $key,
-                'label'       => $this->getModuleLabel($key),
+                'key' => $key,
+                'label' => $this->getModuleLabel($key),
                 'permissions' => $perms->values(),
             ])
             ->values()
@@ -37,18 +37,19 @@ class RoleRepository
     public function create(array $data): Role
     {
         return Role::create([
-            'name'        => $data['name'],
+            'name' => $data['name'],
             'description' => $data['description'],
-            'guard_name'  => 'web',
+            'guard_name' => 'web',
         ]);
     }
 
     public function update(Role $role, array $data): Role
     {
         $role->update([
-            'name'        => $data['name'],
+            'name' => $data['name'],
             'description' => $data['description'],
         ]);
+
         return $role->fresh();
     }
 
@@ -66,15 +67,16 @@ class RoleRepository
     private function getModuleLabel(string $key): string
     {
         return match ($key) {
-            'regions'      => 'Regiones',
+            'regions' => 'Regiones',
             'ecclesiastes' => 'Eclesiasticos',
-            'catechism'    => 'Catecismo',
-            'masses'       => 'Misas',
+            'catechism' => 'Catecismo',
+            'masses' => 'Misas',
             'asistencias_manuales' => 'Asistencia manual',
-            'security'     => 'Seguridad',
-            'whatsapp'     => 'WhatsApp',
-            'operation'    => 'Operación',
-            default        => ucfirst($key),
+            'security' => 'Seguridad',
+            'whatsapp' => 'WhatsApp',
+            'operation' => 'Operación',
+            'settings' => 'Ajustes',
+            default => ucfirst($key),
         };
     }
 }

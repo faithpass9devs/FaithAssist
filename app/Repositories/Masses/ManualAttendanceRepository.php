@@ -181,7 +181,7 @@ class ManualAttendanceRepository
      * Check if there's an active manual attendance movement available.
      * Used to validate if manual attendance registration is allowed.
      */
-    public function isManualAttendanceCaptureActive(User $user): bool
+    public function isManualAttendanceCaptureActive(User $user, ?int $churchId = null): bool
     {
         // Get a period to check for active movements
         // We'll check if ANY active manual attendance movement exists within the user's scope
@@ -195,10 +195,8 @@ class ManualAttendanceRepository
             ->where('status', Status::IN_PROGRESS)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
-            ->whereHas('period', fn ($q) => $scope->isGlobal()
-                ? $q
-                : $q->whereIn('diocese_id', $scope->dioceseIds())
-            )
+            ->when($churchId, fn ($q) => $q->where('church_id', $churchId))
+            ->when(! $churchId && ! $scope->isGlobal(), fn ($q) => $q->whereIn('church_id', $scope->churchIds()))
             ->exists();
     }
 
@@ -206,7 +204,7 @@ class ManualAttendanceRepository
      * Get the currently active manual attendance movement details.
      * Returns movement info or null if no active movement exists.
      */
-    public function getActiveManualAttendanceMovementInfo(User $user): ?array
+    public function getActiveManualAttendanceMovementInfo(User $user, ?int $churchId = null): ?array
     {
         $scope = new UserScopeService($user);
 
@@ -218,10 +216,8 @@ class ManualAttendanceRepository
             ->where('status', Status::IN_PROGRESS)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
-            ->whereHas('period', fn ($q) => $scope->isGlobal()
-                ? $q
-                : $q->whereIn('diocese_id', $scope->dioceseIds())
-            )
+            ->when($churchId, fn ($q) => $q->where('church_id', $churchId))
+            ->when(! $churchId && ! $scope->isGlobal(), fn ($q) => $q->whereIn('church_id', $scope->churchIds()))
             ->first(['id', 'period_id', 'period_movement_type_id', 'status', 'start_date', 'end_date']);
 
         if (! $movement) {

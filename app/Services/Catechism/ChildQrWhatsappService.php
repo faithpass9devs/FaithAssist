@@ -4,6 +4,7 @@ namespace App\Services\Catechism;
 
 use App\Models\Catechism\Child;
 use App\Models\WhatsappMessage;
+use App\Services\Settings\SettingResolver;
 use App\Services\WhatsApp\BaileysClient;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -14,12 +15,15 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
 use Exception;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class ChildQrWhatsappService
 {
+    public function __construct(private readonly SettingResolver $settings) {}
+
     /**
      * Envía el gafete en PDF por WhatsApp al teléfono registrado.
      */
@@ -128,7 +132,13 @@ class ChildQrWhatsappService
                 ?? $this->generateQrDataUri($child->code)
                 ?? $this->sanitizePdfQrImage($qrImageDataUrl);
 
-            $viewData = $this->buildBadgeViewData($child, $qrImageUrl, $qrSvg, $qrMatrixHtml);
+            $viewData = $this->buildBadgeViewData(
+                $child,
+                $qrImageUrl,
+                $qrSvg,
+                $qrMatrixHtml,
+                $this->resolveBadgeSettings($child)
+            );
             $html = view('pdf.catechism.child-badge', $viewData)->render();
 
             return $this->generatePdfContent($html);
@@ -307,7 +317,8 @@ class ChildQrWhatsappService
         Child $child,
         ?string $qrImageUrl = null,
         ?string $qrSvg = null,
-        ?string $qrMatrixHtml = null
+        ?string $qrMatrixHtml = null,
+        array $badgeSettings = []
     ): array {
         $church = $child->church;
         $community = $child->community;
@@ -318,12 +329,12 @@ class ChildQrWhatsappService
             ->filter()
             ->values();
 
-        return [
+        return array_merge([
             'childName' => $this->resolveFullName($child),
             'childCode' => $child->code,
-            'badgeLogoPath' => $this->resolveBadgeLogoPath(),
-            'pageOneBackgroundPath' => $this->resolveBackgroundTemplatePath('background_1'),
-            'pageTwoBackgroundPath' => $this->resolveBackgroundTemplatePath('background_2'),
+            'badgeLogoPath' => $badgeSettings['badgeLogoPath'] ?? $this->resolveBadgeLogoPath(),
+            'pageOneBackgroundPath' => $badgeSettings['pageOneBackgroundPath'] ?? $this->resolveBackgroundTemplatePath('background_1'),
+            'pageTwoBackgroundPath' => $badgeSettings['pageTwoBackgroundPath'] ?? $this->resolveBackgroundTemplatePath('background_2'),
             'churchName' => $church?->name ?? 'No especificada',
             'municipalityName' => $municipality?->name ?? 'No especificado',
             'stateName' => $state?->short_name ?? $state?->name ?? '',
@@ -347,7 +358,86 @@ class ChildQrWhatsappService
                 'Agosto',
             ],
             'weekHeaders' => ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5'],
+        ], Arr::except($badgeSettings, [
+            'badgeLogoPath',
+            'pageOneBackgroundPath',
+            'pageTwoBackgroundPath',
+        ]));
+    }
+
+    /**
+     * Resuelve los ajustes del gafete aplicables a la parroquia del niño.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveBadgeSettings(Child $child): array
+    {
+        $churchId = $child->church?->id;
+        $dioceseId = $child->church?->diocese_id;
+
+        return [
+            'badgeLogoPath' => $this->resolveBadgeFileSetting('badge.logo_image', $child),
+            'pageOneBackgroundPath' => $this->resolveBadgeFileSetting('badge.background_1', $child),
+            'pageTwoBackgroundPath' => $this->resolveBadgeFileSetting('badge.background_2', $child),
+            'badgeTitleText' => $this->resolveBadgeTextSetting('badge.title_text', 'Gafete de catequesis', $churchId, $dioceseId),
+            'footerText' => $this->resolveBadgeTextSetting(
+                'badge.footer_text',
+                'Para registrar su asistencia dominical, será necesario presentar el código QR asignado al momento de su llegada. Sin este código, no podrá ser validada su participación.',
+                $churchId,
+                $dioceseId
+            ),
+            'accentColor' => $this->resolveBadgeColorSetting('badge.accent_color', '#d4af37', $churchId, $dioceseId),
+            'bodyTextColor' => $this->resolveBadgeColorSetting('badge.body_text_color', '#111827', $churchId, $dioceseId),
+            'qrBorderColor' => $this->resolveBadgeColorSetting('badge.qr_border_color', '#d1d5db', $churchId, $dioceseId),
+            'chipBgColor' => $this->resolveBadgeColorSetting('badge.chip_bg_color', '#111827', $churchId, $dioceseId),
+            'chipTextColor' => $this->resolveBadgeColorSetting('badge.chip_text_color', '#ffffff', $churchId, $dioceseId),
+            'tableHeaderColor' => $this->resolveBadgeColorSetting('badge.table_header_color', '#d892ad', $churchId, $dioceseId),
+            'tableBorderColor' => $this->resolveBadgeColorSetting('badge.table_border_color', '#e5b7c6', $churchId, $dioceseId),
         ];
+    }
+
+    private function resolveBadgeFileSetting(string $key, Child $child): ?string
+    {
+        $storedPath = $this->settings->resolve($key, $child->church?->id, $child->church?->diocese_id);
+
+        if (! is_string($storedPath) || trim($storedPath) === '') {
+            return null;
+        }
+
+        return $this->prepareStoredPdfImage($storedPath);
+    }
+
+    private function resolveBadgeTextSetting(string $key, string $fallback, ?int $churchId, ?int $dioceseId): string
+    {
+        $value = $this->settings->resolve($key, $churchId, $dioceseId);
+
+        if (! is_string($value) || trim($value) === '') {
+            return $fallback;
+        }
+
+        return trim($value);
+    }
+
+    private function resolveBadgeColorSetting(string $key, string $fallback, ?int $churchId, ?int $dioceseId): string
+    {
+        $value = $this->settings->resolve($key, $churchId, $dioceseId);
+
+        return (is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', trim($value))) ? trim($value) : $fallback;
+    }
+
+    /**
+     * Convierte un archivo almacenado en disco a una ruta file:// normalizada para dompdf.
+     */
+    private function prepareStoredPdfImage(string $storedPath): ?string
+    {
+        $absolutePath = Storage::disk('local')->path($storedPath);
+        $realPath = realpath($absolutePath);
+
+        if (! $realPath || ! file_exists($realPath)) {
+            return null;
+        }
+
+        return $this->preparePdfTemplateImagePath($realPath);
     }
 
     private function resolveBadgeLogoPath(): ?string

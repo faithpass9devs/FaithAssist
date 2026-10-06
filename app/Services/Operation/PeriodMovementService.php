@@ -26,6 +26,7 @@ class PeriodMovementService
                 'years' => $period->years,
                 'diocese_name' => $period->diocese?->name,
             ])->values(),
+            'churches' => $this->movements->scopeChurches($user),
             'movementTypes' => $movementTypes->map(fn (PeriodMovementType $movementType): array => [
                 'id' => $movementType->id,
                 'name' => $movementType->name,
@@ -60,6 +61,6 @@ class PeriodMovementService
 
     private function movementData(PeriodMovement $movement): array
     {
-        return $movement->only(['id', 'period_id', 'period_movement_type_id', 'status', 'start_date', 'end_date', 'notes']);
+        return $movement->only(['id', 'period_id', 'church_id', 'period_movement_type_id', 'status', 'start_date', 'end_date', 'notes']);
     }
 }
