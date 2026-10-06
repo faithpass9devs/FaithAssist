@@ -135,6 +135,27 @@ Ejecutar pruebas:
 composer test
 ```
 
+Ejecutar pruebas con Pest directamente:
+
+```bash
+composer test:pest
+```
+
+Ejecutar un archivo o filtro específico con Pest:
+
+```bash
+./vendor/bin/pest tests/Feature/Auth/ForgotPasswordWhatsappTest.php
+./vendor/bin/pest --filter="confirms phone"
+```
+
+Validar formato PHP y pruebas antes de confirmar cambios:
+
+```bash
+composer precommit
+```
+
+El proyecto usa Husky para ejecutar `composer precommit` antes de cada commit. Si necesitas omitir el hook por una emergencia puntual, puedes usar `git commit --no-verify`, pero lo recomendado es corregir el fallo antes de confirmar.
+
 Compilar frontend para produccion:
 
 ```bash
