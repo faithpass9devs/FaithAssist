@@ -34,8 +34,13 @@ trait LogsActivityTrail
         $properties = $activity->properties?->toArray() ?? [];
         $properties['module'] = class_basename($this);
 
+        $request = request();
+
+        if ($request->hasSession()) {
+            $properties['session_id'] = $request->session()->getId();
+        }
+
         if (! app()->runningInConsole()) {
-            $request = request();
             $properties['ip_address'] = $request->ip();
             $properties['user_agent'] = $request->userAgent();
             $properties['url'] = $request->fullUrl();

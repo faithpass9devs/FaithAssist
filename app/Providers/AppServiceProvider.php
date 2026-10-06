@@ -14,6 +14,7 @@ use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Masses\Weekend;
+use App\Models\DeviceSession;
 use App\Models\Module;
 use App\Models\Operation\Level;
 use App\Models\Operation\Period;
@@ -23,7 +24,6 @@ use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\Regions\State;
 use App\Models\Settings\Setting;
-use App\Models\WhatsappMessage;
 use App\Policies\ChapelPolicy;
 use App\Policies\ChildPolicy;
 use App\Policies\ChurchPolicy;
@@ -46,7 +46,6 @@ use App\Policies\PermissionPolicy;
 use App\Policies\SettingsPolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
-use App\Policies\WhatsappMessagePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -67,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Module::class, ModulePolicy::class);
+        Gate::policy(DeviceSession::class, \App\Policies\DeviceSessionPolicy::class);
         Gate::policy(Child::class, ChildPolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(State::class, StatePolicy::class);
@@ -76,7 +76,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Deanery::class, DeaneryPolicy::class);
         Gate::policy(Church::class, ChurchPolicy::class);
         Gate::policy(Chapel::class, ChapelPolicy::class);
-        Gate::policy(WhatsappMessage::class, WhatsappMessagePolicy::class);
         Gate::policy(Level::class, LevelPolicy::class);
         Gate::policy(Period::class, PeriodPolicy::class);
         Gate::policy(PeriodMovement::class, PeriodMovementPolicy::class);

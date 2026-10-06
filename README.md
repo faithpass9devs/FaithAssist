@@ -114,6 +114,9 @@ Este comando levanta:
 - Worker de colas
 - Logs con pail
 - Vite en modo desarrollo
+- Scheduler de tareas
+
+En Windows usa `composer run dev:windows`, que inicia el worker estandar sin Horizon ni pail.
 
 ### Usuarios de prueba
 
@@ -155,10 +158,15 @@ php artisan optimize:clear
 php artisan permission:cache-reset
 ```
 
-### WhatsApp con Baileys
+### Recuperacion de contrasena
 
-La integración usa una sesión persistente de Baileys y no requiere Meta Cloud API.
-Configura `BAILEYS_ENABLED=true` y un `BAILEYS_INTERNAL_TOKEN` en `.env`. Ejecuta
-`composer run dev` para iniciar Laravel, el worker, el scheduler y el servidor Baileys.
-La primera ejecución mostrará un código QR en la terminal para vincular el teléfono;
-las credenciales quedan guardadas en `storage/app/baileys/auth`.
+Se conservan las cuatro vistas de recuperacion, sus rutas, la verificacion de codigos
+y el cambio de contrasena. El envio de codigos esta temporalmente deshabilitado hasta
+integrar un nuevo proveedor: no genera codigos ni trabajos de envio y muestra un aviso.
+La lada predeterminada se configura con `PHONE_DEFAULT_COUNTRY_CODE`.
+
+Los gafetes QR y sus descargas PDF siguen disponibles. El modulo de mensajeria y los
+envios automaticos se retiraron; las tablas historicas y los telefonos se conservan.
+Ejecuta los seeders de permisos indicados arriba para retirar permisos obsoletos.
+La migracion exclusiva del proveedor retirado ya no se distribuye: no uses rollback
+de ese lote en bases existentes. No se ejecutan borrados de tablas ni de mensajes.

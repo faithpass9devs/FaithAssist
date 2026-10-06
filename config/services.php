@@ -35,8 +35,8 @@ return [
         ],
     ],
 
-    'whatsapp' => [
-        'default_country_code' => env('BAILEYS_DEFAULT_COUNTRY_CODE', '521'),
+    'phone' => [
+        'default_country_code' => env('PHONE_DEFAULT_COUNTRY_CODE', '521'),
     ],
 
 ];
