@@ -198,7 +198,7 @@ class DeviceSessionController extends Controller
                 'parish' => $parish,
                 'role' => $role,
                 'account_status' => $user?->account_status ?? 'active',
-                'suspended_until' => $user?->suspended_until?->format('d/m/Y h:i A'),
+                'suspended_until' => $user?->suspended_until ? $this->displayDate($user->suspended_until) : null,
                 'warning_count' => (int) ($warningCounts[$session->user_id] ?? 0),
                 'warnings' => $this->serializeWarnings($warningsByUser->get($session->user_id, collect())),
                 'municipality' => $municipality,
