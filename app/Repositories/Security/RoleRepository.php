@@ -72,7 +72,6 @@ class RoleRepository
             'masses'       => 'Misas',
             'asistencias_manuales' => 'Asistencia manual',
             'security'     => 'Seguridad',
-            'whatsapp'     => 'WhatsApp',
             'operation'    => 'Operación',
             default        => ucfirst($key),
         };

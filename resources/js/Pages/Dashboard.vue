@@ -14,7 +14,6 @@ import {
   Landmark,
   LayoutGrid,
   MapPinned,
-  MessageCircle,
   ShieldCheck,
   Tags,
   Users,
@@ -204,20 +203,6 @@ const modules = computed(() =>
           icon: ShieldCheck,
           href: '/dispositivos-sesiones',
           moduleKey: 'dispositivos_sesiones',
-        },
-      ],
-    },
-    {
-      name: 'Comunicación',
-      accent: 'from-green-200 via-emerald-100 to-slate-100',
-      titleClass: 'text-sky-700',
-      items: [
-        {
-          label: 'WhatsApp',
-          icon: MessageCircle,
-          href: '/whatsapp',
-          moduleKey: 'whatsapp',
-          permission: 'whatsapp.send',
         },
       ],
     },

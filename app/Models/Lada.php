@@ -48,7 +48,7 @@ class Lada extends Model
 
     public static function defaultCode(): string
     {
-        $configured = preg_replace('/\D/', '', (string) config('services.whatsapp.default_country_code', '521')) ?: '521';
+        $configured = preg_replace('/\D/', '', (string) config('services.phone.default_country_code', '521')) ?: '521';
 
         $exists = static::query()
             ->active()

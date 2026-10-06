@@ -170,53 +170,6 @@ class ChildController extends Controller
         ]);
     }
 
-    public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
-    {
-        $this->authorize('view', $child);
-
-        try {
-            if (! $child->phone || ! $child->phone_lada) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El niño no tiene un teléfono registrado. Por favor, completa los datos de contacto.',
-                ], 422);
-            }
-
-            if (! config('baileys.enabled')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'WhatsApp no está habilitado en el sistema.',
-                ], 500);
-            }
-
-            $message = $qrService->sendChildQrBadge($child);
-
-            if (! $message) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo generar el PDF del gafete para enviarlo.',
-                ], 500);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Gafete enviado correctamente por WhatsApp.',
-                'message_id' => $message?->id,
-                'status' => $message?->status,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error enviando gafete PDF por WhatsApp', [
-                'child_id' => $child->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar el gafete PDF por WhatsApp. Por favor, intenta más tarde.',
-            ], 500);
-        }
-    }
-
     public function badgePdf(Request $request, Child $child, ChildQrWhatsappService $qrService)
     {
         abort_unless($request->user()?->can('children.read'), 403);

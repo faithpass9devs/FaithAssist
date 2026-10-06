@@ -1,7 +1,6 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-  CheckCircle2,
   Download,
   Filter,
   Pencil,
@@ -51,7 +50,6 @@ const selectedCommunity = ref(props.filters.community_id);
 const selectedLevel = ref(props.filters.level_id);
 const qrChild = ref(null);
 const qrDataUrl = ref('');
-const isSendingQr = ref(false);
 const selectedStatus = ref(props.filters.status);
 const selectedOrigin = ref(props.filters.origin);
 let debounce = null;
@@ -327,54 +325,6 @@ const badgePdfHref = computed(() =>
   qrChild.value ? `/children/${qrChild.value.id}/badge-pdf` : '#',
 );
 
-const toast = (icon, title) => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon,
-    title,
-    showConfirmButton: false,
-    timer: 2500,
-    timerProgressBar: true,
-  });
-};
-
-const sendQrWhatsapp = async () => {
-  if (!qrChild.value) return;
-
-  isSendingQr.value = true;
-  try {
-    const response = await fetch(`/children/${qrChild.value.id}/send-qr-whatsapp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-      },
-    });
-
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      console.error('No se pudo parsear respuesta JSON:', response.statusText);
-      data = { message: 'Error del servidor. Revisa la consola.' };
-    }
-
-    if (!response.ok) {
-      console.error('Respuesta del servidor:', response.status, data);
-      toast('error', data.message || `Error: No se pudo enviar el gafete PDF`);
-      return;
-    }
-
-    toast('success', data.message || 'Gafete PDF enviado exitosamente por WhatsApp');
-    closeQr();
-  } catch (error) {
-    console.error('Error enviando QR:', error);
-    toast('error', error.message || 'Error al enviar el gafete PDF por WhatsApp. Intenta de nuevo');
-  } finally {
-    isSendingQr.value = false;
-  }
-};
 </script>
 
 <template>
@@ -652,13 +602,6 @@ const sendQrWhatsapp = async () => {
             <td class="px-4 py-3 text-right">
               <div class="inline-flex items-center gap-1">
                 <span
-                  v-if="isSuperadmin && child.whatsapp_sent"
-                  class="text-emerald-500 dark:text-emerald-400"
-                  title="Gafete enviado por WhatsApp"
-                >
-                  <CheckCircle2 class="h-4 w-4" />
-                </span>
-                <span
                   :class="
                     child.badge_pdf_downloaded
                       ? 'text-emerald-500 dark:text-emerald-400'
@@ -765,15 +708,6 @@ const sendQrWhatsapp = async () => {
           >
             Ver gafete
           </a>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm flex-1 rounded-2xl"
-            :disabled="isSendingQr"
-            @click="sendQrWhatsapp"
-          >
-            <span v-if="isSendingQr" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Enviar gafete</span>
-          </button>
         </div>
       </div>
     </div>

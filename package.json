@@ -5,8 +5,7 @@
   "scripts": {
     "build": "vite build",
     "format": "prettier --write .",
-    "dev": "vite",
-    "baileys": "node servers/baileys-server.js"
+    "dev": "vite"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
@@ -19,15 +18,11 @@
     "vite": "^8.0.0"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.22",
     "@inertiajs/vue3": "^2.2.15",
     "@lucide/vue": "^1.16.0",
-    "dotenv": "^17.2.3",
     "html5-qrcode": "^2.3.8",
-    "express": "^5.1.0",
     "lucide-vue-next": "^1.0.0",
     "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
     "sweetalert2": "^11.26.25",
     "vue": "^3.5.34"
   }

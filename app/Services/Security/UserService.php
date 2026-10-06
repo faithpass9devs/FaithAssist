@@ -391,7 +391,6 @@ class UserService
             'regions' => 'Regiones',
             'ecclesiastes' => 'Eclesiasticos',
             'security' => 'Seguridad',
-            'whatsapp' => 'WhatsApp',
             'operation' => 'Operación',
             'catechism' => 'Catecismo',
             'masses' => 'Misas',

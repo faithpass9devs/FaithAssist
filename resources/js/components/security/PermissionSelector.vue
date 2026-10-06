@@ -69,9 +69,6 @@ const permissionResourceMetaByModule = {
     roles: { singular: 'rol', plural: 'roles', gender: 'm' },
     usuarios: { singular: 'usuario', plural: 'usuarios', gender: 'm' },
   },
-  whatsapp: {
-    whatsapp: { singular: 'mensaje de WhatsApp', plural: 'mensajes de WhatsApp', gender: 'm' },
-  },
 };
 
 const capitalize = (value) =>

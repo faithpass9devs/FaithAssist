@@ -9,21 +9,18 @@ use App\Models\Catechism\Child;
 use App\Models\Catechism\ChildLevelAssignment;
 use App\Models\Catechism\ChildReinscription;
 use App\Models\User;
-use App\Models\WhatsappMessage;
 use App\Repositories\Catechism\ChildRepository;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\ChildCodeGenerator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ChildService
 {
     public function __construct(
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
-        private readonly ChildQrWhatsappService $qrWhatsappService,
         private readonly ChildBatchPdfService $pdfBatchService,
     ) {}
 
@@ -51,37 +48,6 @@ class ChildService
         $filterOptions = $this->children->getFilterOptions($user);
 
         $serialized = $children->through(fn (Child $child) => $this->children->serializeChild($child));
-
-        if ($user->hasRole('Superadmin')) {
-            $phones = $serialized->getCollection()
-                ->map(fn (array $child) => trim(($child['phone_lada'] ?? '').($child['phone'] ?? '')))
-                ->filter()
-                ->values()
-                ->all();
-
-            if ($phones !== []) {
-                $sentPhones = WhatsappMessage::query()
-                    ->whereIn('to_phone', $phones)
-                    ->where('status', WhatsappMessage::STATUS_SENT)
-                    ->where('message_type', 'document')
-                    ->pluck('to_phone')
-                    ->flip();
-
-                $serialized = $serialized->through(function (array $child) use ($sentPhones) {
-                    $child['whatsapp_sent'] = $sentPhones->has(
-                        trim(($child['phone_lada'] ?? '').($child['phone'] ?? ''))
-                    );
-
-                    return $child;
-                });
-            } else {
-                $serialized = $serialized->through(function (array $child) {
-                    $child['whatsapp_sent'] = false;
-
-                    return $child;
-                });
-            }
-        }
 
         return [
             'children' => $serialized,
@@ -189,16 +155,6 @@ class ChildService
 
             throw new \RuntimeException('Unable to generate a unique child code.');
         });
-
-        // Enviar gafete por WhatsApp de forma asíncrona (no bloquea si falla)
-        try {
-            $this->qrWhatsappService->sendChildQrBadge($child);
-        } catch (\Throwable $e) {
-            // Log ya registrado en el servicio, simplemente continuamos
-            Log::warning('Gafete PDF WhatsApp envío diferido', [
-                'child_id' => $child->id,
-            ]);
-        }
 
         return $child;
     }
