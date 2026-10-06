@@ -266,7 +266,7 @@ class DeviceSessionController extends Controller
                     'parish' => $user->church?->name ?? ($viewerIsSuperadmin ? 'Acceso total' : 'Sin parroquia'),
                     'role' => $user->roles?->first()?->name ?? 'Sin rol',
                     'account_status' => $user->account_status ?? 'active',
-                    'suspended_until' => $user->suspended_until?->format('d/m/Y h:i A'),
+                    'suspended_until' => $user->suspended_until ? $this->displayDate($user->suspended_until) : null,
                     'warning_count' => (int) ($warningCounts[$user->id] ?? 0),
                     'warnings' => $this->serializeWarnings($warningsByUser->get($user->id, collect())),
                     'municipality' => $user->church?->municipality?->name ?? 'Sin municipio',
