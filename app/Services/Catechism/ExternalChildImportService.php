@@ -214,18 +214,8 @@ class ExternalChildImportService
 
     private function lastPeriodMovementForChurch(ExternalChild $externo): ?PeriodMovement
     {
-        $dioceseId = Church::query()
-            ->with('deanery:id,diocese_id')
-            ->find($this->resolveLocalChurchId($externo))
-            ?->deanery
-            ?->diocese_id;
-
-        if (! $dioceseId) {
-            return null;
-        }
-
         return PeriodMovement::query()
-            ->whereHas('period', fn ($query) => $query->where('diocese_id', $dioceseId))
+            ->where('church_id', $this->resolveLocalChurchId($externo))
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->first();

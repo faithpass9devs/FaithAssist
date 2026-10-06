@@ -8,6 +8,7 @@ import CatalogTable from '../../../components/catalogs/CatalogTable.vue';
 const props = defineProps({
   movements: { type: Object, required: true },
   periods: { type: Array, default: () => [] },
+  churches: { type: Array, default: () => [] },
   movementTypes: { type: Array, default: () => [] },
   statusOptions: { type: Array, default: () => [] },
   search: { type: String, default: '' },
@@ -17,6 +18,13 @@ const periodOptions = computed(() =>
   props.periods.map((period) => ({
     value: period.id,
     label: [period.diocese_name, period.name, period.years].filter(Boolean).join(' - '),
+  })),
+);
+
+const churchOptions = computed(() =>
+  props.churches.map((church) => ({
+    value: church.id,
+    label: church.name,
   })),
 );
 
@@ -34,6 +42,13 @@ const columns = computed(() => [
     type: 'select',
     required: true,
     options: periodOptions.value,
+  },
+  {
+    key: 'church_id',
+    label: 'Parroquia',
+    type: 'select',
+    required: true,
+    options: churchOptions.value,
   },
   {
     key: 'period_movement_type_id',

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\UserScopeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -137,6 +138,7 @@ class HandleInertiaRequests extends Middleware
             'deanery_id' => $user->deanery_id,
             'church_id' => $user->church_id,
             'chapel_id' => $user->chapel_id,
+            'can_see_externos' => (new UserScopeService($user))->canAccessExternosModule(),
             'full_access' => $permissionNames
                 ->filter(fn (string $permission): bool => str_ends_with($permission, '.scope.all'))
                 ->mapWithKeys(fn (string $permission): array => [

@@ -37,6 +37,7 @@ class PermissionsSeeder extends Seeder
             'incidencias_asistencia' => 'masses',
             'roles' => 'security',
             'usuarios' => 'security',
+            'ajustes' => 'settings',
         ];
 
         $actions = ['create', 'read', 'update', 'delete', 'show'];
