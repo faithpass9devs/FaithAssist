@@ -15,26 +15,17 @@ class CatechismPeriodMovementService
 
     public function activeMovementForChurch(int|Church $church, string $movementTypeName): ?PeriodMovement
     {
-        $church = $church instanceof Church
-            ? $church->loadMissing('deanery:id,diocese_id')
-            : Church::query()->with('deanery:id,diocese_id')->find($church);
-
-        $dioceseId = $church?->deanery?->diocese_id;
-
-        if (! $dioceseId) {
-            return null;
-        }
+        $churchId = $church instanceof Church ? $church->id : $church;
 
         $today = now()->toDateString();
 
         return PeriodMovement::query()
             ->with(['period:id,diocese_id,name,years,status', 'periodMovementType:id,name,status'])
+            ->where('church_id', $churchId)
             ->where('status', Status::IN_PROGRESS)
             ->whereDate('start_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
-            ->whereHas('period', fn ($query) => $query
-                ->where('diocese_id', $dioceseId)
-                ->where('status', Status::IN_PROGRESS))
+            ->whereHas('period', fn ($query) => $query->where('status', Status::IN_PROGRESS))
             ->whereHas('periodMovementType', fn ($query) => $query
                 ->where('name', $movementTypeName)
                 ->where('status', Status::ACTIVE))

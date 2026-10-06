@@ -28,7 +28,6 @@ class ExternalChildImportService
     public function __construct(
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
-        private readonly ChildQrWhatsappService $qrWhatsappService,
     ) {}
 
     /**
@@ -128,15 +127,6 @@ class ExternalChildImportService
         // El estado "importado" se calcula en vivo contra la tabla local
         // ExternalChildImport en cada petición.
 
-        // DESHABILITADO temporalmente: no enviar gafete QR por WhatsApp al importar desde Hostinger.
-        // try {
-        //     $this->qrWhatsappService->sendChildQrBadge($child);
-        // } catch (\Throwable $e) {
-        //     Log::warning('Gafete PDF WhatsApp envío diferido', [
-        //         'child_id' => $child->id,
-        //     ]);
-        // }
-
         return $child;
     }
 
@@ -214,18 +204,8 @@ class ExternalChildImportService
 
     private function lastPeriodMovementForChurch(ExternalChild $externo): ?PeriodMovement
     {
-        $dioceseId = Church::query()
-            ->with('deanery:id,diocese_id')
-            ->find($this->resolveLocalChurchId($externo))
-            ?->deanery
-            ?->diocese_id;
-
-        if (! $dioceseId) {
-            return null;
-        }
-
         return PeriodMovement::query()
-            ->whereHas('period', fn ($query) => $query->where('diocese_id', $dioceseId))
+            ->where('church_id', $this->resolveLocalChurchId($externo))
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->first();

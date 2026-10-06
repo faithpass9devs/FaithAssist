@@ -3,11 +3,13 @@
 namespace App\Repositories\Operation;
 
 use App\Globals\Status;
+use App\Models\Ecclesiastes\Church;
 use App\Models\Operation\Period;
 use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
 use App\Models\User;
 use App\Services\UserScopeService;
+use Illuminate\Support\Collection;
 
 class PeriodMovementRepository
 {
@@ -17,19 +19,18 @@ class PeriodMovementRepository
 
         return PeriodMovement::query()
             ->with([
+                'church:id,name',
                 'period:id,diocese_id,name,years',
                 'period.diocese:id,name',
                 'periodMovementType:id,name,status',
             ])
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereHas(
-                'period',
-                fn ($p) => $p->whereIn('diocese_id', $scope->dioceseIds())
-            ))
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('church_id', $scope->churchIds()))
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder
                         ->where('status', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%")
+                        ->orWhereHas('church', fn ($churchQuery) => $churchQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('periodMovementType', fn ($movementTypeQuery) => $movementTypeQuery->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('period', fn ($periodQuery) => $periodQuery
                             ->where('name', 'like', "%{$search}%")
@@ -38,8 +39,26 @@ class PeriodMovementRepository
                 });
             })
             ->orderByDesc('start_date')
-            ->paginate($perPage, ['id', 'period_id', 'period_movement_type_id', 'status', 'start_date', 'end_date', 'notes'])
+            ->paginate($perPage, ['id', 'period_id', 'church_id', 'period_movement_type_id', 'status', 'start_date', 'end_date', 'notes'])
             ->withQueryString();
+    }
+
+    public function scopeChurches(User $user): Collection
+    {
+        $scope = new UserScopeService($user);
+
+        return Church::query()
+            ->with('deanery:id,diocese_id')
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->churchIds()))
+            ->where('status', Status::ACTIVE)
+            ->orderBy('name')
+            ->get(['id', 'deanery_id', 'name'])
+            ->map(fn (Church $church): array => [
+                'id' => $church->id,
+                'diocese_id' => $church->deanery?->diocese_id,
+                'name' => $church->name,
+            ])
+            ->values();
     }
 
     public function activePeriods(User $user)
@@ -80,7 +99,7 @@ class PeriodMovementRepository
      * Get active manual attendance movement for current date.
      * Returns the currently active PeriodMovement of type ASISTENCIA MANUAL.
      */
-    public function getActiveManualAttendanceMovement(?Period $period = null): ?PeriodMovement
+    public function getActiveManualAttendanceMovement(?Period $period = null, ?int $churchId = null): ?PeriodMovement
     {
         $now = now()->toDateString();
 
@@ -89,7 +108,8 @@ class PeriodMovementRepository
             ->whereHas('periodMovementType', fn ($q) => $q->where('name', 'ASISTENCIA MANUAL'))
             ->where('status', Status::IN_PROGRESS)
             ->where('start_date', '<=', $now)
-            ->where('end_date', '>=', $now);
+            ->where('end_date', '>=', $now)
+            ->when($churchId, fn ($q) => $q->where('church_id', $churchId));
 
         if ($period) {
             $query->where('period_id', $period->id);

@@ -13,6 +13,7 @@ use App\Models\Masses\Weekend;
 use App\Models\Regions\Community;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
 
@@ -187,6 +188,15 @@ class MassModuleTest extends TestCase
             'status' => Status::CHECK_OUT,
             'church_id' => $chain['church']->id,
         ]);
+
+        $attendance = MassAttendance::query()->where('mass_id', $mass->id)->where('child_id', $child->id)->firstOrFail();
+        $attendanceEvents = Activity::query()
+            ->where('subject_type', MassAttendance::class)
+            ->where('subject_id', $attendance->id)
+            ->get();
+
+        $this->assertNotEmpty($attendanceEvents);
+        $this->assertTrue($attendanceEvents->every(fn (Activity $event): bool => filled(data_get($event->properties, 'session_id'))));
     }
 
     public function test_mass_attendance_rejects_child_from_other_church(): void

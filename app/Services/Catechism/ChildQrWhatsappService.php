@@ -3,8 +3,7 @@
 namespace App\Services\Catechism;
 
 use App\Models\Catechism\Child;
-use App\Models\WhatsappMessage;
-use App\Services\WhatsApp\BaileysClient;
+use App\Services\Settings\SettingResolver;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Endroid\QrCode\Builder\Builder;
@@ -14,99 +13,14 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
 use Exception;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class ChildQrWhatsappService
 {
-    /**
-     * Envía el gafete en PDF por WhatsApp al teléfono registrado.
-     */
-    public function sendChildQrBadge(Child $child): ?WhatsappMessage
-    {
-        try {
-            if (! $this->isConfigured()) {
-                Log::info('WhatsApp no está configurado, omitiendo envío de gafete para niño', [
-                    'child_id' => $child->id,
-                    'child_code' => $child->code,
-                ]);
-
-                return null;
-            }
-
-            $phoneNumber = $this->getNormalizedPhone($child);
-
-            if (! $phoneNumber) {
-                Log::warning('Teléfono del niño no disponible, omitiendo envío de gafete', [
-                    'child_id' => $child->id,
-                    'child_code' => $child->code,
-                ]);
-
-                return null;
-            }
-
-            $badgePdfPath = $this->generateBadgePdfFile($child);
-
-            if (! $badgePdfPath) {
-                Log::warning('No se pudo generar el PDF del gafete, omitiendo envío', [
-                    'child_id' => $child->id,
-                    'child_code' => $child->code,
-                ]);
-
-                return null;
-            }
-
-            $message = $this->sendViaWhatsapp($child, $phoneNumber, $badgePdfPath);
-
-            Log::info('Gafete agregado a la cola de WhatsApp', [
-                'child_id' => $child->id,
-                'child_code' => $child->code,
-                'phone' => $this->maskPhone($phoneNumber),
-            ]);
-
-            return $message;
-        } catch (Throwable $e) {
-            Log::error('Error al enviar gafete por WhatsApp', [
-                'child_id' => $child->id ?? null,
-                'child_code' => $child->code ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Genera y guarda temporalmente el PDF del gafete para envío por WhatsApp.
-     */
-    public function generateBadgePdfFile(Child $child): ?string
-    {
-        try {
-            $pdfContent = $this->generateChildBadgePdf($child);
-
-            if (! is_string($pdfContent) || strlen($pdfContent) < 100) {
-                return null;
-            }
-
-            $filename = 'gafete_'.$child->code.'_'.time().'.pdf';
-            $path = 'whatsapp/temp_badges/'.$filename;
-
-            Storage::makeDirectory('whatsapp/temp_badges');
-            Storage::put($path, $pdfContent);
-
-            return $path;
-        } catch (Throwable $e) {
-            Log::error('Error generando PDF temporal del gafete para WhatsApp', [
-                'child_id' => $child->id,
-                'child_code' => $child->code,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
+    public function __construct(private readonly SettingResolver $settings) {}
 
     /**
      * Genera el PDF del gafete del niño para abrirse en navegador.
@@ -128,7 +42,13 @@ class ChildQrWhatsappService
                 ?? $this->generateQrDataUri($child->code)
                 ?? $this->sanitizePdfQrImage($qrImageDataUrl);
 
-            $viewData = $this->buildBadgeViewData($child, $qrImageUrl, $qrSvg, $qrMatrixHtml);
+            $viewData = $this->buildBadgeViewData(
+                $child,
+                $qrImageUrl,
+                $qrSvg,
+                $qrMatrixHtml,
+                $this->resolveBadgeSettings($child)
+            );
             $html = view('pdf.catechism.child-badge', $viewData)->render();
 
             return $this->generatePdfContent($html);
@@ -172,7 +92,7 @@ class ChildQrWhatsappService
             $html = $this->buildPdfHtml($child, $qrImagePath);
 
             $filename = "gafete_{$child->code}.pdf";
-            $pdfPath = "whatsapp/gafetes/{$filename}";
+            $pdfPath = "exports/gafetes/{$filename}";
 
             // Usar exec con wkhtmltopdf si está disponible, sino usar HTML simple
             $pdfContent = $this->generatePdfContent($html);
@@ -307,7 +227,8 @@ class ChildQrWhatsappService
         Child $child,
         ?string $qrImageUrl = null,
         ?string $qrSvg = null,
-        ?string $qrMatrixHtml = null
+        ?string $qrMatrixHtml = null,
+        array $badgeSettings = []
     ): array {
         $church = $child->church;
         $community = $child->community;
@@ -318,12 +239,12 @@ class ChildQrWhatsappService
             ->filter()
             ->values();
 
-        return [
+        return array_merge([
             'childName' => $this->resolveFullName($child),
             'childCode' => $child->code,
-            'badgeLogoPath' => $this->resolveBadgeLogoPath(),
-            'pageOneBackgroundPath' => $this->resolveBackgroundTemplatePath('background_1'),
-            'pageTwoBackgroundPath' => $this->resolveBackgroundTemplatePath('background_2'),
+            'badgeLogoPath' => $badgeSettings['badgeLogoPath'] ?? $this->resolveBadgeLogoPath(),
+            'pageOneBackgroundPath' => $badgeSettings['pageOneBackgroundPath'] ?? $this->resolveBackgroundTemplatePath('background_1'),
+            'pageTwoBackgroundPath' => $badgeSettings['pageTwoBackgroundPath'] ?? $this->resolveBackgroundTemplatePath('background_2'),
             'churchName' => $church?->name ?? 'No especificada',
             'municipalityName' => $municipality?->name ?? 'No especificado',
             'stateName' => $state?->short_name ?? $state?->name ?? '',
@@ -347,7 +268,86 @@ class ChildQrWhatsappService
                 'Agosto',
             ],
             'weekHeaders' => ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5'],
+        ], Arr::except($badgeSettings, [
+            'badgeLogoPath',
+            'pageOneBackgroundPath',
+            'pageTwoBackgroundPath',
+        ]));
+    }
+
+    /**
+     * Resuelve los ajustes del gafete aplicables a la parroquia del niño.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveBadgeSettings(Child $child): array
+    {
+        $churchId = $child->church?->id;
+        $dioceseId = $child->church?->diocese_id;
+
+        return [
+            'badgeLogoPath' => $this->resolveBadgeFileSetting('badge.logo_image', $child),
+            'pageOneBackgroundPath' => $this->resolveBadgeFileSetting('badge.background_1', $child),
+            'pageTwoBackgroundPath' => $this->resolveBadgeFileSetting('badge.background_2', $child),
+            'badgeTitleText' => $this->resolveBadgeTextSetting('badge.title_text', 'Gafete de catequesis', $churchId, $dioceseId),
+            'footerText' => $this->resolveBadgeTextSetting(
+                'badge.footer_text',
+                'Para registrar su asistencia dominical, será necesario presentar el código QR asignado al momento de su llegada. Sin este código, no podrá ser validada su participación.',
+                $churchId,
+                $dioceseId
+            ),
+            'accentColor' => $this->resolveBadgeColorSetting('badge.accent_color', '#d4af37', $churchId, $dioceseId),
+            'bodyTextColor' => $this->resolveBadgeColorSetting('badge.body_text_color', '#111827', $churchId, $dioceseId),
+            'qrBorderColor' => $this->resolveBadgeColorSetting('badge.qr_border_color', '#d1d5db', $churchId, $dioceseId),
+            'chipBgColor' => $this->resolveBadgeColorSetting('badge.chip_bg_color', '#111827', $churchId, $dioceseId),
+            'chipTextColor' => $this->resolveBadgeColorSetting('badge.chip_text_color', '#ffffff', $churchId, $dioceseId),
+            'tableHeaderColor' => $this->resolveBadgeColorSetting('badge.table_header_color', '#d892ad', $churchId, $dioceseId),
+            'tableBorderColor' => $this->resolveBadgeColorSetting('badge.table_border_color', '#e5b7c6', $churchId, $dioceseId),
         ];
+    }
+
+    private function resolveBadgeFileSetting(string $key, Child $child): ?string
+    {
+        $storedPath = $this->settings->resolve($key, $child->church?->id, $child->church?->diocese_id);
+
+        if (! is_string($storedPath) || trim($storedPath) === '') {
+            return null;
+        }
+
+        return $this->prepareStoredPdfImage($storedPath);
+    }
+
+    private function resolveBadgeTextSetting(string $key, string $fallback, ?int $churchId, ?int $dioceseId): string
+    {
+        $value = $this->settings->resolve($key, $churchId, $dioceseId);
+
+        if (! is_string($value) || trim($value) === '') {
+            return $fallback;
+        }
+
+        return trim($value);
+    }
+
+    private function resolveBadgeColorSetting(string $key, string $fallback, ?int $churchId, ?int $dioceseId): string
+    {
+        $value = $this->settings->resolve($key, $churchId, $dioceseId);
+
+        return (is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', trim($value))) ? trim($value) : $fallback;
+    }
+
+    /**
+     * Convierte un archivo almacenado en disco a una ruta file:// normalizada para dompdf.
+     */
+    private function prepareStoredPdfImage(string $storedPath): ?string
+    {
+        $absolutePath = Storage::disk('local')->path($storedPath);
+        $realPath = realpath($absolutePath);
+
+        if (! $realPath || ! file_exists($realPath)) {
+            return null;
+        }
+
+        return $this->preparePdfTemplateImagePath($realPath);
     }
 
     private function resolveBadgeLogoPath(): ?string
@@ -484,14 +484,14 @@ class ChildQrWhatsappService
             }
 
             $filename = 'qr_'.$childCode.'_'.time().'.png';
-            $path = 'whatsapp/temp_qr/'.$filename;
+            $path = 'pdf/temp_qr/'.$filename;
             $pngBinary = $this->normalizePngBinary($result->getString());
 
             if ($pngBinary === null) {
                 return null;
             }
 
-            Storage::makeDirectory('whatsapp/temp_qr');
+            Storage::makeDirectory('pdf/temp_qr');
             Storage::put($path, $pngBinary);
 
             return $path;
@@ -772,111 +772,4 @@ class ChildQrWhatsappService
         return $pdf;
     }
 
-    /**
-     * Envía el gafete por WhatsApp como documento PDF con mensaje de bienvenida.
-     */
-    private function sendViaWhatsapp(Child $child, string $phoneNumber, string $badgePdfPath): WhatsappMessage
-    {
-        $child->loadMissing(['church:id,name', 'community:id,name']);
-        $fullName = $this->resolveFullName($child);
-        $caption = "🎓 GAFETE DE ASISTENCIA\n\n"
-            ."CICLO CATEQUISTICO 2026 - 2027\n\n"
-            ."Con gusto le compartimos el gafete de asistencia correspondiente a su hijo(a). 📄\n\n"
-            ."👤 Nombre: {$fullName}\n\n"
-            ."🔎 Le solicitamos verificar que los datos sean correctos.\n\n"
-            ."⚠️ En caso de detectar alguna información incorrecta, favor de acudir con su catequista para solicitar la aclaración correspondiente.\n\n"
-            .'📌 Mensaje informativo. No es necesario responder a este WhatsApp.\n\n'
-            .'⛪ Parroquia de la Asunción de María, Coatepec harinas.';
-
-        $message = WhatsappMessage::query()->create([
-            'to_phone' => $phoneNumber,
-            'country_code' => $child->phone_lada,
-            'message_type' => 'document',
-            'message_body' => $caption,
-            'pdf_path' => $badgePdfPath,
-            'filename' => $this->buildBadgePdfFilename($child),
-            'status' => WhatsappMessage::STATUS_PENDING,
-            'max_retries' => 1,
-            'legend_text' => '',
-        ]);
-
-        $client = new BaileysClient;
-        $result = $client->send($message);
-
-        $message->update([
-            'status' => WhatsappMessage::STATUS_SENT,
-            'baileys_message_id' => $result['message_id'] ?? null,
-            'sent_at' => now(),
-        ]);
-
-        return $message;
-    }
-
-    /**
-     * Construye el nombre del PDF a enviar por WhatsApp.
-     */
-    private function buildBadgePdfFilename(Child $child): string
-    {
-        $firstName = $this->firstWord((string) $child->name, 'NINO');
-        $firstLastName = $this->firstWord((string) $child->paterno, 'SIN_APELLIDO');
-        $displayName = trim($firstName.' '.$firstLastName);
-        $displayName = preg_replace('/[^\pL\pN\s\-]/u', '', $displayName) ?: 'NINO SIN_APELLIDO';
-
-        return 'Gafete de Asistencia '.$displayName.'.pdf';
-    }
-
-    /**
-     * Obtiene la primera palabra de un valor textual.
-     */
-    private function firstWord(string $value, string $fallback): string
-    {
-        $value = trim($value);
-
-        if ($value === '') {
-            return $fallback;
-        }
-
-        $parts = preg_split('/\s+/u', $value) ?: [];
-
-        return $parts[0] ?? $fallback;
-    }
-
-    /**
-     * Obtiene y normaliza el teléfono del niño
-     */
-    private function getNormalizedPhone(Child $child): ?string
-    {
-        $phone = $child->phone;
-        $lada = $child->phone_lada;
-
-        if (! $phone || ! $lada) {
-            return null;
-        }
-
-        return "{$lada}{$phone}";
-    }
-
-    /**
-     * Extrae el código de país del teléfono del niño
-     */
-    private function extractCountryCode(Child $child): string
-    {
-        return $child->phone_lada ?? '+52';
-    }
-
-    /**
-     * Verifica si WhatsApp está configurado
-     */
-    private function isConfigured(): bool
-    {
-        return (bool) config('baileys.enabled');
-    }
-
-    /**
-     * Enmasca el teléfono para logs
-     */
-    private function maskPhone(string $phone): string
-    {
-        return substr($phone, 0, 3).'***'.substr($phone, -4);
-    }
 }

@@ -13,6 +13,8 @@ use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
 use App\Services\CatechismPeriodMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
 
@@ -79,6 +81,8 @@ class ChildControllerTest extends TestCase
 
     public function test_store_creates_child_with_generated_code(): void
     {
+        Http::fake();
+        Queue::fake();
         $chain = $this->createChain();
         $level = $this->createLevel($chain);
         $secondLevel = $this->createLevel($chain, ['name' => 'SEGUNDO']);
@@ -103,6 +107,21 @@ class ChildControllerTest extends TestCase
             'level_id' => $secondLevel->id,
             'status' => Status::ACTIVE,
         ]);
+        $this->assertDatabaseCount('whatsapp_messages', 0);
+        Http::assertNothingSent();
+        Queue::assertNothingPushed();
+    }
+
+    public function test_messaging_routes_are_removed(): void
+    {
+        $this->actingAs($this->makeGlobalUser('children.read'));
+
+        foreach (['/whatsapp', '/whatsapp/history', '/whatsapp/history-json'] as $path) {
+            $this->get($path)->assertNotFound();
+        }
+
+        $this->post('/whatsapp/send')->assertNotFound();
+        $this->post('/children/1/send-qr-whatsapp')->assertNotFound();
     }
 
     public function test_privacy_terms_must_be_accepted(): void
@@ -400,6 +419,7 @@ class ChildControllerTest extends TestCase
 
         return PeriodMovement::query()->create([
             'period_id' => $period->id,
+            'church_id' => $chain['church']->id,
             'period_movement_type_id' => $type->id,
             'status' => Status::IN_PROGRESS,
             'start_date' => now()->subWeek()->toDateString(),

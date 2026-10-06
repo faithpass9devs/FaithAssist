@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\InternalNotification;
 use App\Models\User;
+use App\Services\UserScopeService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'direct_permissions' => $authUser?->getDirectPermissions()->pluck('name')->values()->all() ?? [],
                     'roles' => $authUser?->getRoleNames()->values()->all() ?? [],
                     'scope' => $this->buildScopePayload($authUser, $resolvedPermissions->all()),
+                    'pending_moderation_notification' => $this->pendingModerationNotification($authUser),
                 ];
             },
         ];
@@ -94,6 +97,8 @@ class HandleInertiaRequests extends Middleware
             'ui_theme' => $user->ui_theme,
             'ui_palette' => $user->ui_palette,
             'ui_custom_color' => $user->ui_custom_color,
+            'account_status' => $user->account_status ?? 'active',
+            'suspended_until' => $user->suspended_until?->toIso8601String(),
             'profile' => $user->profile ? [
                 'name' => $user->profile->name,
                 'paterno' => $user->profile->paterno,
@@ -118,6 +123,32 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
+    private function pendingModerationNotification(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $notification = InternalNotification::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'moderation_warning')
+            ->whereNull('read_at')
+            ->latest('id')
+            ->first();
+
+        if (! $notification) {
+            return null;
+        }
+
+        return [
+            'id' => $notification->id,
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'level' => $notification->data['level'] ?? 'leve',
+            'created_at' => $notification->created_at?->toIso8601String(),
+        ];
+    }
+
     private function buildScopePayload(?User $user, ?array $resolvedPermissions = null): array
     {
         if (! $user) {
@@ -137,6 +168,7 @@ class HandleInertiaRequests extends Middleware
             'deanery_id' => $user->deanery_id,
             'church_id' => $user->church_id,
             'chapel_id' => $user->chapel_id,
+            'can_see_externos' => (new UserScopeService($user))->canAccessExternosModule(),
             'full_access' => $permissionNames
                 ->filter(fn (string $permission): bool => str_ends_with($permission, '.scope.all'))
                 ->mapWithKeys(fn (string $permission): array => [

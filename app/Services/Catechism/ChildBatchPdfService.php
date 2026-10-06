@@ -34,19 +34,7 @@ class ChildBatchPdfService
         $scope = new UserScopeService($user);
 
         $query = Child::query()
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $builder) use ($search): void {
-                    $builder
-                        ->where('code', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('paterno', 'like', "%{$search}%")
-                        ->orWhere('materno', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%")
-                        ->orWhereHas('church', fn (Builder $church) => $church->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('community', fn (Builder $community) => $community->where('name', 'like', "%{$search}%"));
-                });
-            })
+            ->when($search !== '', fn (Builder $query) => $query->search($search))
             ->when($churchId, fn (Builder $query) => $query->where('church_id', $churchId))
             ->when($communityId, fn (Builder $query) => $query->where('community_id', $communityId))
             ->when($levelId, fn (Builder $query) => $query->whereHas(

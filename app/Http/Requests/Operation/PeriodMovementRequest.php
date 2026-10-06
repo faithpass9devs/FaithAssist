@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Operation;
 
 use App\Globals\Status;
+use App\Models\Ecclesiastes\Church;
 use App\Models\Operation\Period;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,7 @@ class PeriodMovementRequest extends FormRequest
     {
         return [
             'period_id' => ['required', 'integer', Rule::exists('periods', 'id')->whereNull('deleted_at')],
+            'church_id' => ['required', 'integer', Rule::exists('churches', 'id')->whereNull('deleted_at')],
             'period_movement_type_id' => ['required', 'integer', Rule::exists('period_movement_types', 'id')->whereNull('deleted_at')],
             'status' => ['required', Rule::in([
                 Status::PENDING,
@@ -42,6 +44,12 @@ class PeriodMovementRequest extends FormRequest
 
             if (! $period) {
                 return;
+            }
+
+            $church = Church::query()->with('deanery:id,diocese_id')->find($this->input('church_id'));
+
+            if ($church && $church->deanery?->diocese_id !== $period->diocese_id) {
+                $validator->errors()->add('church_id', 'La parroquia debe pertenecer a la diócesis del periodo seleccionado.');
             }
 
             $startDate = (string) $this->input('start_date');

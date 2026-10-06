@@ -38,6 +38,11 @@ class ModuleSeeder extends Seeder
                 'key' => 'security',
             ],
             [
+                'name' => 'Dispositivos y sesiones',
+                'description' => 'Módulo para visualizar y gestionar dispositivos y sesiones de usuarios.',
+                'key' => 'dispositivos_sesiones',
+            ],
+            [
                 'name' => 'Operación',
                 'description' => 'Módulo para la gestión de operaciones y actividades.',
                 'key' => 'operation',
@@ -56,6 +61,11 @@ class ModuleSeeder extends Seeder
                 'name' => 'Asistencia manual',
                 'description' => 'Módulo para registrar asistencias manuales de niños por fin de semana y misa.',
                 'key' => 'asistencias_manuales',
+            ],
+            [
+                'name' => 'Ajustes',
+                'description' => 'Módulo para personalizar ajustes por parroquia (imágenes, textos y colores).',
+                'key' => 'settings',
             ],
         ];
 

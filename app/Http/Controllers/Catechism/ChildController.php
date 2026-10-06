@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\Catechism;
 
+use App\Exports\Catechism\ChildImportTemplateExport;
 use App\Exports\Catechism\ChildrenExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Catechism\ChildImportRequest;
 use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
+use App\Models\Ecclesiastes\Church;
+use App\Models\User;
 use App\Services\Catechism\ChildBatchPdfService;
+use App\Services\Catechism\ChildImportService;
 use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\Catechism\ChildService;
 use App\Services\CatechismPeriodMovementService;
@@ -14,11 +19,13 @@ use App\Services\UserScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Excel as ExcelWriter;
 use Maatwebsite\Excel\Facades\Excel;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ChildController extends Controller
@@ -68,8 +75,7 @@ class ChildController extends Controller
         ChildRequest $request,
         Child $child,
         CatechismPeriodMovementService $movementService
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->children->updateChild($child, $request->validated(), $request->user(), $movementService);
 
         return redirect()->route('children.index')
@@ -170,51 +176,69 @@ class ChildController extends Controller
         ]);
     }
 
-    public function sendQrWhatsapp(Child $child, ChildQrWhatsappService $qrService)
+    public function importTemplate(Request $request)
     {
-        $this->authorize('view', $child);
+        $this->assertSuperadmin($request->user());
+
+        $fileName = 'plantilla_importacion_ninos_'.now()->format('Ymd').'.xlsx';
+
+        return Excel::download(new ChildImportTemplateExport, $fileName, ExcelWriter::XLSX);
+    }
+
+    public function importBatch(ChildImportRequest $request, ChildImportService $service): JsonResponse
+    {
+        $this->assertSuperadmin($request->user());
 
         try {
-            if (! $child->phone || ! $child->phone_lada) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El niño no tiene un teléfono registrado. Por favor, completa los datos de contacto.',
-                ], 422);
-            }
+            $result = $service->createBatch(
+                $request->user(),
+                Church::query()->findOrFail($request->integer('church_id')),
+                $request->file('file')
+            );
 
-            if (! config('baileys.enabled')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'WhatsApp no está habilitado en el sistema.',
-                ], 500);
-            }
+            return response()->json($result);
+        } catch (NotFoundHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        } catch (RuntimeException $e) {
+            Log::error('Error creando importación de niños', ['error' => $e->getMessage()]);
 
-            $message = $qrService->sendChildQrBadge($child);
-
-            if (! $message) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo generar el PDF del gafete para enviarlo.',
-                ], 500);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Gafete enviado correctamente por WhatsApp.',
-                'message_id' => $message?->id,
-                'status' => $message?->status,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error enviando gafete PDF por WhatsApp', [
-                'child_id' => $child->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar el gafete PDF por WhatsApp. Por favor, intenta más tarde.',
-            ], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
+    }
+
+    public function importBatchStatus(Request $request, string $batch, ChildImportService $service): JsonResponse
+    {
+        $this->assertSuperadmin($request->user());
+
+        $data = $service->status($request->user(), $batch);
+
+        if ($data === null) {
+            return response()->json(['message' => 'Importación no encontrada.'], 404);
+        }
+
+        return response()->json($data);
+    }
+
+    public function importBatchErrors(Request $request, string $batch, ChildImportService $service)
+    {
+        $this->assertSuperadmin($request->user());
+
+        $path = $service->errorReport($request->user(), $batch);
+
+        $fileName = 'errores_importacion_ninos_'.now()->format('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($path): void {
+            echo Storage::disk('local')->get($path);
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
+    }
+
+    private function assertSuperadmin(?User $user): void
+    {
+        abort_unless($user?->hasRole('Superadmin') === true, 403);
     }
 
     public function badgePdf(Request $request, Child $child, ChildQrWhatsappService $qrService)

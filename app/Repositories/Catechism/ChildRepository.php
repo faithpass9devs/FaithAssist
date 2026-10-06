@@ -28,19 +28,7 @@ class ChildRepository
 
         $query = Child::query()
             ->with(['church:id,name', 'community:id,name', 'activeLevelAssignments.level:id,name'])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($builder) use ($search) {
-                    $builder
-                        ->where('code', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('paterno', 'like', "%{$search}%")
-                        ->orWhere('materno', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%")
-                        ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('community', fn ($community) => $community->where('name', 'like', "%{$search}%"));
-                });
-            })
+            ->when($search !== '', fn ($query) => $query->search($search))
             ->when($churchId, fn ($query) => $query->where('church_id', $churchId))
             ->when($communityId, fn ($query) => $query->where('community_id', $communityId))
             ->when($levelId, fn ($query) => $query->whereHas(

@@ -3,6 +3,7 @@
 namespace App\Models\Operation;
 
 use App\Models\Concerns\LogsActivityTrail;
+use App\Models\Ecclesiastes\Church;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'period_id',
+    'church_id',
     'period_movement_type_id',
     'status',
     'start_date',
@@ -53,6 +55,11 @@ class PeriodMovement extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class, 'period_id');
+    }
+
+    public function church(): BelongsTo
+    {
+        return $this->belongsTo(Church::class, 'church_id');
     }
 
     public function periodMovementType(): BelongsTo

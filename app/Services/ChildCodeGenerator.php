@@ -10,12 +10,14 @@ use Illuminate\Support\Str;
 class ChildCodeGenerator
 {
     /**
-     * @param  array{name:string,paterno:string,materno?:string|null,birthdate:string,church_id:int}  $data
+     * @param  array{name:string,paterno:string,materno?:string|null,birthdate?:string|null,church_id:int}  $data
      */
     public function generate(array $data, ?CarbonInterface $registeredAt = null): string
     {
         $registeredAt ??= now();
-        $birthdate = Carbon::parse($data['birthdate'])->format('Ymd');
+        $birthdate = filled($data['birthdate'] ?? null)
+            ? Carbon::parse($data['birthdate'])->format('Ymd')
+            : $registeredAt->format('Ymd');
         $base = sprintf(
             '%s-%s-%s-CH%s',
             $registeredAt->format('Y'),
