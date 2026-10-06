@@ -28,7 +28,7 @@ class ChurchRequest extends FormRequest
         return [
             'municipality_id' => ['required', 'integer', Rule::exists('municipalities', 'id')->whereNull('deleted_at')],
             'deanery_id'      => ['nullable', 'integer', Rule::exists('deaneries', 'id')->whereNull('deleted_at')],
-            'name'            => ['required', 'string', 'max:255', Rule::unique('churches', 'name')->ignore($churchId)->whereNull('deleted_at')],
+            'name'            => ['required', 'string', 'max:255'],
             'alias'           => ['nullable', 'string', 'max:255'],
             'email'           => ['nullable', 'email', 'max:255'],
             'phone'           => ['nullable', 'string', 'max:30'],
