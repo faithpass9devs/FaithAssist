@@ -464,9 +464,9 @@ class DeviceSessionController extends Controller
             'account_status' => ['required', 'in:active,suspended,blocked'],
         ]);
 
-        $usuario->forceFill([
+$usuario->forceFill([
             'account_status' => $data['account_status'],
-            'suspended_until' => null,
+            'suspended_until' => $data['account_status'] === 'suspended' ? now()->addHours(24) : null,
         ])->save();
 
         activity('moderacion_cuentas')
