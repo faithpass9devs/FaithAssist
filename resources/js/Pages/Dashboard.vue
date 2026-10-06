@@ -159,12 +159,6 @@ const modules = computed(() =>
           moduleKey: 'masses',
         },
         {
-          label: 'Asistencias',
-          icon: QrCode,
-          href: '/asistencias',
-          moduleKey: 'mass_attendance',
-        },
-        {
           label: 'Asistencia manual',
           icon: ClipboardCheck,
           href: '/asistencias-manuales',

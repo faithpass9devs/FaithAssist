@@ -48,7 +48,8 @@ const form = useForm({
   starts_at: props.mass?.starts_at ?? '',
   ends_at: props.mass?.ends_at ?? '',
   status: props.mass?.status ?? 'upcoming',
-  attendance_status: props.mass?.attendance_status ?? 'upcoming',
+  attendance_check_in_status: props.mass?.attendance_check_in_status ?? 'upcoming',
+  attendance_check_out_status: props.mass?.attendance_check_out_status ?? 'upcoming',
   notes: props.mass?.notes ?? '',
 });
 
@@ -184,11 +185,19 @@ const submit = () => {
               />
 
               <UnderlineField
-                v-model="form.attendance_status"
-                label="Captura de asistencia"
+                v-model="form.attendance_check_in_status"
+                label="Captura de entradas"
                 as="select"
                 :options="statusOptions"
-                :error="form.errors.attendance_status"
+                :error="form.errors.attendance_check_in_status"
+              />
+
+              <UnderlineField
+                v-model="form.attendance_check_out_status"
+                label="Captura de salidas"
+                as="select"
+                :options="statusOptions"
+                :error="form.errors.attendance_check_out_status"
               />
             </div>
           </UnderlineSection>

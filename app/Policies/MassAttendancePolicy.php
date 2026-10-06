@@ -34,6 +34,11 @@ class MassAttendancePolicy extends BasePermissionPolicy
         return $this->can($user, 'scan') && $this->massWithinScope($user, $mass);
     }
 
+    public function manage(User $user, Mass $mass): bool
+    {
+        return $this->can($user, 'manage') && $this->massWithinScope($user, $mass);
+    }
+
     public function update(User $user, MassAttendance $massAttendance): bool
     {
         return $this->can($user, 'update') && $this->withinScope($user, $massAttendance);

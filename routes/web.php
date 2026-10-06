@@ -132,9 +132,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
-    Route::get('asistencias', [MassAttendanceController::class, 'landing'])
-        ->name('asistencias.index');
-
     Route::resource('asistencias-manuales', ManualAttendanceController::class)
         ->only(['index', 'store'])
         ->parameters(['asistencias-manuales' => 'manualAttendance']);
@@ -143,6 +140,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('misas.asistencias.index');
     Route::post('misas/{misa}/asistencias/scan', [MassAttendanceController::class, 'scan'])
         ->name('misas.asistencias.scan');
+    Route::post('misas/{misa}/asistencias/status', [MassAttendanceController::class, 'updateCaptureStatus'])
+        ->name('misas.asistencias.status');
 
     Route::resource('tipos-incidencias', IncidenceTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])

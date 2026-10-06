@@ -8,6 +8,7 @@ use App\Globals\Status;
 use App\Models\Catechism\Child;
 use App\Models\Ecclesiastes\Chapel;
 use App\Models\Masses\Mass;
+use App\Models\Masses\MassAttendance;
 use App\Models\Masses\Weekend;
 use App\Models\Regions\Community;
 use App\Models\User;
@@ -87,7 +88,8 @@ class MassModuleTest extends TestCase
                 'starts_at' => '2026-07-04 18:00',
                 'ends_at' => '2026-07-04 19:00',
                 'status' => Status::UPCOMING,
-                'attendance_status' => Status::UPCOMING,
+                'attendance_check_in_status' => Status::UPCOMING,
+                'attendance_check_out_status' => Status::UPCOMING,
             ])
             ->assertRedirect('/misas');
 
@@ -113,7 +115,8 @@ class MassModuleTest extends TestCase
                 'starts_at' => '2026-07-06 10:00',
                 'ends_at' => '2026-07-06 11:00',
                 'status' => Status::UPCOMING,
-                'attendance_status' => Status::UPCOMING,
+                'attendance_check_in_status' => Status::UPCOMING,
+                'attendance_check_out_status' => Status::UPCOMING,
             ])
             ->assertSessionHasErrors(['starts_at', 'ends_at']);
     }
@@ -129,7 +132,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::UPCOMING,
-            'attendance_status' => Status::UPCOMING,
+            'attendance_check_in_status' => Status::UPCOMING,
+            'attendance_check_out_status' => Status::UPCOMING,
         ]);
         $user = $this->makeGlobalUser('weekends.create', 'weekends.update', 'masses.create', 'masses.update');
 
@@ -155,7 +159,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($chain));
         $user = $this->makeGlobalUser('mass_attendance.scan');
@@ -196,7 +201,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($otherChain, ['code' => 'OTHER-CHILD']));
         $user = $this->makeGlobalUser('mass_attendance.scan');
@@ -233,7 +239,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 18:00',
             'ends_at' => '2026-07-05 19:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($chain));
         $user = $this->makeGlobalUser('mass_attendance.scan');
@@ -258,7 +265,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($chain));
         $user = $this->makeGlobalUser('mass_attendance.scan');
@@ -291,7 +299,8 @@ class MassModuleTest extends TestCase
             'starts_at' => '2026-07-05 10:00',
             'ends_at' => '2026-07-05 11:00',
             'status' => Status::IN_PROGRESS,
-            'attendance_status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
         ]);
         $child = Child::query()->create($this->childRow($chain));
         $user = $this->makeGlobalUser('mass_attendance.create');
@@ -302,6 +311,157 @@ class MassModuleTest extends TestCase
                 'action' => Status::CHECK_IN,
             ])
             ->assertForbidden();
+    }
+
+    public function test_check_in_capture_rejected_when_check_in_capture_is_completed(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::COMPLETED,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.scan');
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_IN,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['mass']);
+    }
+
+    public function test_check_in_capture_completed_still_allows_check_out_capture(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::COMPLETED,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.scan');
+
+        MassAttendance::query()->create([
+            'mass_id' => $mass->id,
+            'child_id' => $child->id,
+            'child_code' => $child->code,
+            'church_id' => $chain['church']->id,
+            'check_in_at' => now(),
+            'check_in_by' => $user->id,
+            'status' => Status::CHECK_IN,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_OUT,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.valid', true);
+    }
+
+    public function test_check_out_capture_rejected_when_check_out_capture_not_in_progress(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::UPCOMING,
+        ]);
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('mass_attendance.scan');
+
+        $this->actingAs($user)
+            ->postJson("/misas/{$mass->id}/asistencias/scan", [
+                'child_code' => $child->code,
+                'action' => Status::CHECK_OUT,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['mass']);
+    }
+
+    public function test_capture_status_endpoint_requires_manage_permission(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
+        ]);
+        $capturista = $this->makeGlobalUser('mass_attendance.scan');
+
+        $this->actingAs($capturista)
+            ->postJson("/misas/{$mass->id}/asistencias/status", [
+                'capture' => Status::CHECK_IN,
+                'status' => Status::COMPLETED,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_capture_status_endpoint_completes_and_reopens_capture(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::IN_PROGRESS,
+            'attendance_check_in_status' => Status::IN_PROGRESS,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
+        ]);
+        $coordinador = $this->makeGlobalUser('mass_attendance.manage');
+
+        $this->actingAs($coordinador)
+            ->postJson("/misas/{$mass->id}/asistencias/status", [
+                'capture' => Status::CHECK_IN,
+                'status' => Status::COMPLETED,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.attendance_check_in_status', Status::COMPLETED);
+
+        $this->assertDatabaseHas('masses', [
+            'id' => $mass->id,
+            'attendance_check_in_status' => Status::COMPLETED,
+            'attendance_check_out_status' => Status::IN_PROGRESS,
+        ]);
+
+        $this->actingAs($coordinador)
+            ->postJson("/misas/{$mass->id}/asistencias/status", [
+                'capture' => Status::CHECK_IN,
+                'status' => Status::IN_PROGRESS,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.attendance_check_in_status', Status::IN_PROGRESS);
     }
 
     private function createWeekend(array $chain): Weekend

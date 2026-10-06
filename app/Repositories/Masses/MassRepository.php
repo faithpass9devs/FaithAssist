@@ -156,6 +156,7 @@ class MassRepository
     public function update(Mass $mass, array $data): Mass
     {
         $mass->update($data);
+
         return $mass->fresh();
     }
 
@@ -175,7 +176,8 @@ class MassRepository
             'starts_at' => $mass->starts_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d h:i A'),
             'ends_at' => $mass->ends_at?->format($forForm ? 'Y-m-d\TH:i' : 'Y-m-d h:i A'),
             'status' => $mass->status,
-            'attendance_status' => $mass->attendance_status,
+            'attendance_check_in_status' => $mass->attendance_check_in_status,
+            'attendance_check_out_status' => $mass->attendance_check_out_status,
             'notes' => $mass->notes,
             'weekend' => $mass->weekend?->name ?: $mass->weekend?->starts_at?->format('Y-m-d'),
             'church' => $mass->church?->name,

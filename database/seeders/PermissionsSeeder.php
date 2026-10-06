@@ -76,6 +76,7 @@ class PermissionsSeeder extends Seeder
             ['name' => 'masses.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las misas'],
             ['name' => 'mass_attendance.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias a misas'],
             ['name' => 'mass_attendance.scan', 'module_key' => 'masses', 'description' => 'Permite capturar códigos QR de asistencia a misas'],
+            ['name' => 'mass_attendance.manage', 'module_key' => 'masses', 'description' => 'Permite iniciar y terminar la captura de entrada y salida de asistencias a misas'],
             ['name' => 'asistencias_manuales.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias manuales'],
             ['name' => 'incidencias_asistencia.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las incidencias de asistencia'],
             ['name' => 'reinscripciones.export', 'module_key' => 'catechism', 'description' => 'Permite exportar reinscripciones a Excel'],
