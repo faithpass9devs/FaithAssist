@@ -724,8 +724,8 @@ $usuario->forceFill([
     {
         return match ($status) {
             'active' => 'Activo',
-            'inactive' => 'Inactivo',
-            'closed' => 'Cerrado',
+            'suspended' => 'Suspendido',
+            'blocked' => 'Bloqueado',
             default => ucfirst($status),
         };
     }
