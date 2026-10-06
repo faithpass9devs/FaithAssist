@@ -32,7 +32,7 @@ class IxtapanSalSeeder extends Seeder
         }
 
         $municipality = Municipality::updateOrCreate(
-            ['name' => 'Ixtapan de la Sal'],
+            ['name' => 'IXTAPAN DE LA SAL'],
             [
                 'state_id' => $edomex->id,
                 'status' => Status::ACTIVE,
@@ -44,28 +44,28 @@ class IxtapanSalSeeder extends Seeder
         $this->command?->info('Municipio de Ixtapan de la Sal creado exitosamente.');
 
         $communities = [
-            'Barrio de San José',
-            'Barrio de San Pedro',
-            'Centro',
-            'Colonia 10 de Agosto',
-            'Colonia 3 de Mayo',
-            'Colonia 5 de Febrero',
-            'Colonia el Progres',
-            'Colonia Juárez',
-            'Colonia Revolución',
-            'Colorines',
-            'El Salitre',
-            'Ixtapita',
-            'Llano de la unión',
-            'Llano de San Diego',
-            'Llano de San Juan',
-            'Los Naranjos',
-            'San Diego Alcalá',
-            'San Miguel laderas',
-            'San Pedro tlacochaca',
-            'Santa Catarina',
-            'Tlacochaca',
-            'Yautepec',
+            'BARRIO DE SAN JOSÉ',
+            'BARRIO DE SAN PEDRO',
+            'CENTRO',
+            'COLONIA 10 DE AGOSTO',
+            'COLONIA 3 DE MAYO',
+            'COLONIA 5 DE FEBRERO',
+            'COLONIA EL PROGRES',
+            'COLONIA JUÁREZ',
+            'COLONIA REVOLUCIÓN',
+            'COLORINES',
+            'EL SALITRE',
+            'IXTAPITA',
+            'LLANO DE LA UNIÓN',
+            'LLANO DE SAN DIEGO',
+            'LLANO DE SAN JUAN',
+            'LOS NARANJOS',
+            'SAN DIEGO ALCALÁ',
+            'SAN MIGUEL LADERAS',
+            'SAN PEDRO TLACOCHACA',
+            'SANTA CATARINA',
+            'TLACOCHACA',
+            'YAUTEPEC',
         ];
 
         foreach ($communities as $name) {
@@ -92,8 +92,8 @@ class IxtapanSalSeeder extends Seeder
         Church::updateOrCreate(
             ['name' => 'PARROQUIA DE LA ASUNCIÓN DE MARIA DE IXTAPAN DE LA SAL.MEX.'],
             [
-                'alias' => 'Parroquia de la Asunción de María',
-                'email' => 'asunciondeixtapan@gmail.com',
+                'alias' => 'PARROQUIA DE LA ASUNCIÓN DE MARÍA',
+                'email' => 'ASUNCIONDEIXTAPAN@GMAIL.COM',
                 'phone' => '7311430481',
                 'address' => 'ALVARO O REGIN NO.2',
                 'municipality_id' => $municipality->id,
