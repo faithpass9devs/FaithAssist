@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue';
 import { router, usePage, usePoll } from '@inertiajs/vue3';
 import { CalendarDays, CalendarRange, ChevronDown, ChevronUp, Download, MonitorSmartphone, ShieldCheck, Trash2, X } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import AppShell from '../../../components/layouts/AppShell.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 
@@ -16,6 +17,7 @@ const props = defineProps({
 const page = usePage();
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 const canDelete = computed(() => permissions.value.includes('dispositivos_sesiones.delete'));
+const closingUserSessions = ref(false);
 const reportDialog = ref(null);
 const monthWheel = ref(null);
 const reportMode = ref('month');
@@ -92,18 +94,84 @@ const closeSession = async (sessionId) => {
 };
 
 const closeUserSessions = async () => {
-  if (!canDelete.value) return;
+  if (!canDelete.value || closingUserSessions.value) return;
 
-  const response = await fetch(`/dispositivos-sesiones/usuario/${props.user.id}`, {
-    method: 'DELETE',
-    headers: {
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-      Accept: 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  });
+  closingUserSessions.value = true;
 
-  if (response.ok) refreshSessions();
+  try {
+    if (!props.sessions.some((session) => session.status === 'active')) {
+      await Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: `${props.user.name} no tiene sesiones activas en este momento.`,
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true,
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      toast: true,
+      position: 'top-end',
+      title: 'Quitar todas las sesiones',
+      text: `¿Seguro que deseas cerrar las sesiones de ${props.user.name} en todos sus dispositivos?.`,
+      icon: 'warning',
+      width: 460,
+      backdrop: false,
+      showConfirmButton: true,
+      showCancelButton: true,
+      buttonsStyling: false,
+      confirmButtonText: 'Confirmar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'swal-delete-banner',
+        actions: 'swal-delete-banner-actions',
+        confirmButton: 'btn btn-error btn-xs',
+        cancelButton: 'btn btn-ghost btn-xs',
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const response = await fetch(`/dispositivos-sesiones/usuario/${props.user.id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+    const json = await response.json();
+
+    if (!response.ok) {
+      throw new Error(json?.message ?? 'No se pudieron quitar las sesiones.');
+    }
+
+    refreshSessions();
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: json.success ? 'success' : 'info',
+      title: json.message ?? 'Sesiones actualizadas.',
+      showConfirmButton: false,
+      timer: 2800,
+      timerProgressBar: true,
+    });
+  } catch (error) {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'error',
+      title: 'No se pudieron quitar las sesiones',
+      text: error?.message ?? 'Inténtalo nuevamente.',
+      showConfirmButton: true,
+      confirmButtonText: 'Entendido',
+    });
+  } finally {
+    closingUserSessions.value = false;
+  }
 };
 </script>
 
@@ -123,7 +191,7 @@ const closeUserSessions = async () => {
               <Download class="h-4 w-4" />
               Descargar Excel
             </button>
-            <button v-if="canDelete" type="button" class="btn btn-sm w-full gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 sm:w-auto" @click="closeUserSessions">
+            <button v-if="canDelete" type="button" :disabled="closingUserSessions" class="btn btn-sm w-full gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 sm:w-auto" @click="closeUserSessions">
               <Trash2 class="h-4 w-4" />
               Quitar todas las sesiones
             </button>
