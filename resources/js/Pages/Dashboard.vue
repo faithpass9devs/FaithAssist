@@ -14,6 +14,7 @@ import {
   Landmark,
   LayoutGrid,
   MapPinned,
+  Settings,
   ShieldCheck,
   Tags,
   Users,
@@ -24,7 +25,13 @@ const page = usePage();
 
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 
+const canSeeExternos = computed(() => page.props.auth?.scope?.can_see_externos === true);
+
 const hasPermission = (item) => {
+  if (item.coatepecOnly && !canSeeExternos.value) {
+    return false;
+  }
+
   if (item.permission) {
     return permissions.value.includes(item.permission);
   }
@@ -129,7 +136,7 @@ const modules = computed(() =>
           href: '/reinscripciones',
           moduleKey: 'reinscripciones',
         },
-        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos' },
+        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos', coatepecOnly: true },
       ],
     },
     {
@@ -203,6 +210,20 @@ const modules = computed(() =>
           icon: ShieldCheck,
           href: '/dispositivos-sesiones',
           moduleKey: 'dispositivos_sesiones',
+        },
+      ],
+    },
+    {
+      name: 'Configuración',
+      accent: 'from-amber-200 via-orange-100 to-slate-100',
+      titleClass: 'text-sky-700',
+      items: [
+        {
+          label: 'Ajustes',
+          icon: Settings,
+          href: '/ajustes',
+          moduleKey: 'settings',
+          permission: 'ajustes.read',
         },
       ],
     },

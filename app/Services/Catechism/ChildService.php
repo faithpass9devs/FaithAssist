@@ -22,6 +22,7 @@ class ChildService
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
         private readonly ChildBatchPdfService $pdfBatchService,
+        private readonly ChildImportService $childImportService,
     ) {}
 
     public function indexData(
@@ -69,6 +70,9 @@ class ChildService
             'sexLabels' => $this->sexLabels(),
             'bloodTypeLabels' => $this->bloodTypeLabels(),
             'latestPdfExportBatch' => $this->pdfBatchService->latestBatch($user),
+            'latestImportBatch' => $user->hasRole('Superadmin')
+                ? $this->childImportService->latestBatch($user)
+                : null,
         ];
     }
 

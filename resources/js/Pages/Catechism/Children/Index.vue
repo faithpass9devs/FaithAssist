@@ -2,14 +2,18 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
   Download,
+  FileSpreadsheet,
   Filter,
   Pencil,
   Plus,
   RotateCcw,
+  TriangleAlert,
+  Upload,
   QrCode,
   Search,
   Trash2,
   Users,
+  X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
@@ -41,6 +45,7 @@ const props = defineProps({
   sexLabels: { type: Object, default: () => ({}) },
   bloodTypeLabels: { type: Object, default: () => ({}) },
   latestPdfExportBatch: { type: Object, default: null },
+  latestImportBatch: { type: Object, default: null },
 });
 
 const searchTerm = ref(props.search);
@@ -219,7 +224,10 @@ onMounted(() => {
   }
 });
 
-onBeforeUnmount(stopPdfPolling);
+onBeforeUnmount(() => {
+  stopPdfPolling();
+  stopImportPolling();
+});
 
 const csrfToken = () =>
   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -325,6 +333,161 @@ const badgePdfHref = computed(() =>
   qrChild.value ? `/children/${qrChild.value.id}/badge-pdf` : '#',
 );
 
+const importModalOpen = ref(false);
+const importChurchId = ref(null);
+const importFile = ref(null);
+const importFileInput = ref(null);
+const startingImport = ref(false);
+const importBatch = ref(props.latestImportBatch);
+let importPollTimer = null;
+let importPollStaleCount = 0;
+
+const isImportActive = computed(
+  () => !!importBatch.value && !importBatch.value.finished && !importBatch.value.cancelled,
+);
+
+const stopImportPolling = () => {
+  if (importPollTimer) {
+    clearInterval(importPollTimer);
+    importPollTimer = null;
+  }
+};
+
+const refreshImportBatch = async () => {
+  if (!importBatch.value) return;
+
+  try {
+    const res = await fetch(`/children/import/${importBatch.value.batch_id}`, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      stopImportPolling();
+      return;
+    }
+
+    const data = await res.json();
+    importBatch.value = data;
+
+    if (data.cancelled) {
+      stopImportPolling();
+      return;
+    }
+
+    if (data.finished) {
+      stopImportPolling();
+
+      if (data.imported > 0) {
+        router.get('/children', {}, { preserveState: true, replace: true });
+      }
+
+      return;
+    }
+
+    importPollStaleCount += 1;
+    if (importPollStaleCount >= 60) {
+      stopImportPolling();
+    }
+  } catch {
+    stopImportPolling();
+  }
+};
+
+const startImportPolling = () => {
+  stopImportPolling();
+  importPollStaleCount = 0;
+  importPollTimer = setInterval(refreshImportBatch, 3000);
+};
+
+onMounted(() => {
+  if (isImportActive.value) {
+    startImportPolling();
+  }
+});
+
+const downloadImportTemplate = () => {
+  window.location.assign('/children/import/template');
+};
+
+const openImportModal = () => {
+  importFile.value = null;
+  if (importFileInput.value) importFileInput.value.value = '';
+  importModalOpen.value = true;
+};
+
+const closeImportModal = () => {
+  if (startingImport.value) return;
+  importModalOpen.value = false;
+};
+
+const onImportFileChange = (event) => {
+  importFile.value = event.target.files?.[0] ?? null;
+};
+
+const startImport = async () => {
+  if (!importChurchId.value || !importFile.value) return;
+
+  startingImport.value = true;
+
+  const body = new FormData();
+  body.append('church_id', importChurchId.value);
+  body.append('file', importFile.value);
+
+  try {
+    const res = await fetch('/children/import', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-CSRF-TOKEN': csrfToken(),
+      },
+      body,
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const firstError = data.errors ? Object.values(data.errors).flat()[0] : null;
+      Swal.fire({
+        title: 'No se pudo iniciar la importación',
+        text: firstError || data.message || 'Revisa el archivo e intenta de nuevo.',
+        icon: 'error',
+      });
+      return;
+    }
+
+    importModalOpen.value = false;
+
+    importBatch.value = {
+      batch_id: data.batch_id,
+      total: data.total + data.rejected,
+      processed: data.rejected,
+      pending: data.total,
+      imported: 0,
+      failed: data.rejected,
+      progress: 0,
+      finished: false,
+      cancelled: false,
+      has_errors: data.rejected > 0,
+    };
+
+    startImportPolling();
+    refreshImportBatch();
+  } catch {
+    Swal.fire({
+      title: 'No se pudo iniciar la importación',
+      text: 'La importación no pudo comenzar en este momento.',
+      icon: 'error',
+    });
+  } finally {
+    startingImport.value = false;
+  }
+};
+
+const downloadImportErrors = () => {
+  if (!importBatch.value?.batch_id) return;
+  window.location.assign(`/children/import/${importBatch.value.batch_id}/errors`);
+};
+
 </script>
 
 <template>
@@ -337,6 +500,17 @@ const badgePdfHref = computed(() =>
       :icon="Users"
     >
       <template #actions>
+        <button
+          v-if="isSuperadmin"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5"
+          :disabled="isImportActive"
+          @click="openImportModal"
+        >
+          <Upload class="h-4 w-4" />
+          Importar Excel
+        </button>
+
         <button
           v-if="canExport"
           type="button"
@@ -535,6 +709,79 @@ const badgePdfHref = computed(() =>
     </div>
 
     <div
+      v-if="importBatch"
+      class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3
+          class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
+        >
+          <span class="text-emerald-600 dark:text-emerald-400">
+            <FileSpreadsheet class="h-4 w-4" v-if="!isImportActive" />
+            <span v-else class="loading loading-spinner loading-sm"></span>
+          </span>
+          Importación de niños
+          <span v-if="importBatch.original_filename" class="truncate font-normal text-slate-400">
+            · {{ importBatch.original_filename }}
+          </span>
+        </h3>
+
+        <button
+          v-if="importBatch.finished && importBatch.has_errors"
+          type="button"
+          class="btn btn-outline btn-sm gap-1.5 rounded-xl border-amber-300 text-amber-700 hover:border-amber-400 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40"
+          @click="downloadImportErrors"
+        >
+          <Download class="h-4 w-4" />
+          Descargar errores
+        </button>
+      </div>
+
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        <template v-if="importBatch.cancelled">La importación fue cancelada.</template>
+        <template v-else-if="isImportActive"
+          >Procesando los niños del archivo en el periodo de inscripciones actual.</template
+        >
+        <template v-else-if="importBatch.finished">
+          Importación finalizada: se registraron
+          <strong class="text-emerald-700 dark:text-emerald-400">{{ importBatch.imported }}</strong>
+          niños
+          <template v-if="importBatch.failed > 0">
+            y
+            <strong class="text-amber-600 dark:text-amber-400">
+              {{ importBatch.failed }}
+            </strong>
+            filas quedaron pendientes.
+          </template>
+          <template v-else>. </template>
+        </template>
+      </p>
+
+      <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+        <div
+          class="h-full rounded-full bg-emerald-600 transition-all"
+          :style="{ width: (importBatch.progress ?? 0) + '%' }"
+        ></div>
+      </div>
+
+      <div
+        class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+      >
+        <span>
+          Procesados:
+          <strong class="text-slate-700 dark:text-slate-200">{{ importBatch.processed }}</strong>
+          de {{ importBatch.total }}
+        </span>
+        <span
+          v-if="importBatch.failed > 0"
+          class="font-semibold text-amber-600 dark:text-amber-400"
+        >
+          Con error: {{ importBatch.failed }}
+        </span>
+      </div>
+    </div>
+
+    <div
       class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <table class="table w-full">
@@ -672,6 +919,107 @@ const badgePdfHref = computed(() =>
       :to="children.to"
       :total="children.total"
     />
+
+    <div
+      v-if="importModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+      @click.self="closeImportModal"
+    >
+      <div class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="flex items-center gap-2 text-lg font-black text-slate-800 dark:text-slate-100">
+            <FileSpreadsheet class="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            Importar niños desde Excel
+          </h2>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-circle"
+            :disabled="startingImport"
+            @click="closeImportModal"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Los niños se registran en el periodo de inscripciones activo de la parroquia seleccionada.
+          La columna <strong>birthdate</strong> puede ir vacía.
+        </p>
+
+        <div class="mt-5 space-y-4">
+          <label class="block">
+            <span
+              class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
+            >
+              Parroquia
+            </span>
+            <select
+              v-model="importChurchId"
+              class="select select-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+            >
+              <option :value="null">Selecciona una parroquia</option>
+              <option v-for="church in churches" :key="church.id" :value="church.id">
+                {{ church.name }}
+              </option>
+            </select>
+          </label>
+
+          <label class="block">
+            <span
+              class="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300"
+            >
+              Archivo (.xlsx, .xls, .csv)
+            </span>
+            <input
+              ref="importFileInput"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              class="file-input file-input-bordered h-11 w-full rounded-2xl bg-white dark:bg-slate-950"
+              :disabled="startingImport"
+              @change="onImportFileChange"
+            />
+          </label>
+        </div>
+
+        <div
+          class="mt-4 flex items-start gap-2 rounded-2xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Descarga la plantilla para conocer los encabezados y los catálogos de comunidades y
+            niveles válidos.
+            <button
+              type="button"
+              class="font-semibold underline underline-offset-2"
+              @click="downloadImportTemplate"
+            >
+              Descargar plantilla
+            </button>
+          </span>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm rounded-2xl border border-slate-300 dark:border-slate-600"
+            :disabled="startingImport"
+            @click="closeImportModal"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1.5 rounded-2xl"
+            :disabled="startingImport || !importChurchId || !importFile"
+            @click="startImport"
+          >
+            <span v-if="startingImport" class="loading loading-spinner loading-sm"></span>
+            <Upload v-else class="h-4 w-4" />
+            Importar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div
       v-if="qrChild"

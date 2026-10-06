@@ -45,12 +45,13 @@ class PeriodMovementControllerTest extends TestCase
 
     public function test_user_without_create_permission_gets_403_on_store(): void
     {
-        ['period' => $period, 'type' => $type] = $this->createPeriodAndType();
+        ['chain' => $chain, 'period' => $period, 'type' => $type] = $this->createPeriodAndType();
         $user = $this->makeGlobalUser('periodo_movimientos.read');
 
         $this->actingAs($user)
             ->postJson('/periodo-movimientos', [
                 'period_id'              => $period->id,
+                'church_id'              => $chain['church']->id,
                 'period_movement_type_id' => $type->id,
                 'status'                 => Status::PENDING,
                 'start_date'             => '2025-02-01',
@@ -68,8 +69,8 @@ class PeriodMovementControllerTest extends TestCase
         $chain2['diocese']->update(['name' => 'Diócesis B']);
         $period2 = Period::query()->create(['diocese_id' => $chain2['diocese']->id, 'name' => 'Periodo B', 'start_date' => '2025-01-01', 'end_date' => '2025-12-31', 'years' => '2025', 'status' => Status::IN_PROGRESS]);
 
-        PeriodMovement::query()->create(['period_id' => $period1->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
-        PeriodMovement::query()->create(['period_id' => $period2->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        PeriodMovement::query()->create(['period_id' => $period1->id, 'church_id' => $chain1['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        PeriodMovement::query()->create(['period_id' => $period2->id, 'church_id' => $chain2['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
 
         $user = $this->makeGlobalUser('periodo_movimientos.read');
 
@@ -85,8 +86,8 @@ class PeriodMovementControllerTest extends TestCase
         $chain2['diocese']->update(['name' => 'Diócesis B']);
         $period2 = Period::query()->create(['diocese_id' => $chain2['diocese']->id, 'name' => 'Periodo B', 'start_date' => '2025-01-01', 'end_date' => '2025-12-31', 'years' => '2025', 'status' => Status::IN_PROGRESS]);
 
-        PeriodMovement::query()->create(['period_id' => $period1->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
-        PeriodMovement::query()->create(['period_id' => $period2->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        PeriodMovement::query()->create(['period_id' => $period1->id, 'church_id' => $chain1['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        PeriodMovement::query()->create(['period_id' => $period2->id, 'church_id' => $chain2['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
 
         $user = $this->makeDioceseUser($chain1['diocese'], 'periodo_movimientos.read');
 
@@ -108,12 +109,13 @@ class PeriodMovementControllerTest extends TestCase
 
     public function test_store_creates_movement_and_returns_201(): void
     {
-        ['period' => $period, 'type' => $type] = $this->createPeriodAndType();
+        ['chain' => $chain, 'period' => $period, 'type' => $type] = $this->createPeriodAndType();
         $user = $this->makeGlobalUser('periodo_movimientos.create');
 
         $response = $this->actingAs($user)
             ->postJson('/periodo-movimientos', [
                 'period_id'               => $period->id,
+                'church_id'               => $chain['church']->id,
                 'period_movement_type_id' => $type->id,
                 'status'                  => Status::PENDING,
                 'start_date'              => '2025-02-01',
@@ -129,13 +131,14 @@ class PeriodMovementControllerTest extends TestCase
 
     public function test_update_modifies_movement_and_returns_200(): void
     {
-        ['period' => $period, 'type' => $type] = $this->createPeriodAndType();
-        $movement = PeriodMovement::query()->create(['period_id' => $period->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        ['chain' => $chain, 'period' => $period, 'type' => $type] = $this->createPeriodAndType();
+        $movement = PeriodMovement::query()->create(['period_id' => $period->id, 'church_id' => $chain['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
         $user = $this->makeGlobalUser('periodo_movimientos.update');
 
         $response = $this->actingAs($user)
             ->putJson("/periodo-movimientos/{$movement->id}", [
                 'period_id'               => $period->id,
+                'church_id'               => $chain['church']->id,
                 'period_movement_type_id' => $type->id,
                 'status'                  => Status::IN_PROGRESS,
                 'start_date'              => '2025-02-01',
@@ -149,8 +152,8 @@ class PeriodMovementControllerTest extends TestCase
 
     public function test_destroy_soft_deletes_movement_and_returns_200(): void
     {
-        ['period' => $period, 'type' => $type] = $this->createPeriodAndType();
-        $movement = PeriodMovement::query()->create(['period_id' => $period->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
+        ['chain' => $chain, 'period' => $period, 'type' => $type] = $this->createPeriodAndType();
+        $movement = PeriodMovement::query()->create(['period_id' => $period->id, 'church_id' => $chain['church']->id, 'period_movement_type_id' => $type->id, 'status' => Status::PENDING, 'start_date' => '2025-02-01', 'end_date' => '2025-03-31']);
         $user = $this->makeGlobalUser('periodo_movimientos.delete');
 
         $this->actingAs($user)
