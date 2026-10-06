@@ -105,7 +105,7 @@ class ForgotPasswordController extends Controller
 
         if (! $sent) {
             throw ValidationException::withMessages([
-                'whatsapp_phone' => 'Demasiados intentos fallidos. Por favor, intenta más tarde.',
+                'whatsapp_phone' => 'El envío de códigos de recuperación está temporalmente deshabilitado. Contacta al administrador.',
             ]);
         }
 
@@ -116,7 +116,7 @@ class ForgotPasswordController extends Controller
         ]);
 
         return redirect()->route('password.recovery.code.show')
-            ->with('status', 'Código de recuperación enviado por WhatsApp.');
+            ->with('status', 'Código de recuperación enviado.');
     }
 
     public function showCodeStep(Request $request): Response

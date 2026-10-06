@@ -29,7 +29,6 @@ use App\Http\Controllers\Security\RoleController;
 use App\Http\Controllers\Security\UserController;
 use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\UserThemeController;
-use App\Http\Controllers\WhatsappMessageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -170,7 +169,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/children/export-pdf', [ChildController::class, 'exportPdfBatch'])->name('children.export-pdf');
     Route::get('/children/export-pdf/{batch}', [ChildController::class, 'pdfBatchStatus'])->name('children.export-pdf.status');
     Route::get('/children/export-pdf/{batch}/download', [ChildController::class, 'downloadPdfBatch'])->name('children.export-pdf.download');
-    Route::post('/children/{child}/send-qr-whatsapp', [ChildController::class, 'sendQrWhatsapp'])->name('children.send-qr-whatsapp');
     Route::get('/children/{child}/badge-pdf', [ChildController::class, 'badgePdf'])->name('children.badge-pdf');
 
     Route::get('reinscripciones/{child}/create', [ReinscriptionController::class, 'create'])
@@ -228,14 +226,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::resource('usuarios', UserController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['usuarios' => 'usuario']);
-
-    Route::get('/whatsapp', [WhatsappMessageController::class, 'index'])->name('whatsapp.index');
-
-    Route::post('/whatsapp/send', [WhatsappMessageController::class, 'send'])->name('whatsapp.send');
-
-    Route::get('/whatsapp/history', [WhatsappMessageController::class, 'history'])->name('whatsapp.history');
-
-    Route::get('/whatsapp/history-json', [WhatsappMessageController::class, 'historyJson'])->name('whatsapp.history-json');
 
     // Ajustes
     Route::prefix('ajustes')->name('ajustes.')->group(function () {

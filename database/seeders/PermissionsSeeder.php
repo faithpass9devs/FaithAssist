@@ -82,7 +82,6 @@ class PermissionsSeeder extends Seeder
             ['name' => 'asistencias_manuales.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias manuales'],
             ['name' => 'incidencias_asistencia.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las incidencias de asistencia'],
             ['name' => 'reinscripciones.export', 'module_key' => 'catechism', 'description' => 'Permite exportar reinscripciones a Excel'],
-            ['name' => 'whatsapp.send', 'module_key' => 'whatsapp', 'description' => 'Permite enviar mensajes por WhatsApp'],
         ] as $permission) {
             Permission::query()->updateOrCreate(
                 [
@@ -100,7 +99,6 @@ class PermissionsSeeder extends Seeder
         Permission::query()
             ->where('guard_name', 'web')
             ->where('name', 'like', 'whatsapp.%')
-            ->where('name', '!=', 'whatsapp.send')
             ->delete();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

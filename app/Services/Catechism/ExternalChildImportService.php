@@ -28,7 +28,6 @@ class ExternalChildImportService
     public function __construct(
         private readonly ChildRepository $children,
         private readonly ChildCodeGenerator $codeGenerator,
-        private readonly ChildQrWhatsappService $qrWhatsappService,
     ) {}
 
     /**
@@ -127,15 +126,6 @@ class ExternalChildImportService
         // caché del dataset completo (24h) sigue siendo válida tras importar.
         // El estado "importado" se calcula en vivo contra la tabla local
         // ExternalChildImport en cada petición.
-
-        // DESHABILITADO temporalmente: no enviar gafete QR por WhatsApp al importar desde Hostinger.
-        // try {
-        //     $this->qrWhatsappService->sendChildQrBadge($child);
-        // } catch (\Throwable $e) {
-        //     Log::warning('Gafete PDF WhatsApp envío diferido', [
-        //         'child_id' => $child->id,
-        //     ]);
-        // }
 
         return $child;
     }

@@ -237,12 +237,14 @@ const submit = () => {
                   >Recordar mi sesion</span
                 >
               </label>
+              <!--
               <Link
                 :href="forgotPasswordHref"
                 class="text-sm font-medium text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-blue-900 dark:text-slate-300 dark:decoration-slate-500 dark:hover:text-slate-100"
               >
                 Olvide mi contrasena
               </Link>
+              -->
             </div>
 
             <button

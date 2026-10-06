@@ -4,10 +4,11 @@ namespace Tests\Feature\Auth;
 
 use App\Models\PasswordResetWhatsappCode;
 use App\Models\User;
+use App\Services\Auth\ForgotPasswordService;
 use Database\Seeders\LadaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use App\Jobs\ProcessWhatsappQueueBatchJob;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -41,10 +42,74 @@ class ForgotPasswordWhatsappTest extends TestCase
         $response->assertSessionHas('password_recovery.phone_normalized', '+5215512345678');
     }
 
-    public function test_it_confirms_phone_and_sends_code(): void
+    public function test_recovery_views_remain_available_with_valid_session_state(): void
     {
-        config()->set('baileys.enabled', true);
+        $this->get(route('password.recovery.email.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/ForgotPasswordEmail'));
+
+        $this->withSession(['password_recovery' => [
+            'started_at' => now()->timestamp,
+            'user_id' => 1,
+            'masked_phone' => '*** *** 5678',
+        ]])->get(route('password.recovery.phone.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/ForgotPasswordPhone'));
+
+        $this->get(route('password.recovery.code.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/ForgotPasswordCode'));
+
+        $this->withSession(['password_recovery.code_verified_at' => now()->timestamp])
+            ->get(route('password.recovery.reset.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/ForgotPasswordReset'));
+    }
+
+    public function test_password_cannot_be_reset_without_code_verification(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Usuario Protegido',
+            'email' => 'protected@faithassistqr.test',
+            'password' => 'old-password',
+        ]);
+
+        $this->withSession(['password_recovery' => [
+            'started_at' => now()->timestamp,
+            'user_id' => $user->id,
+        ]])->post(route('password.recovery.reset.update'), [
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])->assertRedirect(route('password.recovery.code.show'));
+
+        $this->assertTrue(Hash::check('old-password', $user->fresh()->password));
+    }
+
+    public function test_expired_or_exhausted_codes_are_rejected(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Usuario Codigo Expirado',
+            'email' => 'expired@faithassistqr.test',
+            'password' => 'old-password',
+        ]);
+        $resetCode = PasswordResetWhatsappCode::query()->create([
+            'user_id' => $user->id,
+            'code_hash' => Hash::make('123456'),
+            'attempts' => 0,
+            'expires_at' => now()->subMinute(),
+        ]);
+        $service = app(ForgotPasswordService::class);
+
+        $this->assertFalse($service->verifyCode($user, '123456'));
+
+        $resetCode->update(['expires_at' => now()->addMinutes(10), 'attempts' => 5]);
+        $this->assertFalse($service->verifyCode($user, '123456'));
+    }
+
+    public function test_code_delivery_is_disabled_without_a_provider(): void
+    {
         Queue::fake();
+        Http::fake();
 
         $user = User::query()->create([
             'name' => 'Usuario Prueba',
@@ -67,13 +132,12 @@ class ForgotPasswordWhatsappTest extends TestCase
             'whatsapp_phone' => '5512345678',
         ]);
 
-        $response->assertRedirect(route('password.recovery.code.show'));
-
-        $this->assertDatabaseHas('password_reset_whatsapp_codes', [
-            'user_id' => $user->id,
+        $response->assertSessionHasErrors([
+            'whatsapp_phone' => 'El envío de códigos de recuperación está temporalmente deshabilitado. Contacta al administrador.',
         ]);
-
-        Queue::assertPushed(ProcessWhatsappQueueBatchJob::class);
+        $this->assertDatabaseCount('password_reset_whatsapp_codes', 0);
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
     }
 
     public function test_it_validates_code_and_moves_to_reset_step(): void
@@ -167,9 +231,8 @@ class ForgotPasswordWhatsappTest extends TestCase
         $response->assertSessionHasErrors('email');
     }
 
-    public function test_it_accepts_different_phone_number_in_step_2(): void
+    public function test_a_different_phone_cannot_bypass_disabled_delivery(): void
     {
-        config()->set('baileys.enabled', true);
         Queue::fake();
 
         $user = User::query()->create([
@@ -193,12 +256,8 @@ class ForgotPasswordWhatsappTest extends TestCase
             'whatsapp_phone' => '5598765432', // Número diferente
         ]);
 
-        $response->assertRedirect(route('password.recovery.code.show'));
-
-        $this->assertDatabaseHas('password_reset_whatsapp_codes', [
-            'user_id' => $user->id,
-        ]);
-
-        Queue::assertPushed(ProcessWhatsappQueueBatchJob::class);
+        $response->assertSessionHasErrors('whatsapp_phone');
+        $this->assertDatabaseCount('password_reset_whatsapp_codes', 0);
+        Queue::assertNothingPushed();
     }
 }
