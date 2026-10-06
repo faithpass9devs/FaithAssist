@@ -54,13 +54,15 @@ Route::middleware('guest')->group(function () {
         });
 });
 
-Route::middleware(['auth', 'password.changed'])->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/notificaciones/pendiente', [NotificationController::class, 'pending'])->name('notifications.pending');
     Route::patch('/notificaciones/{notification}/confirmar', [NotificationController::class, 'acknowledge'])->name('notifications.acknowledge');
     Route::get('/cuenta/restringida', function () {
         return Inertia::render('Account/Restricted');
     })->name('account.restricted');
+});
 
+Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/', function () {
         return Inertia::render('Dashboard');
     })->name('home');
