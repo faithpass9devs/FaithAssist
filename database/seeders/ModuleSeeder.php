@@ -13,10 +13,13 @@ class ModuleSeeder extends Seeder
      */
     public function run(): void
     {
-        $superadmin = User::query()->where('email', 'superadmin@faithassistqr.test')->first();
+        // Buscar cualquier usuario que tenga el rol Superadmin.
+        $superadmin = User::role('Superadmin')->first();
 
         if (! $superadmin) {
-            $this->command?->warn('No se encontro el usuario Superadmin. Ejecuta UsersPerRoleSeeder primero.');
+            $this->command?->warn(
+                'No se encontró ningún usuario con el rol Superadmin.'
+            );
 
             return;
         }
@@ -82,5 +85,9 @@ class ModuleSeeder extends Seeder
                 ]
             );
         }
+
+        $this->command?->info(
+            'Módulos sincronizados correctamente usando el usuario Superadmin.'
+        );
     }
 }
