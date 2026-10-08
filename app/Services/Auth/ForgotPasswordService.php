@@ -5,11 +5,7 @@ namespace App\Services\Auth;
 use App\Models\Lada;
 use App\Models\PasswordResetWhatsappCode;
 use App\Models\User;
-use App\Jobs\ProcessWhatsappQueueBatchJob;
-use App\Models\WhatsappMessage;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 
 class ForgotPasswordService
 {
@@ -31,41 +27,7 @@ class ForgotPasswordService
 
     public function sendPasswordResetCode(User $user, string $normalizedPhone, string $ip): bool
     {
-        $rateLimitKey = sprintf('password-reset:%d|%s', $user->id, $ip);
-
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 3)) {
-            return false;
-        }
-
-        $code = (string) random_int(100000, 999999);
-        $codeHash = Hash::make($code);
-
-        DB::transaction(function () use ($user, $codeHash): void {
-            PasswordResetWhatsappCode::query()
-                ->where('user_id', $user->id)
-                ->delete();
-
-            PasswordResetWhatsappCode::create([
-                'user_id' => $user->id,
-                'code_hash' => $codeHash,
-                'attempts' => 0,
-                'expires_at' => now()->addMinutes(15),
-            ]);
-        });
-
-        $message = WhatsappMessage::query()->create([
-            'to_phone' => $normalizedPhone,
-            'country_code' => Lada::detectCountryCode($normalizedPhone),
-            'message_type' => 'text',
-            'message_body' => "Tu código de verificación es ({$code}). Caduca en 15 minutos. No lo compartas con nadie.",
-            'status' => WhatsappMessage::STATUS_PENDING,
-            'max_retries' => config('baileys.retry.max_retries'),
-            'legend_text' => config('baileys.legend'),
-        ]);
-
-        ProcessWhatsappQueueBatchJob::dispatch()->onQueue('whatsapp');
-        RateLimiter::hit($rateLimitKey, 600);
-        return true;
+        return false;
     }
 
     public function verifyCode(User $user, string $inputCode): bool

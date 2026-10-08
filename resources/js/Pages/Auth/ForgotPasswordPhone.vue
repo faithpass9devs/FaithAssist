@@ -37,7 +37,7 @@ const submit = () => {
           Paso 2 de 4
         </div>
         <h1 class="ui-auth-title">Verificación de teléfono</h1>
-        <p class="ui-auth-subtitle">Confirma el número para enviarte el código de seguridad.</p>
+        <p class="ui-auth-subtitle">El envío de códigos de recuperación está temporalmente deshabilitado. Contacta al administrador.</p>
       </div>
 
       <div class="mb-6 grid grid-cols-4 gap-2">

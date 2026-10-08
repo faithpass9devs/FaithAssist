@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Security;
 
+use Database\Seeders\PermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -12,6 +13,24 @@ use Tests\TestCase;
 class RoleControllerTest extends TestCase
 {
     use ControllerTestHelpers, RefreshDatabase;
+
+    public function test_permissions_seeder_removes_obsolete_messaging_permissions(): void
+    {
+        $permission = Permission::create([
+            'name' => 'whatsapp.send',
+            'guard_name' => 'web',
+            'module_key' => 'whatsapp',
+            'description' => 'Permiso de mensajeria retirado',
+        ]);
+        $role = Role::create(['name' => 'Mensajeria', 'guard_name' => 'web']);
+        $role->givePermissionTo($permission);
+
+        $this->seed(PermissionsSeeder::class);
+
+        $this->assertDatabaseMissing('permissions', ['name' => 'whatsapp.send']);
+        $this->assertDatabaseMissing('role_has_permissions', ['permission_id' => $permission->id]);
+        $this->assertDatabaseHas('permissions', ['name' => 'children.read']);
+    }
 
     // ── Authorization ─────────────────────────────────────────────────────────
 

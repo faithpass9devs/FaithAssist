@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\InternalNotification;
 use App\Models\User;
 use App\Services\UserScopeService;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'direct_permissions' => $authUser?->getDirectPermissions()->pluck('name')->values()->all() ?? [],
                     'roles' => $authUser?->getRoleNames()->values()->all() ?? [],
                     'scope' => $this->buildScopePayload($authUser, $resolvedPermissions->all()),
+                    'pending_moderation_notification' => $this->pendingModerationNotification($authUser),
                 ];
             },
         ];
@@ -95,6 +97,8 @@ class HandleInertiaRequests extends Middleware
             'ui_theme' => $user->ui_theme,
             'ui_palette' => $user->ui_palette,
             'ui_custom_color' => $user->ui_custom_color,
+            'account_status' => $user->account_status ?? 'active',
+            'suspended_until' => $user->suspended_until?->toIso8601String(),
             'profile' => $user->profile ? [
                 'name' => $user->profile->name,
                 'paterno' => $user->profile->paterno,
@@ -116,6 +120,32 @@ class HandleInertiaRequests extends Middleware
                 'id' => $user->chapel->id,
                 'name' => $user->chapel->name,
             ] : null,
+        ];
+    }
+
+    private function pendingModerationNotification(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $notification = InternalNotification::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'moderation_warning')
+            ->whereNull('read_at')
+            ->latest('id')
+            ->first();
+
+        if (! $notification) {
+            return null;
+        }
+
+        return [
+            'id' => $notification->id,
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'level' => $notification->data['level'] ?? 'leve',
+            'created_at' => $notification->created_at?->toIso8601String(),
         ];
     }
 

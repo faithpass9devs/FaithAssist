@@ -69,6 +69,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Timestamps are stored in UTC but presented to users in this timezone.
+    |
+    */
+
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'America/Mexico_City'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
