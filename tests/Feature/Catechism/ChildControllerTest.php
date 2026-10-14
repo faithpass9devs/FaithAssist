@@ -13,6 +13,7 @@ use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
 use App\Services\CatechismPeriodMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\Feature\Concerns\ControllerTestHelpers;
@@ -311,6 +312,31 @@ class ChildControllerTest extends TestCase
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             $response->headers->get('Content-Type') ?? ''
         );
+    }
+
+    public function test_export_pdf_batch_excludes_already_generated_badges_when_pending_only(): void
+    {
+        Bus::fake();
+        $chain = $this->createChain();
+        Child::query()->create($this->childRow($chain, ['badge_pdf_downloaded_at' => now()]));
+        $user = $this->makeGlobalUser('children.read', 'children.export');
+
+        $this->actingAs($user)
+            ->postJson('/children/export-pdf', ['pending_only' => true])
+            ->assertNotFound();
+    }
+
+    public function test_export_pdf_batch_includes_generated_badges_without_pending_only(): void
+    {
+        Bus::fake();
+        $chain = $this->createChain();
+        Child::query()->create($this->childRow($chain, ['badge_pdf_downloaded_at' => now()]));
+        $user = $this->makeGlobalUser('children.read', 'children.export');
+
+        $this->actingAs($user)
+            ->postJson('/children/export-pdf', ['pending_only' => false])
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     }
 
     public function test_badge_pdf_returns_inline_pdf_response(): void
