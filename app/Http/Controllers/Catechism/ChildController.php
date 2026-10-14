@@ -123,6 +123,7 @@ class ChildController extends Controller
         $levelId = $request->integer('level_id') ?: null;
         $status = $request->input('status');
         $origin = $request->input('origin');
+        $pendingOnly = $request->boolean('pending_only');
 
         try {
             $result = $service->createBatch(
@@ -133,7 +134,8 @@ class ChildController extends Controller
                 $communityId,
                 $levelId,
                 $status,
-                $origin
+                $origin,
+                $pendingOnly
             );
 
             return response()->json($result);

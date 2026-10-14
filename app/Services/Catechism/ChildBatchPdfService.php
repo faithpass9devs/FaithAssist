@@ -29,12 +29,14 @@ class ChildBatchPdfService
         ?int $communityId = null,
         ?int $levelId = null,
         ?string $status = null,
-        ?string $origin = null
+        ?string $origin = null,
+        bool $pendingOnly = false
     ): array {
         $scope = new UserScopeService($user);
 
         $query = Child::query()
             ->when($search !== '', fn (Builder $query) => $query->search($search))
+            ->when($pendingOnly, fn (Builder $query) => $query->whereNull('badge_pdf_downloaded_at'))
             ->when($churchId, fn (Builder $query) => $query->where('church_id', $churchId))
             ->when($communityId, fn (Builder $query) => $query->where('community_id', $communityId))
             ->when($levelId, fn (Builder $query) => $query->whereHas(
@@ -68,6 +70,7 @@ class ChildBatchPdfService
             'level_id' => $levelId,
             'status' => $status,
             'origin' => $origin,
+            'pending_only' => $pendingOnly,
         ];
 
         $batchId = (string) Str::uuid();

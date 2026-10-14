@@ -155,6 +155,7 @@ const exportChildren = () => {
 };
 
 const pdfBatch = ref(props.latestPdfExportBatch);
+const excludeGenerated = ref(true);
 const launchingPdf = ref(false);
 const downloadingPdf = ref(false);
 let pdfPollTimer = null;
@@ -240,6 +241,7 @@ const pdfFilterParams = () => ({
   level_id: selectedLevel.value || undefined,
   status: selectedStatus.value || undefined,
   origin: selectedOrigin.value || undefined,
+  pending_only: excludeGenerated.value ? 1 : 0,
 });
 
 const launchPdfExport = async () => {
@@ -247,7 +249,9 @@ const launchPdfExport = async () => {
 
   const confirmed = await Swal.fire({
     title: '¿Exportar gafetes PDF?',
-    text: 'Se generarán los gafetes de todos los niños que coincidan con los filtros actuales y se combinarán en un solo PDF. Esto puede tardar unos momentos.',
+    text: excludeGenerated.value
+      ? 'Se generarán los gafetes de los niños que coincidan con los filtros actuales y que aún no tengan su PDF generado, y se combinarán en un solo PDF. Esto puede tardar unos momentos.'
+      : 'Se generarán los gafetes de todos los niños que coincidan con los filtros actuales, incluidos los que ya tengan su PDF generado, y se combinarán en un solo PDF. Esto puede tardar unos momentos.',
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'Sí, exportar',
@@ -286,8 +290,8 @@ const launchPdfExport = async () => {
       startPdfPolling();
     } else {
       Swal.fire({
-        title: data.message || 'No hay registros para exportar',
-        text: 'No hay niños que coincidan con los filtros actuales.',
+        title: 'No hay registros para exportar',
+        text: data.message || 'No hay niños que coincidan con los filtros actuales.',
         icon: 'info',
       });
     }
@@ -487,7 +491,6 @@ const downloadImportErrors = () => {
   if (!importBatch.value?.batch_id) return;
   window.location.assign(`/children/import/${importBatch.value.batch_id}/errors`);
 };
-
 </script>
 
 <template>
@@ -649,6 +652,17 @@ const downloadImportErrors = () => {
             <option value="imported">Importado</option>
           </select>
         </div>
+
+        <label
+          class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+        >
+          <input
+            v-model="excludeGenerated"
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+          />
+          Excluir niños con gafete PDF ya generado
+        </label>
       </div>
     </section>
 
