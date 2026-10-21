@@ -106,6 +106,7 @@ class WeekendScheduleService
                 : [],
             'schedules' => $churchId
                 ? $this->schedules->forChurch($churchId)
+                    ->filter(fn (WeekendMassSchedule $schedule): bool => $this->canAssignChapels($user) || $schedule->chapel_id === null)
                     ->map(fn (WeekendMassSchedule $schedule) => $this->schedules->serializeSchedule($schedule))
                     ->values()
                 : [],
@@ -120,6 +121,7 @@ class WeekendScheduleService
 
             $existing = WeekendMassSchedule::query()
                 ->where('church_id', $churchId)
+                ->when(! $this->canAssignChapels($user), fn ($query) => $query->whereNull('chapel_id'))
                 ->get()
                 ->keyBy('id');
             $keptIds = [];
