@@ -161,13 +161,10 @@ class WeekendScheduleService
         $weekends = [];
 
         if ($schedules->isNotEmpty()) {
-            $saturday = $today->copy()->startOfMonth();
+            $monthEnd = $today->copy()->endOfMonth();
+            $saturday = $today->copy()->startOfMonth()->startOfWeek(Carbon::SATURDAY);
 
-            if (! $saturday->isSaturday()) {
-                $saturday->next(Carbon::SATURDAY);
-            }
-
-            while ($saturday->month === $today->month) {
+            while ($saturday->lessThanOrEqualTo($monthEnd)) {
                 $startsAt = $saturday->copy()->startOfDay();
                 $endsAt = $saturday->copy()->addDay()->setTime(23, 59);
 
