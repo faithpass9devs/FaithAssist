@@ -214,6 +214,12 @@ class WeekendScheduleService
                 ]);
 
                 foreach ($item['masses'] as $mass) {
+                    if ($mass['chapel_id'] !== null && ! $this->canAssignChapels($user)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'church_id' => 'No puedes generar misas para capillas con tus permisos actuales.',
+                        ]);
+                    }
+
                     $this->schedules->createMass([
                         'weekend_id' => $weekend->id,
                         'church_id' => $churchId,
