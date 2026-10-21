@@ -105,14 +105,17 @@ const loadPreview = async () => {
 
   previewLoading.value = true;
 
+  const churchId = generatorChurchId.value;
   try {
     const response = await fetch(
-      `/fines-semana-misas/generar?church_id=${generatorChurchId.value}`,
+      `/fines-semana-misas/generar?church_id=${churchId}`,
       {
         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       },
     );
     const json = await response.json();
+
+    if (generatorChurchId.value !== churchId) return;
 
     if (!response.ok) {
       throw new Error(
@@ -122,10 +125,11 @@ const loadPreview = async () => {
 
     preview.value = json;
   } catch (error) {
+    if (generatorChurchId.value !== churchId) return;
     previewError.value = error.message;
     alertError('No se pudo cargar el desglose', error.message);
   } finally {
-    previewLoading.value = false;
+    if (generatorChurchId.value === churchId) previewLoading.value = false;
   }
 };
 
