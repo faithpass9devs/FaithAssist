@@ -34,6 +34,10 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'flash' => fn (): array => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+            ],
             'auth' => function () use ($request): array {
                 $authUser = $request->user()?->fresh();
                 $resolvedPermissions = $authUser ? $this->resolvedAuthPermissions($authUser) : collect();

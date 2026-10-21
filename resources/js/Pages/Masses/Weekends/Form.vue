@@ -6,10 +6,12 @@ import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import UnderlineField from '../../../components/forms/UnderlineField.vue';
 import UnderlineSection from '../../../components/forms/UnderlineSection.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
+import { alertError, firstError } from '../../../composables/useFlashAlerts';
 
 const props = defineProps({
   weekend: { type: Object, default: null },
   churches: { type: Array, default: () => [] },
+  lockedChurchId: { type: Number, default: null },
 });
 
 const isEditing = computed(() => !!props.weekend);
@@ -29,7 +31,7 @@ const statusOptions = [
 ];
 
 const form = useForm({
-  church_id: props.weekend?.church_id ?? null,
+  church_id: props.weekend?.church_id ?? props.lockedChurchId,
   name: props.weekend?.name ?? '',
   starts_at: props.weekend?.starts_at ?? '',
   ends_at: props.weekend?.ends_at ?? '',
@@ -52,10 +54,21 @@ const computedEndsAt = computed(() => {
 const submit = () => {
   form.ends_at = computedEndsAt.value;
 
+  const options = {
+    preserveScroll: true,
+    onError: (errors) =>
+      alertError(
+        isEditing.value
+          ? 'No se pudo actualizar el fin de semana'
+          : 'No se pudo crear el fin de semana',
+        firstError(errors, 'Revisa los campos marcados e inténtalo de nuevo.'),
+      ),
+  };
+
   if (isEditing.value) {
-    form.put(`/fines-semana-misas/${props.weekend.id}`, { preserveScroll: true });
+    form.put(`/fines-semana-misas/${props.weekend.id}`, options);
   } else {
-    form.post('/fines-semana-misas');
+    form.post('/fines-semana-misas', options);
   }
 };
 </script>
@@ -100,7 +113,7 @@ const submit = () => {
         <div class="space-y-9">
           <UnderlineSection title="Fin de semana">
             <p v-if="!isEditing" class="mb-5 text-sm text-slate-500 dark:text-slate-400">
-              Se creará como próximo. Solo puede haber un fin de semana próximo por parroquia.
+              Se creará como próximo.
             </p>
             <div class="grid gap-x-9 gap-y-7 md:grid-cols-2">
               <UnderlineField
@@ -110,6 +123,7 @@ const submit = () => {
                 placeholder="Selecciona una parroquia"
                 :options="churchOptions"
                 :error="form.errors.church_id"
+                :disabled="lockedChurchId !== null"
                 number-value
                 required
               />

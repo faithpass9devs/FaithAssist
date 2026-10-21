@@ -87,12 +87,18 @@ class WeekendRequest extends FormRequest
             $startsAt = Carbon::parse($this->input('starts_at'));
             $endsAt = Carbon::parse($this->input('ends_at'));
 
-            if (! $scope->isGlobal() && ! $user->can('weekends.scope.all')) {
+            if (! $scope->isGlobal()) {
+                if (! $scope->churchIds()->contains($churchId)) {
+                    $validator->errors()->add('church_id', 'Solo puedes gestionar fines de semana de las parroquias asignadas.');
+
+                    return;
+                }
+
                 $isOwnChurchUser = $user->church_id !== null
                     && $user->chapel_id === null
                     && (int) $user->church_id === $churchId;
 
-                if (! $isOwnChurchUser) {
+                if (! $user->can('weekends.scope.all') && ! $isOwnChurchUser) {
                     $validator->errors()->add('church_id', 'Solo la parroquia puede gestionar sus fines de semana.');
 
                     return;
@@ -131,22 +137,19 @@ class WeekendRequest extends FormRequest
                 return;
             }
 
-            if (! in_array($status, [Status::UPCOMING, Status::IN_PROGRESS], true)) {
+            if ($status !== Status::IN_PROGRESS) {
                 return;
             }
 
-            $weekendWithStatusExists = Weekend::query()
+            $weekendInProgressExists = Weekend::query()
                 ->where('church_id', $churchId)
                 ->where('status', $status)
                 ->whereNull('deleted_at')
                 ->when($weekendId, fn ($query) => $query->whereKeyNot($weekendId))
                 ->exists();
 
-            if ($weekendWithStatusExists) {
-                $message = $status === Status::UPCOMING
-                    ? 'Ya existe un fin de semana próximo para esta parroquia.'
-                    : 'Solo puede existir un fin de semana en curso por parroquia.';
-                $validator->errors()->add('status', $message);
+            if ($weekendInProgressExists) {
+                $validator->errors()->add('status', 'Solo puede existir un fin de semana en curso.');
             }
         });
     }

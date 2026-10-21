@@ -12,7 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class WeekendService
 {
-    public function __construct(private readonly WeekendRepository $weekends) {}
+    public function __construct(
+        private readonly WeekendRepository $weekends,
+        private readonly WeekendScheduleService $schedules,
+    ) {}
 
     public function indexData(User $user, string $search, string $tab = 'current'): array
     {
@@ -26,9 +29,10 @@ class WeekendService
         return [
             'weekends' => $this->weekends->paginateQuery($weekends, 5, 'weekends_page')
                 ->through(fn (Weekend $weekend) => $this->weekends->serializeWeekend($weekend)),
-            'churches' => $this->weekends->activeChurches($user),
+            'churches' => $this->schedules->churchOptions($user),
             'search' => $search,
             'tab' => $tab,
+            ...$this->schedules->indexData($user),
         ];
     }
 
@@ -36,7 +40,8 @@ class WeekendService
     {
         return [
             'weekend' => null,
-            'churches' => $this->weekends->activeChurches($user),
+            'churches' => $this->schedules->churchOptions($user),
+            'lockedChurchId' => $this->schedules->lockedChurchId($user),
         ];
     }
 
@@ -46,7 +51,8 @@ class WeekendService
 
         return [
             'weekend' => $this->weekends->serializeWeekend($weekend, true),
-            'churches' => $this->weekends->activeChurches($user),
+            'churches' => $this->schedules->churchOptions($user),
+            'lockedChurchId' => $this->schedules->lockedChurchId($user),
         ];
     }
 
@@ -90,40 +96,47 @@ class WeekendService
                 $updatedWeekend->id,
             );
 
-            if ($previousStatus === Status::IN_PROGRESS && $updatedWeekend->status === Status::COMPLETED) {
-                $nextWeekend = Weekend::query()
-                    ->where('church_id', $updatedWeekend->church_id)
-                    ->where('id', '!=', $updatedWeekend->id)
-                    ->where('starts_at', '>', $updatedWeekend->starts_at)
-                    ->where('status', '!=', Status::COMPLETED)
-                    ->orderBy('starts_at')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($nextWeekend && $nextWeekend->status !== Status::UPCOMING) {
-                    $upcomingWeekendExists = Weekend::query()
-                        ->where('church_id', $nextWeekend->church_id)
-                        ->where('status', Status::UPCOMING)
-                        ->exists();
-
-                    if (! $upcomingWeekendExists) {
-                        $nextWeekend = $this->weekends->update($nextWeekend, ['status' => Status::UPCOMING]);
-                    }
-                }
+            if ($previousStatus !== Status::COMPLETED && $updatedWeekend->status === Status::COMPLETED) {
+                $this->startNextWeekend($updatedWeekend);
             }
 
             return $updatedWeekend;
         });
     }
 
-    public function deleteWeekend(Weekend $weekend): void
+    private function startNextWeekend(Weekend $completedWeekend): void
     {
-        $this->weekends->delete($weekend);
+        $inProgressExists = Weekend::query()
+            ->where('church_id', $completedWeekend->church_id)
+            ->where('status', Status::IN_PROGRESS)
+            ->exists();
+
+        if ($inProgressExists) {
+            return;
+        }
+
+        $nextWeekend = Weekend::query()
+            ->where('church_id', $completedWeekend->church_id)
+            ->whereKeyNot($completedWeekend->id)
+            ->where('starts_at', '>', $completedWeekend->starts_at)
+            ->where('status', Status::UPCOMING)
+            ->orderBy('starts_at')
+            ->lockForUpdate()
+            ->first();
+
+        if ($nextWeekend) {
+            $this->weekends->update($nextWeekend, ['status' => Status::IN_PROGRESS]);
+        }
+    }
+
+    public function deleteWeekend(Weekend $weekend, ?int $userId = null): void
+    {
+        DB::transaction(fn () => $this->weekends->delete($weekend, $userId));
     }
 
     private function ensureStatusAvailable(int $churchId, string $status, ?int $ignoreWeekendId = null): void
     {
-        if (! in_array($status, [Status::UPCOMING, Status::IN_PROGRESS], true)) {
+        if ($status !== Status::IN_PROGRESS) {
             return;
         }
 
@@ -134,11 +147,9 @@ class WeekendService
             ->exists();
 
         if ($exists) {
-            $message = $status === Status::UPCOMING
-                ? 'Ya existe un fin de semana próximo para esta parroquia.'
-                : 'Solo puede existir un fin de semana en curso por parroquia.';
-
-            throw ValidationException::withMessages(['status' => $message]);
+            throw ValidationException::withMessages([
+                'status' => 'Solo puede existir un fin de semana en curso.',
+            ]);
         }
     }
 }

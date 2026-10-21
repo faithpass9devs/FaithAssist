@@ -58,7 +58,7 @@ class WeekendController extends Controller
 
     public function destroy(Weekend $weekend): RedirectResponse
     {
-        $this->weekends->deleteWeekend($weekend);
+        $this->weekends->deleteWeekend($weekend, auth()->id());
 
         return redirect()->route('fines-semana-misas.index')
             ->with('success', 'Fin de semana eliminado correctamente.');

@@ -7,6 +7,7 @@ use App\Globals\Sex;
 use App\Globals\Status;
 use App\Models\Catechism\Child;
 use App\Models\Ecclesiastes\Chapel;
+use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\Weekend;
@@ -134,29 +135,34 @@ class MassModuleTest extends TestCase
             );
     }
 
-    public function test_only_one_upcoming_weekend_can_be_created_per_church(): void
+    public function test_multiple_upcoming_weekends_can_be_created_per_church(): void
     {
         $chain = $this->createChain();
         $this->createWeekend($chain, ['status' => Status::UPCOMING]);
         $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'weekends.create');
 
         $this->actingAs($user)
-            ->postJson('/fines-semana-misas', [
+            ->post('/fines-semana-misas', [
                 'church_id' => $chain['church']->id,
                 'name' => 'OTRO FIN DE SEMANA',
                 'starts_at' => '2026-07-11',
                 'status' => Status::UPCOMING,
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('status');
+            ->assertRedirect('/fines-semana-misas');
 
-        $this->assertDatabaseCount('weekends', 1);
+        $this->assertDatabaseCount('weekends', 2);
     }
 
-    public function test_completing_current_weekend_keeps_the_next_weekend_upcoming(): void
+    public function test_completing_current_weekend_starts_the_next_weekend(): void
     {
         $chain = $this->createChain();
         $current = $this->createWeekend($chain);
+        $later = $this->createWeekend($chain, [
+            'name' => 'POSTERIOR FIN DE SEMANA',
+            'starts_at' => '2026-07-18 00:00:00',
+            'ends_at' => '2026-07-19 23:59:00',
+            'status' => Status::UPCOMING,
+        ]);
         $next = $this->createWeekend($chain, [
             'name' => 'SIGUIENTE FIN DE SEMANA',
             'starts_at' => '2026-07-11 00:00:00',
@@ -180,8 +186,113 @@ class MassModuleTest extends TestCase
         ]);
         $this->assertDatabaseHas('weekends', [
             'id' => $next->id,
+            'status' => Status::IN_PROGRESS,
+        ]);
+        $this->assertDatabaseHas('weekends', [
+            'id' => $later->id,
             'status' => Status::UPCOMING,
         ]);
+    }
+
+    public function test_completing_last_weekend_does_nothing_else(): void
+    {
+        $chain = $this->createChain();
+        $current = $this->createWeekend($chain);
+        $previous = $this->createWeekend($chain, [
+            'name' => 'ANTERIOR',
+            'starts_at' => '2026-06-27 00:00:00',
+            'ends_at' => '2026-06-28 23:59:00',
+            'status' => Status::UPCOMING,
+        ]);
+        $user = $this->makeGlobalUser('weekends.update', 'weekends.scope.all');
+
+        $this->actingAs($user)
+            ->put("/fines-semana-misas/{$current->id}", [
+                'church_id' => $chain['church']->id,
+                'name' => $current->name,
+                'starts_at' => '2026-07-04',
+                'status' => Status::COMPLETED,
+            ])
+            ->assertRedirect('/fines-semana-misas');
+
+        $this->assertDatabaseHas('weekends', ['id' => $current->id, 'status' => Status::COMPLETED]);
+        $this->assertDatabaseHas('weekends', ['id' => $previous->id, 'status' => Status::UPCOMING]);
+        $this->assertSame(0, Weekend::query()->where('status', Status::IN_PROGRESS)->count());
+    }
+
+    public function test_church_user_with_full_scope_cannot_manage_other_church_weekends(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $otherWeekend = $this->createWeekend($chain, ['church_id' => $otherChurch->id]);
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'weekends.create',
+            'weekends.update',
+            'weekends.scope.all',
+        );
+
+        $this->actingAs($user)
+            ->postJson('/fines-semana-misas', [
+                'church_id' => $otherChurch->id,
+                'starts_at' => '2026-07-11',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('church_id');
+
+        $this->actingAs($user)
+            ->get("/fines-semana-misas/{$otherWeekend->id}/edit")
+            ->assertForbidden();
+    }
+
+    public function test_deleting_weekend_soft_deletes_its_masses_and_allows_recreating_it(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain, ['status' => Status::UPCOMING]);
+        $mass = Mass::query()->create([
+            'weekend_id' => $weekend->id,
+            'church_id' => $chain['church']->id,
+            'name' => 'MISA DOMINICAL',
+            'starts_at' => '2026-07-05 10:00',
+            'ends_at' => '2026-07-05 11:00',
+            'status' => Status::UPCOMING,
+            'attendance_check_in_status' => Status::UPCOMING,
+            'attendance_check_out_status' => Status::UPCOMING,
+        ]);
+        $user = $this->makeGlobalUser('weekends.create', 'weekends.delete', 'weekends.scope.all');
+        $payload = [
+            'church_id' => $chain['church']->id,
+            'starts_at' => '2026-07-04',
+            'ends_at' => '2026-07-05 23:59',
+            'status' => Status::UPCOMING,
+        ];
+
+        $this->actingAs($user)
+            ->postJson('/fines-semana-misas', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('starts_at');
+
+        $this->actingAs($user)
+            ->delete("/fines-semana-misas/{$weekend->id}")
+            ->assertRedirect('/fines-semana-misas');
+
+        $this->assertSoftDeleted('weekends', ['id' => $weekend->id, 'deleted_by' => $user->id]);
+        $this->assertSoftDeleted('masses', ['id' => $mass->id, 'deleted_by' => $user->id]);
+
+        $this->actingAs($user)
+            ->post('/fines-semana-misas', $payload)
+            ->assertRedirect('/fines-semana-misas');
+
+        $this->assertSame(1, Weekend::query()->where('church_id', $chain['church']->id)->count());
+        $this->assertSame(2, Weekend::withTrashed()->where('church_id', $chain['church']->id)->count());
     }
 
     public function test_chapel_user_creates_mass_for_own_chapel(): void

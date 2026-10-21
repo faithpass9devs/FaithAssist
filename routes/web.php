@@ -15,6 +15,7 @@ use App\Http\Controllers\Masses\MassAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceIncidentController;
 use App\Http\Controllers\Masses\MassController;
 use App\Http\Controllers\Masses\WeekendController;
+use App\Http\Controllers\Masses\WeekendScheduleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Operation\LevelController;
 use App\Http\Controllers\Operation\PeriodController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Operation\PeriodMovementTypeController;
 use App\Http\Controllers\Regions\CommunityController;
 use App\Http\Controllers\Regions\MunicipalityController;
 use App\Http\Controllers\Regions\StateController;
+use App\Http\Controllers\Security\DeviceSessionController;
 use App\Http\Controllers\Security\ModuleController;
 use App\Http\Controllers\Security\PermissionController;
 use App\Http\Controllers\Security\RoleController;
@@ -132,6 +134,15 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->parameters(['niveles' => 'nivel']);
 
     // Misas
+    Route::get('fines-semana-misas/programar', [WeekendScheduleController::class, 'edit'])
+        ->name('fines-semana-misas.programar.edit');
+    Route::put('fines-semana-misas/programar', [WeekendScheduleController::class, 'update'])
+        ->name('fines-semana-misas.programar.update');
+    Route::get('fines-semana-misas/generar', [WeekendScheduleController::class, 'preview'])
+        ->name('fines-semana-misas.generar.preview');
+    Route::post('fines-semana-misas/generar', [WeekendScheduleController::class, 'generate'])
+        ->name('fines-semana-misas.generar.store');
+
     Route::resource('fines-semana-misas', WeekendController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['fines-semana-misas' => 'weekend']);
@@ -204,23 +215,23 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['permisos' => 'permiso']);
 
-    Route::post('/mi-sesion/ubicacion', [\App\Http\Controllers\Security\DeviceSessionController::class, 'updateOwnLocation'])
+    Route::post('/mi-sesion/ubicacion', [DeviceSessionController::class, 'updateOwnLocation'])
         ->name('sesion.ubicacion.update');
-    Route::get('/dispositivos-sesiones', [\App\Http\Controllers\Security\DeviceSessionController::class, 'index'])
+    Route::get('/dispositivos-sesiones', [DeviceSessionController::class, 'index'])
         ->name('dispositivos-sesiones.index');
-    Route::get('/dispositivos-sesiones/usuario/{usuario}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'show'])
+    Route::get('/dispositivos-sesiones/usuario/{usuario}', [DeviceSessionController::class, 'show'])
         ->name('dispositivos-sesiones.usuario.show');
-    Route::delete('/dispositivos-sesiones/{session}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'destroy'])
+    Route::delete('/dispositivos-sesiones/{session}', [DeviceSessionController::class, 'destroy'])
         ->name('dispositivos-sesiones.destroy');
-    Route::delete('/dispositivos-sesiones/usuario/{usuario}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'closeUserSessions'])
+    Route::delete('/dispositivos-sesiones/usuario/{usuario}', [DeviceSessionController::class, 'closeUserSessions'])
         ->name('dispositivos-sesiones.usuario.destroy');
-    Route::get('/dispositivos-sesiones/usuario/{usuario}/historial', [\App\Http\Controllers\Security\DeviceSessionController::class, 'downloadHistory'])
+    Route::get('/dispositivos-sesiones/usuario/{usuario}/historial', [DeviceSessionController::class, 'downloadHistory'])
         ->name('dispositivos-sesiones.usuario.history');
-    Route::post('/dispositivos-sesiones/usuario/{usuario}/advertencia', [\App\Http\Controllers\Security\DeviceSessionController::class, 'sendWarning'])
+    Route::post('/dispositivos-sesiones/usuario/{usuario}/advertencia', [DeviceSessionController::class, 'sendWarning'])
         ->name('dispositivos-sesiones.usuario.warning');
-    Route::patch('/dispositivos-sesiones/usuario/{usuario}/estado', [\App\Http\Controllers\Security\DeviceSessionController::class, 'updateAccountStatus'])
+    Route::patch('/dispositivos-sesiones/usuario/{usuario}/estado', [DeviceSessionController::class, 'updateAccountStatus'])
         ->name('dispositivos-sesiones.usuario.status');
-    Route::delete('/dispositivos-sesiones/usuario/{usuario}/advertencia/{warning}', [\App\Http\Controllers\Security\DeviceSessionController::class, 'deleteWarning'])
+    Route::delete('/dispositivos-sesiones/usuario/{usuario}/advertencia/{warning}', [DeviceSessionController::class, 'deleteWarning'])
         ->name('dispositivos-sesiones.usuario.warning.destroy');
 
     Route::resource('roles', RoleController::class)->only(['index', 'create', 'store', 'edit', 'update']);

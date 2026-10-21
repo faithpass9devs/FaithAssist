@@ -62,8 +62,14 @@ class WeekendRepository
         return $weekend->fresh();
     }
 
-    public function delete(Weekend $weekend): void
+    public function delete(Weekend $weekend, ?int $userId = null): void
     {
+        $weekend->masses()->get()->each(function ($mass) use ($userId): void {
+            $mass->forceFill(['deleted_by' => $userId])->save();
+            $mass->delete();
+        });
+
+        $weekend->forceFill(['deleted_by' => $userId])->save();
         $weekend->delete();
     }
 
