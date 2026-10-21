@@ -123,19 +123,30 @@ class WeekendRequest extends FormRequest
                 $validator->errors()->add('ends_at', 'Ya existe un fin de semana de esta parroquia en ese rango.');
             }
 
-            if ($this->input('status') !== Status::IN_PROGRESS) {
+            $status = $this->input('status');
+
+            if ($weekendId === null && $status !== Status::UPCOMING) {
+                $validator->errors()->add('status', 'Los fines de semana nuevos deben crearse como próximos.');
+
                 return;
             }
 
-            $activeWeekendExists = Weekend::query()
+            if (! in_array($status, [Status::UPCOMING, Status::IN_PROGRESS], true)) {
+                return;
+            }
+
+            $weekendWithStatusExists = Weekend::query()
                 ->where('church_id', $churchId)
-                ->where('status', Status::IN_PROGRESS)
+                ->where('status', $status)
                 ->whereNull('deleted_at')
                 ->when($weekendId, fn ($query) => $query->whereKeyNot($weekendId))
                 ->exists();
 
-            if ($activeWeekendExists) {
-                $validator->errors()->add('status', 'Solo puede existir un fin de semana en curso por parroquia.');
+            if ($weekendWithStatusExists) {
+                $message = $status === Status::UPCOMING
+                    ? 'Ya existe un fin de semana próximo para esta parroquia.'
+                    : 'Solo puede existir un fin de semana en curso por parroquia.';
+                $validator->errors()->add('status', $message);
             }
         });
     }

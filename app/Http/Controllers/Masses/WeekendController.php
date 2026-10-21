@@ -21,8 +21,13 @@ class WeekendController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $tab = $request->input('tab', 'current');
 
-        return Inertia::render('Masses/Weekends/Index', $this->weekends->indexData($request->user(), $search));
+        if (! in_array($tab, ['current', 'history', 'upcoming'], true)) {
+            $tab = 'current';
+        }
+
+        return Inertia::render('Masses/Weekends/Index', $this->weekends->indexData($request->user(), $search, $tab));
     }
 
     public function create(Request $request): Response

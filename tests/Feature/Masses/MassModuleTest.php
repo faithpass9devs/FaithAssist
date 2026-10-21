@@ -73,6 +73,117 @@ class MassModuleTest extends TestCase
             ->assertJsonValidationErrors(['starts_at', 'ends_at']);
     }
 
+    public function test_weekend_index_defaults_to_current_and_tabs_filter_other_statuses(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeGlobalUser('weekends.read', 'weekends.scope.all');
+
+        $this->createWeekend($chain, [
+            'name' => 'FIN DE SEMANA PROXIMO',
+            'starts_at' => '2026-07-04 00:00:00',
+            'status' => Status::UPCOMING,
+        ]);
+        $this->createWeekend($chain, [
+            'name' => 'FIN DE SEMANA EN CURSO 1',
+            'starts_at' => '2026-07-11 00:00:00',
+            'status' => Status::IN_PROGRESS,
+        ]);
+        $this->createWeekend($chain, [
+            'name' => 'FIN DE SEMANA EN CURSO 2',
+            'starts_at' => '2026-07-18 00:00:00',
+            'status' => Status::IN_PROGRESS,
+        ]);
+        $this->createWeekend($chain, [
+            'name' => 'FIN DE SEMANA TERMINADO',
+            'starts_at' => '2026-07-25 00:00:00',
+            'status' => Status::COMPLETED,
+        ]);
+        $this->createWeekend($chain, [
+            'name' => 'FIN DE SEMANA ANTERIOR',
+            'starts_at' => '2026-06-27 00:00:00',
+            'ends_at' => '2026-06-28 23:59:00',
+            'status' => Status::COMPLETED,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/fines-semana-misas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Masses/Weekends/Index')
+                ->where('tab', 'current')
+                ->where('weekends.total', 2)
+                ->where('weekends.data.0.status', Status::IN_PROGRESS)
+            );
+
+        $this->actingAs($user)
+            ->get('/fines-semana-misas?tab=history')
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', 'history')
+                ->where('weekends.total', 2)
+                ->where('weekends.data.0.status', Status::COMPLETED)
+                ->where('weekends.data.0.name', 'FIN DE SEMANA TERMINADO')
+                ->where('weekends.data.1.name', 'FIN DE SEMANA ANTERIOR')
+            );
+
+        $this->actingAs($user)
+            ->get('/fines-semana-misas?tab=upcoming')
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', 'upcoming')
+                ->where('weekends.total', 1)
+                ->where('weekends.data.0.status', Status::UPCOMING)
+            );
+    }
+
+    public function test_only_one_upcoming_weekend_can_be_created_per_church(): void
+    {
+        $chain = $this->createChain();
+        $this->createWeekend($chain, ['status' => Status::UPCOMING]);
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'weekends.create');
+
+        $this->actingAs($user)
+            ->postJson('/fines-semana-misas', [
+                'church_id' => $chain['church']->id,
+                'name' => 'OTRO FIN DE SEMANA',
+                'starts_at' => '2026-07-11',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+
+        $this->assertDatabaseCount('weekends', 1);
+    }
+
+    public function test_completing_current_weekend_keeps_the_next_weekend_upcoming(): void
+    {
+        $chain = $this->createChain();
+        $current = $this->createWeekend($chain);
+        $next = $this->createWeekend($chain, [
+            'name' => 'SIGUIENTE FIN DE SEMANA',
+            'starts_at' => '2026-07-11 00:00:00',
+            'ends_at' => '2026-07-12 23:59:00',
+            'status' => Status::UPCOMING,
+        ]);
+        $user = $this->makeGlobalUser('weekends.update', 'weekends.scope.all');
+
+        $this->actingAs($user)
+            ->put("/fines-semana-misas/{$current->id}", [
+                'church_id' => $chain['church']->id,
+                'name' => $current->name,
+                'starts_at' => '2026-07-04',
+                'status' => Status::COMPLETED,
+            ])
+            ->assertRedirect('/fines-semana-misas');
+
+        $this->assertDatabaseHas('weekends', [
+            'id' => $current->id,
+            'status' => Status::COMPLETED,
+        ]);
+        $this->assertDatabaseHas('weekends', [
+            'id' => $next->id,
+            'status' => Status::UPCOMING,
+        ]);
+    }
+
     public function test_chapel_user_creates_mass_for_own_chapel(): void
     {
         $chain = $this->createChain();
@@ -474,15 +585,15 @@ class MassModuleTest extends TestCase
             ->assertJsonPath('data.attendance_check_in_status', Status::IN_PROGRESS);
     }
 
-    private function createWeekend(array $chain): Weekend
+    private function createWeekend(array $chain, array $overrides = []): Weekend
     {
-        return Weekend::query()->create([
+        return Weekend::query()->create(array_merge([
             'church_id' => $chain['church']->id,
             'name' => 'FIN DE SEMANA TEST',
             'starts_at' => '2026-07-04 00:00:00',
             'ends_at' => '2026-07-05 23:59:00',
             'status' => Status::IN_PROGRESS,
-        ]);
+        ], $overrides));
     }
 
     private function createChapel(array $chain): Chapel

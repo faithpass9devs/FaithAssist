@@ -7,10 +7,17 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Masses\Weekend;
 use App\Models\User;
 use App\Services\UserScopeService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class WeekendRepository
 {
-    public function paginateWithScope(User $user, string $search, int $perPage = 5)
+    public function paginateWithScope(User $user, string $search, int $perPage = 5): LengthAwarePaginator
+    {
+        return $this->paginateQuery($this->queryWithScope($user, $search), $perPage);
+    }
+
+    public function queryWithScope(User $user, string $search): Builder
     {
         $scope = new UserScopeService($user);
 
@@ -24,9 +31,12 @@ class WeekendRepository
                     });
                 })
                 ->orderByDesc('starts_at')
-        )
-            ->paginate($perPage)
-            ->withQueryString();
+        );
+    }
+
+    public function paginateQuery(Builder $query, int $perPage = 5, string $pageName = 'page'): LengthAwarePaginator
+    {
+        return $query->paginate($perPage, ['*'], $pageName)->withQueryString();
     }
 
     public function activeChurches(User $user)
@@ -48,6 +58,7 @@ class WeekendRepository
     public function update(Weekend $weekend, array $data): Weekend
     {
         $weekend->update($data);
+
         return $weekend->fresh();
     }
 
