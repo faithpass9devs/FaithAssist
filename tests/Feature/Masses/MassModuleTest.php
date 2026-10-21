@@ -314,7 +314,7 @@ class MassModuleTest extends TestCase
                 'attendance_check_in_status' => Status::UPCOMING,
                 'attendance_check_out_status' => Status::UPCOMING,
             ])
-            ->assertRedirect('/misas');
+            ->assertRedirect("/misas?weekend_id={$weekend->id}");
 
         $this->assertDatabaseHas('masses', [
             'church_id' => $chain['church']->id,
@@ -369,6 +369,70 @@ class MassModuleTest extends TestCase
             ->get("/misas/{$mass->id}/edit")
             ->assertOk()
             ->assertInertia(fn ($page) => $page->component('Masses/Masses/Form'));
+
+        $this->actingAs($user)
+            ->get("/misas/create?weekend_id={$weekend->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Masses/Masses/Form')
+                ->where('weekendId', $weekend->id)
+            );
+    }
+
+    public function test_masses_index_lists_only_selected_weekend_masses(): void
+    {
+        $chain = $this->createChain();
+        $weekend = $this->createWeekend($chain);
+        $otherWeekend = $this->createWeekend($chain, [
+            'starts_at' => '2026-07-11 00:00:00',
+            'ends_at' => '2026-07-12 23:59:00',
+            'status' => Status::UPCOMING,
+        ]);
+        foreach ([[$weekend, '2026-07-05', 'MISA SELECCIONADA'], [$otherWeekend, '2026-07-12', 'MISA OTRA']] as [$owner, $day, $name]) {
+            Mass::query()->create([
+                'weekend_id' => $owner->id,
+                'church_id' => $chain['church']->id,
+                'name' => $name,
+                'starts_at' => "{$day} 10:00",
+                'ends_at' => "{$day} 11:00",
+                'status' => Status::UPCOMING,
+                'attendance_check_in_status' => Status::UPCOMING,
+                'attendance_check_out_status' => Status::UPCOMING,
+            ]);
+        }
+        $user = $this->makeGlobalUser('masses.read');
+
+        $this->actingAs($user)
+            ->get("/misas?weekend_id={$weekend->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Masses/Masses/Index')
+                ->where('weekend.id', $weekend->id)
+                ->has('masses.data', 1)
+                ->where('masses.data.0.name', 'MISA SELECCIONADA')
+                ->missing('weekends')
+            );
+
+        $this->actingAs($user)
+            ->get('/misas')
+            ->assertRedirect('/fines-semana-misas');
+    }
+
+    public function test_masses_index_rejects_weekend_outside_scope(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $foreignWeekend = $this->createWeekend($chain, ['church_id' => $otherChurch->id]);
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'masses.read');
+
+        $this->actingAs($user)
+            ->get("/misas?weekend_id={$foreignWeekend->id}")
+            ->assertRedirect('/fines-semana-misas');
     }
 
     public function test_mass_attendance_requires_check_in_and_check_out_to_be_valid(): void

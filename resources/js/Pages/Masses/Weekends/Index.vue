@@ -4,6 +4,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import {
   CalendarClock,
   CalendarDays,
+  Church,
   Clock3,
   History,
   Pencil,
@@ -36,6 +37,7 @@ const canCreate = computed(() => permissions.value.includes('weekends.create'));
 const canUpdate = computed(() => permissions.value.includes('weekends.update'));
 const canDelete = computed(() => permissions.value.includes('weekends.delete'));
 const canGenerate = computed(() => permissions.value.includes('masses.create'));
+const canViewMasses = computed(() => permissions.value.includes('masses.read'));
 const tabs = [
   { value: 'current', label: 'Actual', icon: CalendarDays },
   { value: 'upcoming', label: 'Próximos', icon: Clock3 },
@@ -267,7 +269,16 @@ const generate = () => {
             <td>
               <span class="badge badge-sm badge-success">Concluido</span>
             </td>
-            <td class="text-right">
+            <td class="whitespace-nowrap text-right">
+              <Link
+                v-if="canViewMasses"
+                :href="`/misas?weekend_id=${weekend.id}`"
+                class="btn btn-ghost btn-xs text-purple-600"
+                title="Misas"
+                aria-label="Ver misas del fin de semana"
+              >
+                <Church class="h-3.5 w-3.5" />
+              </Link>
               <Link
                 v-if="canUpdate"
                 :href="`/fines-semana-misas/${weekend.id}/edit`"
@@ -354,9 +365,18 @@ const generate = () => {
         </div>
 
         <div
-          v-if="canUpdate || canDelete"
-          class="flex justify-end gap-1 border-t border-slate-100 px-4 py-3 dark:border-slate-800"
+          v-if="canViewMasses || canUpdate || canDelete"
+          class="flex items-center justify-end gap-1 border-t border-slate-100 px-4 py-3 dark:border-slate-800"
         >
+          <Link
+            v-if="canViewMasses"
+            :href="`/misas?weekend_id=${weekend.id}`"
+            class="btn btn-ghost btn-sm gap-1.5 text-purple-600"
+            aria-label="Ver misas del fin de semana"
+          >
+            <Church class="h-4 w-4" />
+            Misas
+          </Link>
           <Link
             v-if="canUpdate"
             :href="`/fines-semana-misas/${weekend.id}/edit`"

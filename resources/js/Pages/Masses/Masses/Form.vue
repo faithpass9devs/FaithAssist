@@ -9,10 +9,14 @@ import AppShell from '../../../components/layouts/AppShell.vue';
 
 const props = defineProps({
   mass: { type: Object, default: null },
+  weekendId: { type: Number, default: null },
   weekends: { type: Array, default: () => [] },
   churches: { type: Array, default: () => [] },
   chapels: { type: Array, default: () => [] },
 });
+
+const initialWeekendId = props.mass?.weekend_id ?? props.weekendId;
+const backHref = initialWeekendId ? `/misas?weekend_id=${initialWeekendId}` : '/fines-semana-misas';
 
 const isEditing = computed(() => !!props.mass);
 const pageTitle = computed(() => (isEditing.value ? 'Editar misa' : 'Nueva misa'));
@@ -41,8 +45,11 @@ const statusOptions = [
 ];
 
 const form = useForm({
-  weekend_id: props.mass?.weekend_id ?? null,
-  church_id: props.mass?.church_id ?? null,
+  weekend_id: initialWeekendId,
+  church_id:
+    props.mass?.church_id ??
+    props.weekends.find((weekend) => weekend.id === props.weekendId)?.church_id ??
+    null,
   chapel_id: props.mass?.chapel_id ?? '',
   name: props.mass?.name ?? '',
   starts_at: props.mass?.starts_at ?? '',
@@ -95,12 +102,12 @@ const submit = () => {
       <CatalogHeader
         :title="pageTitle"
         subtitle="Captura el inicio y fin de la misa dentro del fin de semana seleccionado"
-        back-href="/misas"
+        :back-href="backHref"
         :icon="Church"
       >
         <template #actions>
           <Link
-            href="/misas"
+            :href="backHref"
             class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
           >
             Cancelar
@@ -128,6 +135,7 @@ const submit = () => {
                 placeholder="Selecciona un fin de semana"
                 :options="weekendOptions"
                 :error="form.errors.weekend_id"
+                :disabled="!isEditing && weekendId !== null"
                 number-value
                 required
               />
