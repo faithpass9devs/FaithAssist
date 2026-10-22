@@ -40,10 +40,6 @@ class WeekendPolicy extends BasePermissionPolicy
 
     private function withinVisibleScope(User $user, Weekend $weekend): bool
     {
-        if ($this->hasFullScope($user)) {
-            return true;
-        }
-
         $scope = new UserScopeService($user);
 
         return $scope->isGlobal() || $scope->churchIds()->contains($weekend->church_id);
@@ -51,17 +47,25 @@ class WeekendPolicy extends BasePermissionPolicy
 
     private function canManageChurchWeekends(User $user, ?int $churchId): bool
     {
-        if ($this->hasFullScope($user)) {
-            return true;
-        }
-
         $scope = new UserScopeService($user);
 
         if ($scope->isGlobal()) {
             return true;
         }
 
-        if ($user->church_id === null || $user->chapel_id !== null) {
+        if ($user->chapel_id !== null) {
+            return false;
+        }
+
+        if ($churchId !== null && ! $scope->churchIds()->contains($churchId)) {
+            return false;
+        }
+
+        if ($this->hasFullScope($user)) {
+            return true;
+        }
+
+        if ($user->church_id === null) {
             return false;
         }
 

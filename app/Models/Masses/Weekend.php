@@ -2,11 +2,13 @@
 
 namespace App\Models\Masses;
 
+use App\Globals\Status;
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Church;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -69,5 +71,20 @@ class Weekend extends Model
     public function deleter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function scopeProgress(Builder $query): Builder
+    {
+        return $query->where('status', Status::IN_PROGRESS);
+    }
+
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query->where('status', Status::UPCOMING);
+    }
+
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', Status::COMPLETED);
     }
 }
