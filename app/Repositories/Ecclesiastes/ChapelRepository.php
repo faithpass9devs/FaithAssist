@@ -28,7 +28,7 @@ class ChapelRepository
         $scope = new UserScopeService($user);
 
         return Community::query()
-            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->communityIds()))
+            ->when(! $scope->isGlobal() && ! $user->can('capillas.scope.all'), fn ($q) => $q->whereIn('id', $scope->chapelCommunityIds()))
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -53,6 +53,7 @@ class ChapelRepository
     public function update(Chapel $chapel, array $data): Chapel
     {
         $chapel->update($data);
+
         return $chapel->fresh();
     }
 

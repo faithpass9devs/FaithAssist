@@ -3,6 +3,7 @@
 namespace Tests\Feature\Ecclesiastes;
 
 use App\Models\Ecclesiastes\Chapel;
+use App\Models\Regions\Community;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
@@ -32,7 +33,7 @@ class ChapelControllerTest extends TestCase
         $this->actingAs($user)
             ->postJson('/capillas', [
                 'community_id' => $chain['community']->id,
-                'name'         => 'X',
+                'name' => 'X',
                 'status' => 'active',
             ])
             ->assertForbidden();
@@ -74,6 +75,68 @@ class ChapelControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('chapels.total', 1));
     }
 
+    public function test_church_scoped_user_only_receives_communities_associated_with_own_church(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = $this->createChain();
+        $otherChurch['community']->update([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad de otra parroquia',
+        ]);
+        Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad sin capilla',
+            'status' => 'active',
+        ]);
+
+        Chapel::query()->create([
+            'name' => 'Capilla propia',
+            'community_id' => $chain['community']->id,
+            'church_id' => $chain['church']->id,
+            'status' => 'active',
+        ]);
+        Chapel::query()->create([
+            'name' => 'Capilla de otra parroquia',
+            'community_id' => $otherChurch['community']->id,
+            'church_id' => $otherChurch['church']->id,
+            'status' => 'active',
+        ]);
+
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'capillas.read');
+
+        $this->actingAs($user)->get('/capillas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('communities', [['id' => $chain['community']->id, 'name' => $chain['community']->name]])
+            );
+    }
+
+    public function test_church_scoped_user_cannot_assign_an_unassociated_community(): void
+    {
+        $chain = $this->createChain();
+        $unassociatedCommunity = Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad no asociada',
+            'status' => 'active',
+        ]);
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'capillas.create'
+        );
+
+        $this->actingAs($user)
+            ->postJson('/capillas', [
+                'community_id' => $unassociatedCommunity->id,
+                'church_id' => $chain['church']->id,
+                'name' => 'Capilla no permitida',
+                'status' => 'active',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('community_id');
+    }
+
     public function test_scoped_user_cannot_update_chapel_outside_scope(): void
     {
         $chain1 = $this->createChain();
@@ -87,7 +150,7 @@ class ChapelControllerTest extends TestCase
         $this->actingAs($user)
             ->putJson("/capillas/{$foreignChapel->id}", [
                 'community_id' => $chain2['community']->id,
-                'name'         => 'MODIFICADA',
+                'name' => 'MODIFICADA',
                 'status' => 'active',
             ])
             ->assertForbidden();
@@ -112,8 +175,8 @@ class ChapelControllerTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/capillas', [
                 'community_id' => $chain['community']->id,
-                'church_id'    => $chain['church']->id,
-                'name'         => 'CAPILLA NUEVA',
+                'church_id' => $chain['church']->id,
+                'name' => 'CAPILLA NUEVA',
                 'status' => 'active',
             ]);
 
@@ -133,7 +196,7 @@ class ChapelControllerTest extends TestCase
         $response = $this->actingAs($user)
             ->putJson("/capillas/{$chapel->id}", [
                 'community_id' => $chain['community']->id,
-                'name'         => 'CAPILLA ACTUALIZADA',
+                'name' => 'CAPILLA ACTUALIZADA',
                 'status' => 'active',
             ]);
 

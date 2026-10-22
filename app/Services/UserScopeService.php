@@ -219,6 +219,22 @@ class UserScopeService
     }
 
     /**
+     * Community IDs available when managing chapels.
+     */
+    public function chapelCommunityIds(): Collection
+    {
+        if ($this->user->church_id !== null) {
+            return Chapel::query()
+                ->where('church_id', $this->user->church_id)
+                ->whereNotNull('community_id')
+                ->distinct()
+                ->pluck('community_id');
+        }
+
+        return $this->communityIds();
+    }
+
+    /**
      * Apply chapel visibility filter to an existing query builder.
      * Chapels are visible when their church OR community is in scope.
      */
