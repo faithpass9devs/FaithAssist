@@ -22,18 +22,18 @@ const churchOptions = computed(() =>
 
 const columns = computed(() => [
   {
-    key: 'community_id',
-    label: 'Comunidad',
-    type: 'select',
-    required: true,
-    options: communityOptions.value,
-  },
-  {
     key: 'church_id',
     label: 'Parroquia',
     type: 'select',
     required: false,
     options: churchOptions.value,
+  },
+  {
+    key: 'community_id',
+    label: 'Comunidad',
+    type: 'select',
+    required: true,
+    options: communityOptions.value,
   },
   {
     key: 'name',
