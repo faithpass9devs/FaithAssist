@@ -283,23 +283,6 @@ const generate = () => {
               >
                 <Church class="h-3.5 w-3.5" />
               </Link>
-              <Link
-                v-if="canUpdate"
-                :href="`/fines-semana-misas/${weekend.id}/edit`"
-                class="btn btn-ghost btn-xs text-sky-600"
-                aria-label="Editar fin de semana"
-              >
-                <Pencil class="h-3.5 w-3.5" />
-              </Link>
-              <button
-                v-if="canDelete"
-                type="button"
-                class="btn btn-ghost btn-xs text-red-600"
-                aria-label="Eliminar fin de semana"
-                @click="destroyWeekend(weekend)"
-              >
-                <Trash2 class="h-3.5 w-3.5" />
-              </button>
             </td>
           </tr>
         </tbody>
