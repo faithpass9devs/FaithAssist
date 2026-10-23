@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { CalendarClock, Church, Clock, MapPin, Pencil, Plus, QrCode, Search, Trash2, Users } from 'lucide-vue-next';
+import { Church, Clock, MapPin, Pencil, Plus, QrCode, Trash2, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import AppPagination from '../../../components/AppPagination.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
@@ -13,21 +13,6 @@ useFlashAlerts();
 const props = defineProps({
   weekend: { type: Object, required: true },
   masses: { type: Object, required: true },
-  search: { type: String, default: '' },
-});
-
-const searchTerm = ref(props.search);
-let debounce = null;
-
-watch(searchTerm, () => {
-  clearTimeout(debounce);
-  debounce = setTimeout(() => {
-    router.get(
-      '/misas',
-      { weekend_id: props.weekend.id, search: searchTerm.value || undefined },
-      { preserveState: true, replace: true },
-    );
-  }, 400);
 });
 
 const page = usePage();
@@ -107,6 +92,9 @@ const destroyMass = async (mass) => {
       :icon="Church"
     >
       <template #actions>
+        <span class="badge badge-sm shrink-0" :class="statusClass(weekend.status)">
+          Fin de semana {{ statusLabels[weekend.status] ?? weekend.status }}
+        </span>
         <Link
           v-if="canCreate"
           :href="`/misas/create?weekend_id=${weekend.id}`"
@@ -117,34 +105,6 @@ const destroyMass = async (mass) => {
         </Link>
       </template>
     </CatalogHeader>
-
-    <section
-      class="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5 dark:border-slate-800 dark:bg-slate-900"
-    >
-      <label
-        class="flex h-11 flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:max-w-md dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
-      >
-        <Search class="h-4 w-4 shrink-0 text-slate-400" />
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por misa, parroquia o capilla..."
-          class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-        />
-      </label>
-      <div class="flex items-center gap-2">
-        <span
-          class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
-          :class="statusClass(weekend.status)"
-        >
-          <CalendarClock class="h-3.5 w-3.5" />
-          Fin de semana {{ statusLabels[weekend.status] ?? weekend.status }}
-        </span>
-        <span class="text-xs text-slate-500 dark:text-slate-400">
-          {{ masses.total }} {{ masses.total === 1 ? 'misa' : 'misas' }}
-        </span>
-      </div>
-    </section>
 
     <div
       class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"

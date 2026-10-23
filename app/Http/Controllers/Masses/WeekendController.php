@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Masses;
 
+use App\Globals\Status;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Masses\WeekendRequest;
 use App\Models\Masses\Weekend;
@@ -50,9 +51,15 @@ class WeekendController extends Controller
 
     public function update(WeekendRequest $request, Weekend $weekend): RedirectResponse
     {
-        $this->weekends->updateWeekend($weekend, $request->validated());
+        $updated = $this->weekends->updateWeekend($weekend, $request->validated());
 
-        return redirect()->route('fines-semana-misas.index')
+        $tab = match ($updated->status) {
+            Status::COMPLETED => 'history',
+            Status::UPCOMING => 'upcoming',
+            default => null,
+        };
+
+        return redirect()->route('fines-semana-misas.index', array_filter(['tab' => $tab]))
             ->with('success', 'Fin de semana actualizado correctamente.');
     }
 

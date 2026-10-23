@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
   CalendarClock,
@@ -9,7 +9,6 @@ import {
   History,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   Trash2,
   X,
@@ -23,14 +22,12 @@ useFlashAlerts();
 
 const props = defineProps({
   weekends: { type: Object, required: true },
-  search: { type: String, default: '' },
   tab: { type: String, default: 'current' },
   churches: { type: Array, default: () => [] },
   lockedChurchId: { type: Number, default: null },
   scheduledChurchIds: { type: Array, default: () => [] },
 });
 
-const searchTerm = ref(props.search);
 const page = usePage();
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 const canCreate = computed(() => permissions.value.includes('weekends.create'));
@@ -44,23 +41,13 @@ const tabs = [
   { value: 'history', label: 'Histórico', icon: History },
 ];
 
-let debounce = null;
-
-const visitIndex = (tab = props.tab, search = searchTerm.value) => {
+const visitIndex = (tab = props.tab) => {
   router.get(
     '/fines-semana-misas',
-    {
-      tab: tab === 'current' ? undefined : tab,
-      search: search || undefined,
-    },
+    { tab: tab === 'current' ? undefined : tab },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };
-
-watch(searchTerm, (value) => {
-  clearTimeout(debounce);
-  debounce = setTimeout(() => visitIndex(props.tab, value), 400);
-});
 
 const selectTab = (tab) => visitIndex(tab);
 
@@ -107,12 +94,9 @@ const loadPreview = async () => {
 
   const churchId = generatorChurchId.value;
   try {
-    const response = await fetch(
-      `/fines-semana-misas/generar?church_id=${churchId}`,
-      {
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      },
-    );
+    const response = await fetch(`/fines-semana-misas/generar?church_id=${churchId}`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
     const json = await response.json();
 
     if (generatorChurchId.value !== churchId) return;
@@ -205,27 +189,6 @@ const generate = () => {
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label
-          class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:w-72 dark:border-slate-700 dark:bg-slate-900 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
-        >
-          <Search class="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            v-model="searchTerm"
-            type="text"
-            placeholder="Buscar por nombre o parroquia..."
-            class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-          />
-          <button
-            v-if="searchTerm"
-            type="button"
-            class="text-slate-400 hover:text-slate-600"
-            aria-label="Limpiar búsqueda"
-            @click="searchTerm = ''"
-          >
-            <X class="h-3.5 w-3.5" />
-          </button>
-        </label>
-
         <Link
           v-if="canCreate"
           href="/fines-semana-misas/programar"
@@ -282,6 +245,15 @@ const generate = () => {
                 aria-label="Ver misas del fin de semana"
               >
                 <Church class="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                v-if="canUpdate"
+                :href="`/fines-semana-misas/${weekend.id}/edit`"
+                class="btn btn-ghost btn-xs text-sky-600"
+                title="Editar"
+                aria-label="Editar fin de semana"
+              >
+                <Pencil class="h-3.5 w-3.5" />
               </Link>
             </td>
           </tr>

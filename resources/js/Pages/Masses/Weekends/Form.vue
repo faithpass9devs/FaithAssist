@@ -18,6 +18,12 @@ const isEditing = computed(() => !!props.weekend);
 const pageTitle = computed(() =>
   isEditing.value ? 'Editar fin de semana de misas' : 'Nuevo fin de semana de misas',
 );
+const weekendTabs = { in_progress: 'current', upcoming: 'upcoming', completed: 'history' };
+const indexHref = computed(() => {
+  const tab = weekendTabs[props.weekend?.status] ?? 'current';
+
+  return tab === 'current' ? '/fines-semana-misas' : `/fines-semana-misas?tab=${tab}`;
+});
 const churchOptions = computed(() =>
   props.churches.map((church) => ({
     value: church.id,
@@ -79,12 +85,12 @@ const submit = () => {
       <CatalogHeader
         :title="pageTitle"
         subtitle="El rango se guarda de sábado 00:00 a domingo 23:59"
-        back-href="/fines-semana-misas"
+        :back-href="indexHref"
         :icon="CalendarDays"
       >
         <template #actions>
           <Link
-            href="/fines-semana-misas"
+            :href="indexHref"
             class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
           >
             Cancelar
