@@ -64,6 +64,7 @@ const handleTextInput = (event) => {
       v-else-if="column.type === 'select'"
       v-model="value"
       class="select select-bordered select-sm w-full"
+      :disabled="column.disabled"
     >
       <option
         v-if="column.default === undefined"

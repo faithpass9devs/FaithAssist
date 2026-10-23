@@ -107,16 +107,61 @@ class ChapelControllerTest extends TestCase
         $this->actingAs($user)->get('/capillas')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('communities', [['id' => $chain['community']->id, 'name' => $chain['community']->name]])
+                ->where('communities', function ($communities) use ($chain) {
+                    $items = collect($communities);
+                    $ids = $items->pluck('id');
+
+                    return $ids->contains($chain['community']->id)
+                        && $items->contains(fn ($c) => $c['id'] == $chain['community']->id && $c['municipality_id'] == $chain['community']->municipality_id);
+                })
+                ->where('lockedChurchId', $chain['church']->id)
             );
     }
 
-    public function test_church_scoped_user_cannot_assign_an_unassociated_community(): void
+    public function test_church_scoped_user_only_receives_communities_in_own_municipality(): void
     {
         $chain = $this->createChain();
-        $unassociatedCommunity = Community::query()->create([
+        $otherMunicipalityChain = $this->createChain();
+
+        $otherCommunityInSameMunicipality = Community::query()->create([
             'municipality_id' => $chain['municipality']->id,
-            'name' => 'Comunidad no asociada',
+            'name' => 'Comunidad del mismo municipio',
+            'status' => 'active',
+        ]);
+
+        Chapel::query()->create([
+            'name' => 'Capilla propia',
+            'community_id' => $chain['community']->id,
+            'church_id' => $chain['church']->id,
+            'status' => 'active',
+        ]);
+
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'capillas.read'
+        );
+
+        $this->actingAs($user)->get('/capillas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('communities', function ($communities) use ($chain, $otherCommunityInSameMunicipality, $otherMunicipalityChain) {
+                    $ids = collect($communities)->pluck('id');
+
+                    return $ids->contains($chain['community']->id)
+                        && $ids->contains($otherCommunityInSameMunicipality->id)
+                        && ! $ids->contains($otherMunicipalityChain['community']->id);
+                })
+            );
+    }
+
+    public function test_church_scoped_user_can_assign_a_community_in_same_municipality(): void
+    {
+        $chain = $this->createChain();
+        $communityInSameMunicipality = Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad misma parroquia',
             'status' => 'active',
         ]);
         $user = $this->makeChurchUser(
@@ -128,13 +173,12 @@ class ChapelControllerTest extends TestCase
 
         $this->actingAs($user)
             ->postJson('/capillas', [
-                'community_id' => $unassociatedCommunity->id,
+                'community_id' => $communityInSameMunicipality->id,
                 'church_id' => $chain['church']->id,
-                'name' => 'Capilla no permitida',
+                'name' => 'CAPILLA NUEVA',
                 'status' => 'active',
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('community_id');
+            ->assertCreated();
     }
 
     public function test_scoped_user_cannot_update_chapel_outside_scope(): void
