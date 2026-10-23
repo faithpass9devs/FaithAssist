@@ -28,10 +28,10 @@ class ChapelRepository
         $scope = new UserScopeService($user);
 
         return Community::query()
-            ->when(! $scope->isGlobal() && ! $user->can('capillas.scope.all'), fn ($q) => $q->whereIn('id', $scope->chapelCommunityIds()))
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('municipality_id', $scope->municipalityIds()))
             ->where('status', 'active')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'municipality_id', 'name']);
     }
 
     public function activeChurches(User $user)
@@ -42,7 +42,7 @@ class ChapelRepository
             ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->churchIds()))
             ->where('status', 'active')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'municipality_id', 'name']);
     }
 
     public function create(array $data): Chapel

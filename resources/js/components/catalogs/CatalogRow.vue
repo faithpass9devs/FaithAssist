@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, watch } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import { Check, Pencil, Trash2, X } from 'lucide-vue-next';
 import CatalogCellEditor from './CatalogCellEditor.vue';
 
@@ -58,14 +58,19 @@ const emit = defineEmits([
 ]);
 
 const localData = reactive({});
+let initializing = false;
 
 const initializeData = () => {
+  initializing = true;
+
   props.columns.forEach((col) => {
     localData[col.key] =
       props.row?.[col.key] ??
       col.default ??
       '';
   });
+
+  initializing = false;
 };
 
 watch(
@@ -74,8 +79,34 @@ watch(
   { immediate: true, deep: true }
 );
 
+props.columns.forEach((col) => {
+  if (!col.resetDependents?.length) return;
+
+  watch(
+    () => localData[col.key],
+    () => {
+      if (initializing) return;
+
+      col.resetDependents.forEach((key) => {
+        if (key in localData) localData[key] = '';
+      });
+    },
+    { flush: 'sync' }
+  );
+});
+
+const resolvedColumns = computed(() =>
+  props.columns.map((col) => ({
+    ...col,
+    options:
+      typeof col.options === 'function'
+        ? col.options(localData)
+        : col.options,
+  }))
+);
+
 const getOptionLabel = (col, value) =>
-  col.options?.find((o) => o.value === value)?.label ?? value;
+  (col.displayOptions ?? col.options)?.find((o) => o.value === value)?.label ?? value;
 
 const getBadgeClass = (col, value) =>
   col.badges?.[value] ?? 'badge-ghost';
@@ -97,7 +128,7 @@ const save = () => {
     ]"
   >
     <td
-      v-for="col in columns"
+      v-for="col in resolvedColumns"
       :key="col.key"
       class="px-4 py-2"
     >

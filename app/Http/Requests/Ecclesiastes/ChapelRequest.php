@@ -47,25 +47,34 @@ class ChapelRequest extends FormRequest
 
                 $scope = new UserScopeService($user);
 
-                if ($scope->isGlobal() || $user->can('capillas.scope.all')) {
+                if ($scope->isGlobal() || ($user->church_id === null && $user->can('capillas.scope.all'))) {
                     return;
                 }
 
                 $communityId = $this->integer('community_id') ?: null;
                 $churchId = $this->filled('church_id') ? $this->integer('church_id') : null;
 
-                $communityOk = $communityId && $scope->chapelCommunityIds()->contains($communityId);
+                $communityOk = $communityId && $scope->communityIds()->contains($communityId);
                 $churchOk = $churchId && $scope->churchIds()->contains($churchId);
 
                 if ($user->church_id !== null) {
-                    if ($communityOk && (! $churchId || $churchOk)) {
+                    if (! $communityOk) {
+                        $validator->errors()->add(
+                            'community_id',
+                            'La comunidad debe estar asociada a la parroquia asignada al usuario.'
+                        );
+
                         return;
                     }
 
-                    $validator->errors()->add(
-                        'community_id',
-                        'La comunidad debe estar asociada a la parroquia asignada al usuario.'
-                    );
+                    if ($churchId && ! $churchOk) {
+                        $validator->errors()->add(
+                            'church_id',
+                            'La parroquia debe corresponder al usuario.'
+                        );
+
+                        return;
+                    }
 
                     return;
                 }
