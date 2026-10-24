@@ -17,13 +17,29 @@ class WeekendService
         private readonly WeekendScheduleService $schedules,
     ) {}
 
-    public function indexData(User $user, string $search, string $tab = 'current'): array
+    public const TABS = ['current', 'upcoming', 'history'];
+
+    /**
+     * Pestañas del índice que el usuario puede ver, en el orden de la UI.
+     *
+     * @return list<string>
+     */
+    public function allowedTabs(User $user): array
+    {
+        return array_values(array_filter(
+            self::TABS,
+            fn (string $tab): bool => $user->can("weekends.tab.{$tab}"),
+        ));
+    }
+
+    public function indexData(User $user, string $search, ?string $tab = 'current'): array
     {
         $query = $this->weekends->queryWithScope($user, $search);
         $weekends = match ($tab) {
             'history' => (clone $query)->completed()->reorder('starts_at', 'desc'),
             'upcoming' => (clone $query)->upcoming()->reorder('starts_at'),
-            default => (clone $query)->progress(),
+            'current' => (clone $query)->progress(),
+            default => (clone $query)->whereRaw('1 = 0'),
         };
 
         return [

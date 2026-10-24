@@ -29,9 +29,7 @@ const filteredGroups = computed(() => {
   return props.groups.filter((g) => g.label.toLowerCase().includes(q));
 });
 
-const currentGroup = computed(() =>
-  props.groups.find((g) => g.key === selectedModuleKey.value),
-);
+const currentGroup = computed(() => props.groups.find((g) => g.key === selectedModuleKey.value));
 
 const permissionResourceMetaByModule = {
   catechism: {
@@ -46,17 +44,41 @@ const permissionResourceMetaByModule = {
   },
   operation: {
     periodos: { singular: 'período', plural: 'períodos', gender: 'm' },
-    periodo_movimientos: { singular: 'movimiento de período', plural: 'movimientos de período', gender: 'm' },
-    tipos_movimientos_periodo: { singular: 'tipo de movimiento de período', plural: 'tipos de movimiento de período', gender: 'm' },
+    periodo_movimientos: {
+      singular: 'movimiento de período',
+      plural: 'movimientos de período',
+      gender: 'm',
+    },
+    tipos_movimientos_periodo: {
+      singular: 'tipo de movimiento de período',
+      plural: 'tipos de movimiento de período',
+      gender: 'm',
+    },
     niveles: { singular: 'nivel', plural: 'niveles', gender: 'm' },
   },
   masses: {
-    weekends: { singular: 'fin de semana de misa', plural: 'fines de semana de misas', gender: 'm' },
+    weekends: {
+      singular: 'fin de semana de misa',
+      plural: 'fines de semana de misas',
+      gender: 'm',
+    },
     masses: { singular: 'misa', plural: 'misas', gender: 'f' },
     mass_attendance: { singular: 'asistencia de misa', plural: 'asistencias de misa', gender: 'f' },
-    asistencias_manuales: { singular: 'asistencia manual', plural: 'asistencias manuales', gender: 'f' },
-    tipos_incidencias: { singular: 'tipo de incidencia', plural: 'tipos de incidencias', gender: 'm' },
-    incidencias_asistencia: { singular: 'incidencia de asistencia', plural: 'incidencias de asistencia', gender: 'f' },
+    asistencias_manuales: {
+      singular: 'asistencia manual',
+      plural: 'asistencias manuales',
+      gender: 'f',
+    },
+    tipos_incidencias: {
+      singular: 'tipo de incidencia',
+      plural: 'tipos de incidencias',
+      gender: 'm',
+    },
+    incidencias_asistencia: {
+      singular: 'incidencia de asistencia',
+      plural: 'incidencias de asistencia',
+      gender: 'f',
+    },
   },
   regions: {
     estados: { singular: 'estado', plural: 'estados', gender: 'm' },
@@ -71,8 +93,7 @@ const permissionResourceMetaByModule = {
   },
 };
 
-const capitalize = (value) =>
-  value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+const capitalize = (value) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : value);
 
 const parsePermission = (permissionName) => {
   if (permissionName.includes('.')) {
@@ -83,7 +104,17 @@ const parsePermission = (permissionName) => {
     };
   }
 
-  const suffixes = ['scope_all', 'create', 'read', 'update', 'delete', 'show', 'export', 'send', 'scan'];
+  const suffixes = [
+    'scope_all',
+    'create',
+    'read',
+    'update',
+    'delete',
+    'show',
+    'export',
+    'send',
+    'scan',
+  ];
   const matchedSuffix = suffixes.find((suffix) => permissionName.endsWith(`_${suffix}`));
 
   if (matchedSuffix) {
@@ -120,9 +151,18 @@ const getScopeAllText = (plural, gender) =>
 
 const getIndefiniteArticle = (gender) => (gender === 'f' ? 'una' : 'un');
 
+const tabLabels = { current: 'Actual', upcoming: 'Próximos', history: 'Histórico' };
+
+const getTabLabel = (action) => tabLabels[action.replace(/^tab\./, '')] ?? null;
+
 const getPermissionDisplayName = (perm) => {
   const meta = getPermissionMeta(perm);
   if (!meta) return perm.name;
+
+  if (meta.action.startsWith('tab.')) {
+    const tab = getTabLabel(meta.action);
+    return tab ? `Ver pestaña ${tab} de ${capitalize(meta.plural)}` : perm.name;
+  }
 
   switch (meta.action) {
     case 'create':
@@ -151,6 +191,11 @@ const getPermissionDisplayName = (perm) => {
 const getPermissionDisplayDescription = (perm) => {
   const meta = getPermissionMeta(perm);
   if (!meta) return perm.description;
+
+  if (meta.action.startsWith('tab.')) {
+    const tab = getTabLabel(meta.action);
+    return tab ? `Permite ver la pestaña ${tab} de ${meta.plural}` : perm.description;
+  }
 
   switch (meta.action) {
     case 'create':
@@ -218,26 +263,36 @@ const selectAll = () => {
 
 const clearAll = () => {
   const ids = new Set(filteredPermissions.value.map((p) => p.id));
-  emit('update:modelValue', props.modelValue.filter((id) => !ids.has(id)));
+  emit(
+    'update:modelValue',
+    props.modelValue.filter((id) => !ids.has(id)),
+  );
 };
 
-const allFilteredSelected = computed(() =>
-  filteredPermissions.value.length > 0 &&
-  filteredPermissions.value.every((p) => props.modelValue.includes(p.id)),
+const allFilteredSelected = computed(
+  () =>
+    filteredPermissions.value.length > 0 &&
+    filteredPermissions.value.every((p) => props.modelValue.includes(p.id)),
 );
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+  <div
+    class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+  >
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+    <div
+      class="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800"
+    >
       <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Permisos</h3>
       <span
         v-if="totalSelected > 0"
         class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
       >
         <CheckSquare class="h-3.5 w-3.5" />
-        {{ totalSelected }} permiso{{ totalSelected !== 1 ? 's' : '' }} seleccionado{{ totalSelected !== 1 ? 's' : '' }}
+        {{ totalSelected }} permiso{{ totalSelected !== 1 ? 's' : '' }} seleccionado{{
+          totalSelected !== 1 ? 's' : ''
+        }}
       </span>
     </div>
 
@@ -245,7 +300,9 @@ const allFilteredSelected = computed(() =>
       <!-- Left: Modules panel -->
       <aside class="flex w-56 shrink-0 flex-col">
         <div class="border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-          <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-800/60 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40">
+          <label
+            class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-800/60 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+          >
             <Search class="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <input
               v-model="moduleSearch"
@@ -265,7 +322,10 @@ const allFilteredSelected = computed(() =>
                   ? 'bg-rose-700 font-semibold text-white'
                   : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
               "
-              @click="selectedModuleKey = group.key; permissionSearch = ''"
+              @click="
+                selectedModuleKey = group.key;
+                permissionSearch = '';
+              "
             >
               <span class="truncate">{{ group.label }}</span>
               <span
@@ -280,7 +340,10 @@ const allFilteredSelected = computed(() =>
               </span>
             </button>
           </li>
-          <li v-if="filteredGroups.length === 0" class="px-3 py-4 text-center text-xs text-slate-400">
+          <li
+            v-if="filteredGroups.length === 0"
+            class="px-3 py-4 text-center text-xs text-slate-400"
+          >
             Sin resultados
           </li>
         </ul>
@@ -289,7 +352,9 @@ const allFilteredSelected = computed(() =>
       <!-- Right: Permissions panel -->
       <section class="flex flex-1 flex-col">
         <!-- Permissions toolbar -->
-        <div class="flex items-center gap-2 border-b border-slate-200 px-4 py-2 dark:border-slate-800">
+        <div
+          class="flex items-center gap-2 border-b border-slate-200 px-4 py-2 dark:border-slate-800"
+        >
           <button
             type="button"
             title="Seleccionar todos"
@@ -310,7 +375,9 @@ const allFilteredSelected = computed(() =>
             <XSquare class="h-3.5 w-3.5" />
             Limpiar
           </button>
-          <label class="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-800/60 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40">
+          <label
+            class="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-800/60 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+          >
             <Search class="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <input
               v-model="permissionSearch"
@@ -344,15 +411,16 @@ const allFilteredSelected = computed(() =>
                   v-if="isSelected(perm.id)"
                   class="h-4 w-4 text-sky-600 dark:text-sky-400"
                 />
-                <Square
-                  v-else
-                  class="h-4 w-4 text-slate-400 dark:text-slate-500"
-                />
+                <Square v-else class="h-4 w-4 text-slate-400 dark:text-slate-500" />
               </span>
               <span class="min-w-0">
                 <span
                   class="block truncate text-xs font-semibold"
-                  :class="isSelected(perm.id) ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-200'"
+                  :class="
+                    isSelected(perm.id)
+                      ? 'text-sky-700 dark:text-sky-300'
+                      : 'text-slate-700 dark:text-slate-200'
+                  "
                 >
                   {{ getPermissionDisplayName(perm) }}
                 </span>

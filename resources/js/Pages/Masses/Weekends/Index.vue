@@ -22,7 +22,8 @@ useFlashAlerts();
 
 const props = defineProps({
   weekends: { type: Object, required: true },
-  tab: { type: String, default: 'current' },
+  tab: { type: String, default: null },
+  allowedTabs: { type: Array, default: () => [] },
   churches: { type: Array, default: () => [] },
   lockedChurchId: { type: Number, default: null },
   scheduledChurchIds: { type: Array, default: () => [] },
@@ -35,11 +36,12 @@ const canUpdate = computed(() => permissions.value.includes('weekends.update'));
 const canDelete = computed(() => permissions.value.includes('weekends.delete'));
 const canGenerate = computed(() => permissions.value.includes('masses.create'));
 const canViewMasses = computed(() => permissions.value.includes('masses.read'));
-const tabs = [
+const allTabs = [
   { value: 'current', label: 'Actual', icon: CalendarDays },
   { value: 'upcoming', label: 'Próximos', icon: Clock3 },
   { value: 'history', label: 'Histórico', icon: History },
 ];
+const tabs = computed(() => allTabs.filter((item) => props.allowedTabs.includes(item.value)));
 
 const visitIndex = (tab = props.tab) => {
   router.get(
@@ -61,6 +63,11 @@ const emptyMessages = {
   history: 'Aún no hay fines de semana concluidos.',
   upcoming: 'No hay fines de semana próximos.',
 };
+const emptyMessage = computed(
+  () =>
+    emptyMessages[props.tab] ??
+    'No tienes permisos para consultar las pestañas de fines de semana de misas.',
+);
 
 const generatorOpen = ref(false);
 const generatorChurchId = ref(null);
@@ -163,8 +170,12 @@ const generate = () => {
       :icon="CalendarDays"
     />
 
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center"
+      :class="tabs.length ? 'sm:justify-between' : 'sm:justify-end'"
+    >
       <div
+        v-if="tabs.length"
         class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         role="tablist"
         aria-label="Fines de semana"
@@ -363,7 +374,7 @@ const generate = () => {
     >
       <CalendarDays class="mx-auto h-9 w-9 text-slate-400" />
       <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">
-        {{ emptyMessages[tab] }}
+        {{ emptyMessage }}
       </p>
     </div>
 

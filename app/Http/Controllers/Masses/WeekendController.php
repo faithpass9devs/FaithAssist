@@ -22,13 +22,17 @@ class WeekendController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $allowedTabs = $this->weekends->allowedTabs($request->user());
         $tab = $request->input('tab', 'current');
 
-        if (! in_array($tab, ['current', 'history', 'upcoming'], true)) {
-            $tab = 'current';
+        if (! in_array($tab, $allowedTabs, true)) {
+            $tab = $allowedTabs[0] ?? null;
         }
 
-        return Inertia::render('Masses/Weekends/Index', $this->weekends->indexData($request->user(), $search, $tab));
+        return Inertia::render('Masses/Weekends/Index', [
+            ...$this->weekends->indexData($request->user(), $search, $tab),
+            'allowedTabs' => $allowedTabs,
+        ]);
     }
 
     public function create(Request $request): Response
@@ -40,8 +44,7 @@ class WeekendController extends Controller
     {
         $this->weekends->createWeekend($request->validated());
 
-        return redirect()->route('fines-semana-misas.index')
-            ->with('success', 'Fin de semana creado correctamente.');
+        return redirect()->route('fines-semana-misas.index')->with('success', 'Fin de semana creado correctamente.');
     }
 
     public function edit(Request $request, Weekend $weekend): Response
@@ -59,7 +62,8 @@ class WeekendController extends Controller
             default => null,
         };
 
-        return redirect()->route('fines-semana-misas.index', array_filter(['tab' => $tab]))
+        return redirect()
+            ->route('fines-semana-misas.index', array_filter(['tab' => $tab]))
             ->with('success', 'Fin de semana actualizado correctamente.');
     }
 
@@ -67,7 +71,6 @@ class WeekendController extends Controller
     {
         $this->weekends->deleteWeekend($weekend, auth()->id());
 
-        return redirect()->route('fines-semana-misas.index')
-            ->with('success', 'Fin de semana eliminado correctamente.');
+        return redirect()->route('fines-semana-misas.index')->with('success', 'Fin de semana eliminado correctamente.');
     }
 }
