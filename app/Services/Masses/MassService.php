@@ -3,6 +3,7 @@
 namespace App\Services\Masses;
 
 use App\Models\Masses\Mass;
+use App\Models\Masses\Weekend;
 use App\Models\User;
 use App\Repositories\Masses\MassRepository;
 
@@ -10,27 +11,25 @@ class MassService
 {
     public function __construct(private readonly MassRepository $masses) {}
 
-    public function indexData(User $user, string $search, ?int $weekendId = null): array
+    public function indexData(User $user, Weekend $weekend, string $search): array
     {
-        $masses = $this->masses->paginateWeekendGroupsWithScope($user, $search, $weekendId, 5);
-
         return [
-            'masses' => $masses,
-            'weekendTotal' => $masses->total(),
-            'weekends' => $this->masses->activeWeekends($user),
-            'churches' => $this->masses->activeChurches($user),
-            'chapels' => $this->masses->activeChapels($user),
+            'weekend' => $this->masses->serializeWeekend($weekend),
+            'masses' => $this->masses->paginateForWeekend($user, $weekend, $search),
             'search' => $search,
-            'filters' => [
-                'weekend_id' => $weekendId,
-            ],
         ];
     }
 
-    public function createFormData(User $user): array
+    public function findVisibleWeekend(User $user, ?int $weekendId): ?Weekend
+    {
+        return $weekendId ? $this->masses->findVisibleWeekend($user, $weekendId) : null;
+    }
+
+    public function createFormData(User $user, ?int $weekendId = null): array
     {
         return [
             'mass' => null,
+            'weekendId' => $weekendId && $this->masses->findVisibleWeekend($user, $weekendId) ? $weekendId : null,
             'weekends' => $this->masses->activeWeekends($user),
             'churches' => $this->masses->activeChurches($user),
             'chapels' => $this->masses->activeChapels($user),

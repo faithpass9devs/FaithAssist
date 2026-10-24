@@ -7,7 +7,6 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
-  Church,
   ClipboardCheck,
   Home,
   KeyRound,
@@ -136,7 +135,13 @@ const modules = computed(() =>
           href: '/reinscripciones',
           moduleKey: 'reinscripciones',
         },
-        { label: 'Externos', icon: Users, href: '/externos', moduleKey: 'externos', coatepecOnly: true },
+        {
+          label: 'Externos',
+          icon: Users,
+          href: '/externos',
+          moduleKey: 'externos',
+          coatepecOnly: true,
+        },
       ],
     },
     {
@@ -149,12 +154,6 @@ const modules = computed(() =>
           icon: CalendarDays,
           href: '/fines-semana-misas',
           moduleKey: 'weekends',
-        },
-        {
-          label: 'Misas',
-          icon: Church,
-          href: '/misas',
-          moduleKey: 'masses',
         },
         {
           label: 'Asistencia manual',

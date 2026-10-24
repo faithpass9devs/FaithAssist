@@ -12,79 +12,20 @@ use App\Services\UserScopeService;
 
 class MassRepository
 {
-    public function paginateWeekendGroupsWithScope(User $user, string $search, ?int $weekendId = null, int $perPage = 5)
+    public function findVisibleWeekend(User $user, int $weekendId): ?Weekend
     {
-        $scope = new UserScopeService($user);
-
-        $weekends = $scope->applyWeekendScope(
-            Weekend::query()
-                ->with('church:id,name')
-                ->whereHas('masses')
-                ->when($weekendId, fn ($query) => $query->where('id', $weekendId))
-                ->when($search, function ($query) use ($search) {
-                    $query->where(function ($builder) use ($search) {
-                        $builder->where('name', 'like', "%{$search}%")
-                            ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"))
-                            ->orWhereHas('masses', function ($massQuery) use ($search) {
-                                $massQuery->where('name', 'like', "%{$search}%")
-                                    ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"))
-                                    ->orWhereHas('chapel', fn ($chapel) => $chapel->where('name', 'like', "%{$search}%"));
-                            });
-                    });
-                })
-                ->orderByDesc('starts_at')
-        )
-            ->paginate($perPage)
-            ->withQueryString();
-
-        $weekendIds = collect($weekends->items())
-            ->pluck('id')
-            ->all();
-
-        $massesByWeekend = collect();
-
-        if (! empty($weekendIds)) {
-            $masses = $scope->applyMassScope(
-                Mass::query()
-                    ->with(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name'])
-                    ->whereIn('weekend_id', $weekendIds)
-                    ->when($search, function ($query) use ($search) {
-                        $query->where(function ($builder) use ($search) {
-                            $builder->where('name', 'like', "%{$search}%")
-                                ->orWhereHas('church', fn ($church) => $church->where('name', 'like', "%{$search}%"))
-                                ->orWhereHas('chapel', fn ($chapel) => $chapel->where('name', 'like', "%{$search}%"));
-                        });
-                    })
-                    ->orderByDesc('starts_at')
-            )->get();
-
-            $massesByWeekend = $masses->groupBy('weekend_id');
-        }
-
-        return $weekends->through(function (Weekend $weekend) use ($massesByWeekend): array {
-            $masses = $massesByWeekend->get($weekend->id, collect())
-                ->map(fn (Mass $mass) => $this->serializeMass($mass))
-                ->values()
-                ->all();
-
-            return [
-                'weekendId' => $weekend->id,
-                'weekendName' => $weekend->name ?: $weekend->starts_at?->format('Y-m-d'),
-                'weekendStartsAt' => $weekend->starts_at?->format('Y-m-d h:i A'),
-                'weekendEndsAt' => $weekend->ends_at?->format('Y-m-d h:i A'),
-                'masses' => $masses,
-            ];
-        });
+        return (new UserScopeService($user))
+            ->applyWeekendScope(Weekend::query()->with('church:id,name'))
+            ->whereKey($weekendId)
+            ->first();
     }
 
-    public function paginateWithScope(User $user, string $search, ?int $weekendId = null, int $perPage = 72)
+    public function paginateForWeekend(User $user, Weekend $weekend, string $search, int $perPage = 15)
     {
-        $scope = new UserScopeService($user);
-
-        return $scope->applyMassScope(
+        return (new UserScopeService($user))->applyMassScope(
             Mass::query()
                 ->with(['weekend:id,name,starts_at,ends_at', 'church:id,name', 'chapel:id,name'])
-                ->when($weekendId, fn ($query) => $query->where('weekend_id', $weekendId))
+                ->where('weekend_id', $weekend->id)
                 ->when($search, function ($query) use ($search) {
                     $query->where(function ($builder) use ($search) {
                         $builder->where('name', 'like', "%{$search}%")
@@ -92,10 +33,24 @@ class MassRepository
                             ->orWhereHas('chapel', fn ($chapel) => $chapel->where('name', 'like', "%{$search}%"));
                     });
                 })
-                ->orderByDesc('starts_at')
+                ->orderBy('starts_at')
         )
             ->paginate($perPage)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Mass $mass): array => $this->serializeMass($mass));
+    }
+
+    public function serializeWeekend(Weekend $weekend): array
+    {
+        return [
+            'id' => $weekend->id,
+            'church_id' => $weekend->church_id,
+            'name' => $weekend->name ?: $weekend->starts_at?->format('Y-m-d'),
+            'starts_at' => $weekend->starts_at?->format('Y-m-d'),
+            'ends_at' => $weekend->ends_at?->format('Y-m-d'),
+            'status' => $weekend->status,
+            'church' => $weekend->church?->name,
+        ];
     }
 
     public function activeWeekends(User $user): array

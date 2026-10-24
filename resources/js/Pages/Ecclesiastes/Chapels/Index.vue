@@ -10,30 +10,49 @@ const props = defineProps({
   communities: { type: Array, default: () => [] },
   churches: { type: Array, default: () => [] },
   search: { type: String, default: '' },
+  lockedChurchId: { type: Number, default: null },
 });
 
 const communityOptions = computed(() =>
   props.communities.map((c) => ({ value: c.id, label: c.name }))
 );
 
+const communityOptionsForChurch = (churchId) => {
+  const church = props.churches.find((c) => c.id === churchId);
+
+  if (! church?.municipality_id) {
+    return communityOptions.value;
+  }
+
+  return props.communities
+    .filter((c) => c.municipality_id === church.municipality_id)
+    .map((c) => ({ value: c.id, label: c.name }));
+};
+
 const churchOptions = computed(() =>
   props.churches.map((c) => ({ value: c.id, label: c.name }))
 );
 
+const isChurchLocked = computed(() => props.lockedChurchId !== null);
+
 const columns = computed(() => [
-  {
-    key: 'community_id',
-    label: 'Comunidad',
-    type: 'select',
-    required: true,
-    options: communityOptions.value,
-  },
   {
     key: 'church_id',
     label: 'Parroquia',
     type: 'select',
     required: false,
     options: churchOptions.value,
+    default: props.lockedChurchId ?? undefined,
+    disabled: isChurchLocked.value,
+    resetDependents: ['community_id'],
+  },
+  {
+    key: 'community_id',
+    label: 'Comunidad',
+    type: 'select',
+    required: true,
+    options: (row) => communityOptionsForChurch(row.church_id),
+    displayOptions: communityOptions.value,
   },
   {
     key: 'name',

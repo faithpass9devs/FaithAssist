@@ -6,10 +6,12 @@ import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import UnderlineField from '../../../components/forms/UnderlineField.vue';
 import UnderlineSection from '../../../components/forms/UnderlineSection.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
+import { alertError, firstError } from '../../../composables/useFlashAlerts';
 
 const props = defineProps({
   weekend: { type: Object, default: null },
   churches: { type: Array, default: () => [] },
+  lockedChurchId: { type: Number, default: null },
 });
 
 const isEditing = computed(() => !!props.weekend);
@@ -29,7 +31,7 @@ const statusOptions = [
 ];
 
 const form = useForm({
-  church_id: props.weekend?.church_id ?? null,
+  church_id: props.weekend?.church_id ?? props.lockedChurchId,
   name: props.weekend?.name ?? '',
   starts_at: props.weekend?.starts_at ?? '',
   ends_at: props.weekend?.ends_at ?? '',
@@ -52,10 +54,21 @@ const computedEndsAt = computed(() => {
 const submit = () => {
   form.ends_at = computedEndsAt.value;
 
+  const options = {
+    preserveScroll: true,
+    onError: (errors) =>
+      alertError(
+        isEditing.value
+          ? 'No se pudo actualizar el fin de semana'
+          : 'No se pudo crear el fin de semana',
+        firstError(errors, 'Revisa los campos marcados e inténtalo de nuevo.'),
+      ),
+  };
+
   if (isEditing.value) {
-    form.put(`/fines-semana-misas/${props.weekend.id}`, { preserveScroll: true });
+    form.put(`/fines-semana-misas/${props.weekend.id}`, options);
   } else {
-    form.post('/fines-semana-misas');
+    form.post('/fines-semana-misas', options);
   }
 };
 </script>
@@ -63,34 +76,45 @@ const submit = () => {
 <template>
   <AppShell :page-title="pageTitle">
     <form @submit.prevent="submit">
-    <CatalogHeader
-      :title="pageTitle"
-      subtitle="El rango se guarda de sábado 00:00 a domingo 23:59"
-      back-href="/fines-semana-misas"
-      :icon="CalendarDays"
-    >
-      <template #actions>
-        <Link
-          href="/fines-semana-misas"
-          class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
-        >
-          Cancelar
-        </Link>
-        <button
-          type="submit"
-          class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="form.processing"
-        >
-          {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear' }}
-        </button>
-      </template>
-    </CatalogHeader>
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="El rango se guarda de sábado 00:00 a domingo 23:59"
+        back-href="/fines-semana-misas"
+        :icon="CalendarDays"
+      >
+        <template #actions>
+          <Link
+            href="/fines-semana-misas"
+            class="btn btn-sm rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            class="btn btn-sm rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="form.processing"
+          >
+            {{ form.processing ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear' }}
+          </button>
+        </template>
+      </CatalogHeader>
+
+      <div
+        v-if="form.errors.status"
+        class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        role="alert"
+      >
+        {{ form.errors.status }}
+      </div>
 
       <div
         class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/70 sm:p-8"
       >
         <div class="space-y-9">
           <UnderlineSection title="Fin de semana">
+            <p v-if="!isEditing" class="mb-5 text-sm text-slate-500 dark:text-slate-400">
+              Se creará como próximo.
+            </p>
             <div class="grid gap-x-9 gap-y-7 md:grid-cols-2">
               <UnderlineField
                 v-model="form.church_id"
@@ -99,15 +123,12 @@ const submit = () => {
                 placeholder="Selecciona una parroquia"
                 :options="churchOptions"
                 :error="form.errors.church_id"
+                :disabled="lockedChurchId !== null"
                 number-value
                 required
               />
 
-              <UnderlineField
-                v-model="form.name"
-                label="Nombre"
-                :error="form.errors.name"
-              />
+              <UnderlineField v-model="form.name" label="Nombre" :error="form.errors.name" />
 
               <UnderlineField
                 v-model="form.starts_at"
@@ -126,6 +147,7 @@ const submit = () => {
               />
 
               <UnderlineField
+                v-if="isEditing"
                 v-model="form.status"
                 label="Estatus"
                 as="select"

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Ecclesiastes;
 
 use App\Models\Ecclesiastes\Chapel;
+use App\Models\Regions\Community;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Concerns\ControllerTestHelpers;
 use Tests\TestCase;
@@ -32,7 +33,7 @@ class ChapelControllerTest extends TestCase
         $this->actingAs($user)
             ->postJson('/capillas', [
                 'community_id' => $chain['community']->id,
-                'name'         => 'X',
+                'name' => 'X',
                 'status' => 'active',
             ])
             ->assertForbidden();
@@ -74,6 +75,112 @@ class ChapelControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('chapels.total', 1));
     }
 
+    public function test_church_scoped_user_only_receives_communities_associated_with_own_church(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = $this->createChain();
+        $otherChurch['community']->update([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad de otra parroquia',
+        ]);
+        Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad sin capilla',
+            'status' => 'active',
+        ]);
+
+        Chapel::query()->create([
+            'name' => 'Capilla propia',
+            'community_id' => $chain['community']->id,
+            'church_id' => $chain['church']->id,
+            'status' => 'active',
+        ]);
+        Chapel::query()->create([
+            'name' => 'Capilla de otra parroquia',
+            'community_id' => $otherChurch['community']->id,
+            'church_id' => $otherChurch['church']->id,
+            'status' => 'active',
+        ]);
+
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'capillas.read');
+
+        $this->actingAs($user)->get('/capillas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('communities', function ($communities) use ($chain) {
+                    $items = collect($communities);
+                    $ids = $items->pluck('id');
+
+                    return $ids->contains($chain['community']->id)
+                        && $items->contains(fn ($c) => $c['id'] == $chain['community']->id && $c['municipality_id'] == $chain['community']->municipality_id);
+                })
+                ->where('lockedChurchId', $chain['church']->id)
+            );
+    }
+
+    public function test_church_scoped_user_only_receives_communities_in_own_municipality(): void
+    {
+        $chain = $this->createChain();
+        $otherMunicipalityChain = $this->createChain();
+
+        $otherCommunityInSameMunicipality = Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad del mismo municipio',
+            'status' => 'active',
+        ]);
+
+        Chapel::query()->create([
+            'name' => 'Capilla propia',
+            'community_id' => $chain['community']->id,
+            'church_id' => $chain['church']->id,
+            'status' => 'active',
+        ]);
+
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'capillas.read'
+        );
+
+        $this->actingAs($user)->get('/capillas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('communities', function ($communities) use ($chain, $otherCommunityInSameMunicipality, $otherMunicipalityChain) {
+                    $ids = collect($communities)->pluck('id');
+
+                    return $ids->contains($chain['community']->id)
+                        && $ids->contains($otherCommunityInSameMunicipality->id)
+                        && ! $ids->contains($otherMunicipalityChain['community']->id);
+                })
+            );
+    }
+
+    public function test_church_scoped_user_can_assign_a_community_in_same_municipality(): void
+    {
+        $chain = $this->createChain();
+        $communityInSameMunicipality = Community::query()->create([
+            'municipality_id' => $chain['municipality']->id,
+            'name' => 'Comunidad misma parroquia',
+            'status' => 'active',
+        ]);
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'capillas.create'
+        );
+
+        $this->actingAs($user)
+            ->postJson('/capillas', [
+                'community_id' => $communityInSameMunicipality->id,
+                'church_id' => $chain['church']->id,
+                'name' => 'CAPILLA NUEVA',
+                'status' => 'active',
+            ])
+            ->assertCreated();
+    }
+
     public function test_scoped_user_cannot_update_chapel_outside_scope(): void
     {
         $chain1 = $this->createChain();
@@ -87,7 +194,7 @@ class ChapelControllerTest extends TestCase
         $this->actingAs($user)
             ->putJson("/capillas/{$foreignChapel->id}", [
                 'community_id' => $chain2['community']->id,
-                'name'         => 'MODIFICADA',
+                'name' => 'MODIFICADA',
                 'status' => 'active',
             ])
             ->assertForbidden();
@@ -112,8 +219,8 @@ class ChapelControllerTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/capillas', [
                 'community_id' => $chain['community']->id,
-                'church_id'    => $chain['church']->id,
-                'name'         => 'CAPILLA NUEVA',
+                'church_id' => $chain['church']->id,
+                'name' => 'CAPILLA NUEVA',
                 'status' => 'active',
             ]);
 
@@ -133,7 +240,7 @@ class ChapelControllerTest extends TestCase
         $response = $this->actingAs($user)
             ->putJson("/capillas/{$chapel->id}", [
                 'community_id' => $chain['community']->id,
-                'name'         => 'CAPILLA ACTUALIZADA',
+                'name' => 'CAPILLA ACTUALIZADA',
                 'status' => 'active',
             ]);
 

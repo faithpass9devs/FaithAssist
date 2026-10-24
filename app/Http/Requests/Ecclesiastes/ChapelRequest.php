@@ -4,6 +4,7 @@ namespace App\Http\Requests\Ecclesiastes;
 
 use App\Globals\Status;
 use App\Http\Requests\Concerns\UppercasesFields;
+use App\Services\UserScopeService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -44,9 +45,9 @@ class ChapelRequest extends FormRequest
                     return;
                 }
 
-                $scope = new \App\Services\UserScopeService($user);
+                $scope = new UserScopeService($user);
 
-                if ($scope->isGlobal() || $user->can('capillas.scope.all')) {
+                if ($scope->isGlobal() || ($user->church_id === null && $user->can('capillas.scope.all'))) {
                     return;
                 }
 
@@ -55,6 +56,28 @@ class ChapelRequest extends FormRequest
 
                 $communityOk = $communityId && $scope->communityIds()->contains($communityId);
                 $churchOk = $churchId && $scope->churchIds()->contains($churchId);
+
+                if ($user->church_id !== null) {
+                    if (! $communityOk) {
+                        $validator->errors()->add(
+                            'community_id',
+                            'La comunidad debe estar asociada a la parroquia asignada al usuario.'
+                        );
+
+                        return;
+                    }
+
+                    if ($churchId && ! $churchOk) {
+                        $validator->errors()->add(
+                            'church_id',
+                            'La parroquia debe corresponder al usuario.'
+                        );
+
+                        return;
+                    }
+
+                    return;
+                }
 
                 if ($communityOk || $churchOk) {
                     return;

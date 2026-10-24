@@ -18,24 +18,34 @@ class MassController extends Controller
         $this->authorizeResource(Mass::class, 'misa');
     }
 
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
-        $search = $request->input('search', '');
-        $weekendId = $request->integer('weekend_id') ?: null;
+        $weekend = $this->masses->findVisibleWeekend($request->user(), $request->integer('weekend_id') ?: null);
 
-        return Inertia::render('Masses/Masses/Index', $this->masses->indexData($request->user(), $search, $weekendId));
+        if (! $weekend) {
+            return redirect()->route('fines-semana-misas.index')
+                ->with('error', 'Selecciona un fin de semana para ver sus misas.');
+        }
+
+        return Inertia::render(
+            'Masses/Masses/Index',
+            $this->masses->indexData($request->user(), $weekend, (string) $request->input('search', ''))
+        );
     }
 
     public function create(Request $request): Response
     {
-        return Inertia::render('Masses/Masses/Form', $this->masses->createFormData($request->user()));
+        return Inertia::render(
+            'Masses/Masses/Form',
+            $this->masses->createFormData($request->user(), $request->integer('weekend_id') ?: null)
+        );
     }
 
     public function store(MassRequest $request): RedirectResponse
     {
-        $this->masses->createMass($request->validated());
+        $mass = $this->masses->createMass($request->validated());
 
-        return redirect()->route('misas.index')
+        return redirect()->route('misas.index', ['weekend_id' => $mass->weekend_id])
             ->with('success', 'Misa creada correctamente.');
     }
 
@@ -46,17 +56,18 @@ class MassController extends Controller
 
     public function update(MassRequest $request, Mass $misa): RedirectResponse
     {
-        $this->masses->updateMass($misa, $request->validated());
+        $mass = $this->masses->updateMass($misa, $request->validated());
 
-        return redirect()->route('misas.index')
+        return redirect()->route('misas.index', ['weekend_id' => $mass->weekend_id])
             ->with('success', 'Misa actualizada correctamente.');
     }
 
     public function destroy(Mass $misa): RedirectResponse
     {
+        $weekendId = $misa->weekend_id;
         $this->masses->deleteMass($misa);
 
-        return redirect()->route('misas.index')
+        return redirect()->route('misas.index', ['weekend_id' => $weekendId])
             ->with('success', 'Misa eliminada correctamente.');
     }
 }

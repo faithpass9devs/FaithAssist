@@ -17,18 +17,21 @@ class ChapelService
             'communities' => $this->chapels->activeCommunities($user),
             'churches' => $this->chapels->activeChurches($user),
             'search' => $search,
+            'lockedChurchId' => $user->church_id,
         ];
     }
 
     public function createChapel(array $data): array
     {
         $chapel = $this->chapels->create($data);
+
         return $this->chapelData($chapel);
     }
 
     public function updateChapel(Chapel $chapel, array $data): array
     {
         $chapel = $this->chapels->update($chapel, $data);
+
         return $this->chapelData($chapel);
     }
 

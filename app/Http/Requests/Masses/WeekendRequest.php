@@ -87,12 +87,18 @@ class WeekendRequest extends FormRequest
             $startsAt = Carbon::parse($this->input('starts_at'));
             $endsAt = Carbon::parse($this->input('ends_at'));
 
-            if (! $scope->isGlobal() && ! $user->can('weekends.scope.all')) {
+            if (! $scope->isGlobal()) {
+                if (! $scope->churchIds()->contains($churchId)) {
+                    $validator->errors()->add('church_id', 'Solo puedes gestionar fines de semana de las parroquias asignadas.');
+
+                    return;
+                }
+
                 $isOwnChurchUser = $user->church_id !== null
                     && $user->chapel_id === null
                     && (int) $user->church_id === $churchId;
 
-                if (! $isOwnChurchUser) {
+                if (! $user->can('weekends.scope.all') && ! $isOwnChurchUser) {
                     $validator->errors()->add('church_id', 'Solo la parroquia puede gestionar sus fines de semana.');
 
                     return;
@@ -123,19 +129,27 @@ class WeekendRequest extends FormRequest
                 $validator->errors()->add('ends_at', 'Ya existe un fin de semana de esta parroquia en ese rango.');
             }
 
-            if ($this->input('status') !== Status::IN_PROGRESS) {
+            $status = $this->input('status');
+
+            if ($weekendId === null && $status !== Status::UPCOMING) {
+                $validator->errors()->add('status', 'Los fines de semana nuevos deben crearse como próximos.');
+
                 return;
             }
 
-            $activeWeekendExists = Weekend::query()
+            if ($status !== Status::IN_PROGRESS) {
+                return;
+            }
+
+            $weekendInProgressExists = Weekend::query()
                 ->where('church_id', $churchId)
-                ->where('status', Status::IN_PROGRESS)
+                ->where('status', $status)
                 ->whereNull('deleted_at')
                 ->when($weekendId, fn ($query) => $query->whereKeyNot($weekendId))
                 ->exists();
 
-            if ($activeWeekendExists) {
-                $validator->errors()->add('status', 'Solo puede existir un fin de semana en curso por parroquia.');
+            if ($weekendInProgressExists) {
+                $validator->errors()->add('status', 'Solo puede existir un fin de semana en curso.');
             }
         });
     }
