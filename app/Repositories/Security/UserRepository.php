@@ -15,8 +15,13 @@ use Spatie\Permission\Models\Role;
 
 class UserRepository
 {
-    public function paginateVisibleUsers(User $editor, string $search, int $perPage = 10): LengthAwarePaginator
-    {
+    public function paginateVisibleUsers(
+        User $editor,
+        string $search,
+        int $perPage = 10,
+        ?int $churchId = null,
+        ?int $roleId = null,
+    ): LengthAwarePaginator {
         $scope = new UserScopeService($editor);
 
         return User::query()
@@ -37,15 +42,40 @@ class UserRepository
                     }
                 });
             })
+            ->when($churchId, fn ($q) => $q->where('church_id', $churchId))
+            ->when($roleId, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('roles.id', $roleId)))
             ->when($search, function ($q) use ($search) {
-                $q->whereHas('profile', fn ($p) => $p->where('name', 'like', "%{$search}%")
-                    ->orWhere('paterno', 'like', "%{$search}%")
-                    ->orWhere('materno', 'like', "%{$search}%"))
-                    ->orWhere('email', 'like', "%{$search}%");
+                $q->where(function ($sub) use ($search) {
+                    $sub->whereHas('profile', fn ($p) => $p->where(function ($name) use ($search) {
+                        $name->where('name', 'like', "%{$search}%")
+                            ->orWhere('paterno', 'like', "%{$search}%")
+                            ->orWhere('materno', 'like', "%{$search}%");
+                    }))
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
             })
             ->orderBy('id')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Churches that currently have at least one visible user, for the index filter.
+     */
+    public function churchesWithUsers(User $editor): Collection
+    {
+        $scope = new UserScopeService($editor);
+
+        return Church::query()
+            ->whereHas('users')
+            ->when(! $scope->isGlobal(), fn ($q) => $q->whereIn('id', $scope->churchIds()))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    public function rolesForFilter(): Collection
+    {
+        return Role::query()->orderBy('name')->get(['id', 'name']);
     }
 
     public function loadUserFormRelations(User $user): User
@@ -130,7 +160,7 @@ class UserRepository
 
     private function assignablePermissionIds(User $editor): Collection
     {
-        $permissionIds = $editor->getAllPermissions()->pluck('id');
+        $permissionIds = $editor->getGrantedPermissions()->pluck('id');
 
         if ($editor->hasRole('Superadmin')) {
             $permissionIds = $permissionIds->merge(

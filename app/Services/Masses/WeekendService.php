@@ -32,9 +32,17 @@ class WeekendService
         ));
     }
 
-    public function indexData(User $user, string $search, ?string $tab = 'current'): array
+    public function indexData(User $user, string $search, ?string $tab = 'current', ?int $churchId = null): array
     {
-        $query = $this->weekends->queryWithScope($user, $search);
+        $canFilterByChurch = $user->can('weekends.filter.church');
+        $churches = $this->schedules->churchOptions($user);
+
+        // The filter is only honored for users with the permission and for churches within their scope.
+        if (! $canFilterByChurch || ($churchId !== null && ! $churches->contains('id', $churchId))) {
+            $churchId = null;
+        }
+
+        $query = $this->weekends->queryWithScope($user, $search, $churchId);
         $weekends = match ($tab) {
             'history' => (clone $query)->completed()->reorder('starts_at', 'desc'),
             'upcoming' => (clone $query)->upcoming()->reorder('starts_at'),
@@ -45,9 +53,11 @@ class WeekendService
         return [
             'weekends' => $this->weekends->paginateQuery($weekends, 5, 'weekends_page')
                 ->through(fn (Weekend $weekend) => $this->weekends->serializeWeekend($weekend)),
-            'churches' => $this->schedules->churchOptions($user),
+            'churches' => $churches,
             'search' => $search,
             'tab' => $tab,
+            'churchId' => $churchId,
+            'canFilterByChurch' => $canFilterByChurch,
             ...$this->schedules->indexData($user),
         ];
     }

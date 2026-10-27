@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Security;
 
+use App\Models\Ecclesiastes\Church;
 use App\Models\Profile;
 use App\Models\User;
 use Database\Seeders\LadaSeeder;
@@ -93,6 +94,81 @@ class UserControllerTest extends TestCase
     }
 
     // ── CRUD ──────────────────────────────────────────────────────────────────
+
+    public function test_index_filters_users_by_church_and_role(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => 'active',
+        ]);
+        $role = Role::create(['name' => 'Capturista', 'guard_name' => 'web']);
+        $otherRole = Role::create(['name' => 'Lector', 'guard_name' => 'web']);
+
+        $inChurchWithRole = User::factory()->create(['diocese_id' => $chain['diocese']->id, 'church_id' => $chain['church']->id]);
+        $inChurchWithRole->assignRole($role);
+        $inChurchOtherRole = User::factory()->create(['diocese_id' => $chain['diocese']->id, 'church_id' => $chain['church']->id]);
+        $inChurchOtherRole->assignRole($otherRole);
+        $otherChurchWithRole = User::factory()->create(['diocese_id' => $chain['diocese']->id, 'church_id' => $otherChurch->id]);
+        $otherChurchWithRole->assignRole($role);
+
+        $editor = $this->makeGlobalUser();
+
+        $this->actingAs($editor)
+            ->get("/usuarios?church_id={$chain['church']->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('users.total', 2)
+                ->where('filters.church_id', $chain['church']->id)
+                ->where('filters.role_id', null)
+                ->has('filterOptions.churches', 2)
+                ->has('filterOptions.roles', 2)
+            );
+
+        $this->actingAs($editor)
+            ->get("/usuarios?role_id={$role->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('users.total', 2)
+                ->where('filters.role_id', $role->id)
+            );
+
+        $this->actingAs($editor)
+            ->get("/usuarios?church_id={$chain['church']->id}&role_id={$role->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('users.total', 1)
+                ->where('users.data.0.id', $inChurchWithRole->id)
+            );
+
+        // Search combined with filters keeps the filters applied.
+        $this->actingAs($editor)
+            ->get("/usuarios?church_id={$chain['church']->id}&search={$otherChurchWithRole->email}")
+            ->assertInertia(fn ($page) => $page->where('users.total', 0));
+    }
+
+    public function test_index_church_filter_cannot_escape_editor_scope(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => 'active',
+        ]);
+        User::factory()->create(['diocese_id' => $chain['diocese']->id, 'church_id' => $otherChurch->id]);
+
+        $editor = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church']);
+
+        $this->actingAs($editor)
+            ->get("/usuarios?church_id={$otherChurch->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.church_id', null)
+                ->where('users.total', 1)
+                ->where('users.data.0.id', $editor->id)
+            );
+    }
 
     public function test_index_returns_inertia_response(): void
     {
@@ -288,10 +364,90 @@ class UserControllerTest extends TestCase
 
         $target->refresh();
 
-        $this->assertFalse($target->hasRole($role));
-        $this->assertTrue($target->hasDirectPermission('usuarios.read'));
+        // El rol se conserva; el permiso desmarcado queda revocado solo para este usuario.
+        $this->assertTrue($target->hasRole($role));
+        $this->assertFalse($target->hasDirectPermission('usuarios.read'));
         $this->assertTrue($target->can('usuarios.read'));
         $this->assertFalse($target->can('usuarios.update'));
+        $this->assertEqualsCanonicalizing(
+            [$updatePermission->id],
+            $target->revokedPermissions()->pluck('permissions.id')->all()
+        );
+        $this->assertFalse($target->getAllPermissions()->contains('id', $updatePermission->id));
+
+        // El formulario de edición refleja el permiso revocado como no seleccionado.
+        $this->actingAs($editor)
+            ->get("/usuarios/{$target->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('selectedRole', $role->id)
+                ->where('selectedPermissions', [$readPermission->id])
+            );
+
+        // Volver a marcar el permiso lo restaura sin volverlo directo.
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Raul',
+                'paterno' => 'Ramos',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id, $updatePermission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertTrue($target->hasRole($role));
+        $this->assertTrue($target->can('usuarios.update'));
+        $this->assertFalse($target->hasDirectPermission('usuarios.update'));
+        $this->assertCount(0, $target->revokedPermissions()->get());
+    }
+
+    public function test_update_keeps_role_when_removing_and_adding_permissions_at_once(): void
+    {
+        $readPermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.read', 'guard_name' => 'web'],
+            ['description' => 'usuarios.read', 'module_key' => 'security']
+        );
+        $updatePermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.update', 'guard_name' => 'web'],
+            ['description' => 'usuarios.update', 'module_key' => 'security']
+        );
+        $extraPermission = Permission::firstOrCreate(
+            ['name' => 'roles.read', 'guard_name' => 'web'],
+            ['description' => 'roles.read', 'module_key' => 'security']
+        );
+
+        $role = Role::create(['name' => 'Gestor Mixto', 'guard_name' => 'web']);
+        $role->givePermissionTo([$readPermission, $updatePermission]);
+
+        $target = User::factory()->create(['diocese_id' => null]);
+        $target->assignRole($role);
+        Profile::create(['user_id' => $target->id, 'name' => 'Ana', 'paterno' => 'Lara', 'materno' => null]);
+
+        $editor = $this->makeGlobalUser('usuarios.read', 'usuarios.update', 'roles.read');
+
+        $this->actingAs($editor)
+            ->put("/usuarios/{$target->id}", $this->validUserPayload([
+                'email' => $target->email,
+                'name' => 'Ana',
+                'paterno' => 'Lara',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id, $extraPermission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $target->refresh();
+
+        $this->assertTrue($target->hasRole($role));
+        $this->assertTrue($target->can('usuarios.read'));
+        $this->assertFalse($target->can('usuarios.update'));
+        $this->assertTrue($target->can('roles.read'));
+        $this->assertTrue($target->hasDirectPermission('roles.read'));
+        $this->assertEqualsCanonicalizing(
+            [$readPermission->id, $extraPermission->id],
+            $target->getAllPermissions()->pluck('id')->all()
+        );
     }
 
     public function test_update_preserves_role_when_adding_direct_permission_to_role_permissions(): void
@@ -331,6 +487,60 @@ class UserControllerTest extends TestCase
         $this->assertTrue($target->hasDirectPermission('roles.update'));
         $this->assertTrue($target->can('roles.read'));
         $this->assertTrue($target->can('roles.update'));
+    }
+
+    public function test_editor_with_revoked_permission_still_sees_own_role_and_keeps_it_on_save(): void
+    {
+        $readPermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.read', 'guard_name' => 'web'],
+            ['description' => 'usuarios.read', 'module_key' => 'security']
+        );
+        $updatePermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.update', 'guard_name' => 'web'],
+            ['description' => 'usuarios.update', 'module_key' => 'security']
+        );
+        $extraPermission = Permission::firstOrCreate(
+            ['name' => 'roles.read', 'guard_name' => 'web'],
+            ['description' => 'roles.read', 'module_key' => 'security']
+        );
+
+        $role = Role::create(['name' => 'Admin Parcial', 'guard_name' => 'web']);
+        $role->givePermissionTo([$readPermission, $updatePermission, $extraPermission]);
+
+        $editor = User::factory()->create(['diocese_id' => null]);
+        $editor->assignRole($role);
+        $editor->revokedPermissions()->sync([$extraPermission->id]);
+        Profile::create(['user_id' => $editor->id, 'name' => 'Admin', 'paterno' => 'Parcial', 'materno' => null]);
+
+        $this->assertFalse($editor->fresh()->can('roles.read'));
+
+        // El rol sigue apareciendo como asignable y seleccionado aunque el editor tenga un permiso revocado.
+        $this->actingAs($editor)
+            ->get("/usuarios/{$editor->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('selectedRole', $role->id)
+                ->where('roles.0.id', $role->id)
+                ->where('selectedPermissions', fn ($ids) => collect($ids)->sort()->values()->all() === collect([$readPermission->id, $updatePermission->id])->sort()->values()->all())
+            );
+
+        // Guardar sin cambios conserva el rol y la revocación.
+        $this->actingAs($editor)
+            ->put("/usuarios/{$editor->id}", $this->validUserPayload([
+                'email' => $editor->email,
+                'name' => 'Admin',
+                'paterno' => 'Parcial',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id, $updatePermission->id],
+            ]))
+            ->assertRedirect('/usuarios');
+
+        $editor->refresh();
+
+        $this->assertTrue($editor->hasRole($role));
+        $this->assertFalse($editor->can('roles.read'));
+        $this->assertTrue($editor->can('usuarios.update'));
+        $this->assertCount(0, $editor->getDirectPermissions());
     }
 
     public function test_destroy_requires_usuarios_delete_permission(): void

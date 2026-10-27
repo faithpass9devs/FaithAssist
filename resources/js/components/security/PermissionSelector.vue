@@ -1,10 +1,20 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { CheckSquare, Search, Square, XSquare } from 'lucide-vue-next';
+import {
+  CheckSquare,
+  MinusSquare,
+  PlusSquare,
+  RotateCcw,
+  Search,
+  Square,
+  XSquare,
+} from 'lucide-vue-next';
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
   groups: { type: Array, required: true },
+  /** Permisos del rol seleccionado; cuando se envía (aunque sea vacío), se resaltan los removidos y los extras. */
+  rolePermissionIds: { type: Array, default: null },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -155,6 +165,10 @@ const tabLabels = { current: 'Actual', upcoming: 'Próximos', history: 'Históri
 
 const getTabLabel = (action) => tabLabels[action.replace(/^tab\./, '')] ?? null;
 
+const filterLabels = { church: 'parroquia' };
+
+const getFilterLabel = (action) => filterLabels[action.replace(/^filter\./, '')] ?? null;
+
 const getPermissionDisplayName = (perm) => {
   const meta = getPermissionMeta(perm);
   if (!meta) return perm.name;
@@ -162,6 +176,11 @@ const getPermissionDisplayName = (perm) => {
   if (meta.action.startsWith('tab.')) {
     const tab = getTabLabel(meta.action);
     return tab ? `Ver pestaña ${tab} de ${capitalize(meta.plural)}` : perm.name;
+  }
+
+  if (meta.action.startsWith('filter.')) {
+    const filter = getFilterLabel(meta.action);
+    return filter ? `Filtrar ${capitalize(meta.plural)} por ${filter}` : perm.name;
   }
 
   switch (meta.action) {
@@ -195,6 +214,11 @@ const getPermissionDisplayDescription = (perm) => {
   if (meta.action.startsWith('tab.')) {
     const tab = getTabLabel(meta.action);
     return tab ? `Permite ver la pestaña ${tab} de ${meta.plural}` : perm.description;
+  }
+
+  if (meta.action.startsWith('filter.')) {
+    const filter = getFilterLabel(meta.action);
+    return filter ? `Permite filtrar ${meta.plural} por ${filter}` : perm.description;
   }
 
   switch (meta.action) {
@@ -244,6 +268,42 @@ const selectedCountForGroup = (groupKey) => {
 
 const isSelected = (permId) => props.modelValue.includes(permId);
 
+const MANUAL_ATTENDANCE_PREFIX = 'asistencias_manuales.';
+const hasRoleReference = computed(() => Array.isArray(props.rolePermissionIds));
+
+/** Los permisos de asistencias manuales solo aplican como directos, no cuentan como heredados del rol. */
+const isRolePermission = (perm) =>
+  hasRoleReference.value &&
+  props.rolePermissionIds.includes(perm.id) &&
+  !perm.name.startsWith(MANUAL_ATTENDANCE_PREFIX);
+
+const isRevoked = (perm) => isRolePermission(perm) && !isSelected(perm.id);
+const isExtra = (perm) => hasRoleReference.value && !isRolePermission(perm) && isSelected(perm.id);
+
+const allPermissions = computed(() => props.groups.flatMap((group) => group.permissions));
+const revokedCount = computed(() => allPermissions.value.filter(isRevoked).length);
+const extraCount = computed(() => allPermissions.value.filter(isExtra).length);
+
+const permissionCardClass = (perm) => {
+  if (isRevoked(perm)) {
+    return 'border-amber-300 bg-amber-50 hover:border-amber-400 dark:border-amber-700 dark:bg-amber-900/20';
+  }
+  if (isExtra(perm)) {
+    return 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20';
+  }
+  return isSelected(perm.id)
+    ? 'border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/30'
+    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:border-slate-600';
+};
+
+const permissionTitleClass = (perm) => {
+  if (isRevoked(perm)) return 'text-amber-800 dark:text-amber-300';
+  if (isExtra(perm)) return 'text-emerald-800 dark:text-emerald-300';
+  return isSelected(perm.id)
+    ? 'text-sky-700 dark:text-sky-300'
+    : 'text-slate-700 dark:text-slate-200';
+};
+
 const toggle = (permId) => {
   const current = [...props.modelValue];
   const idx = current.indexOf(permId);
@@ -274,6 +334,16 @@ const allFilteredSelected = computed(
     filteredPermissions.value.length > 0 &&
     filteredPermissions.value.every((p) => props.modelValue.includes(p.id)),
 );
+
+const hasCustomizations = computed(() => revokedCount.value > 0 || extraCount.value > 0);
+
+/** Vuelve a los permisos predeterminados del rol (quita extras y restaura removidos). */
+const restoreRoleDefaults = () => {
+  emit(
+    'update:modelValue',
+    allPermissions.value.filter(isRolePermission).map((p) => p.id),
+  );
+};
 </script>
 
 <template>
@@ -285,14 +355,59 @@ const allFilteredSelected = computed(
       class="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800"
     >
       <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Permisos</h3>
-      <span
-        v-if="totalSelected > 0"
-        class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-      >
-        <CheckSquare class="h-3.5 w-3.5" />
-        {{ totalSelected }} permiso{{ totalSelected !== 1 ? 's' : '' }} seleccionado{{
-          totalSelected !== 1 ? 's' : ''
-        }}
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        <span
+          v-if="hasRoleReference && revokedCount > 0"
+          class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+          title="Permisos del rol que no tendrá este usuario"
+        >
+          <MinusSquare class="h-3.5 w-3.5" />
+          {{ revokedCount }} removido{{ revokedCount !== 1 ? 's' : '' }} del rol
+        </span>
+        <span
+          v-if="hasRoleReference && extraCount > 0"
+          class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+          title="Permisos adicionales fuera del rol"
+        >
+          <PlusSquare class="h-3.5 w-3.5" />
+          {{ extraCount }} extra{{ extraCount !== 1 ? 's' : '' }}
+        </span>
+        <span
+          v-if="totalSelected > 0"
+          class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+        >
+          <CheckSquare class="h-3.5 w-3.5" />
+          {{ totalSelected }} permiso{{ totalSelected !== 1 ? 's' : '' }} seleccionado{{
+            totalSelected !== 1 ? 's' : ''
+          }}
+        </span>
+      </div>
+    </div>
+
+    <div
+      v-if="hasRoleReference"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-200 bg-slate-50/60 px-5 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400"
+    >
+      <span class="inline-flex items-center gap-1.5">
+        <span
+          class="h-2.5 w-2.5 rounded-sm border border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/30"
+        />
+        <strong class="font-semibold text-sky-700 dark:text-sky-300">Azul</strong> — permiso del rol
+        (predeterminado)
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span
+          class="h-2.5 w-2.5 rounded-sm border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20"
+        />
+        <strong class="font-semibold text-amber-700 dark:text-amber-300">Ámbar · Removido</strong>
+        — permiso del rol que se desmarcó
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span
+          class="h-2.5 w-2.5 rounded-sm border border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20"
+        />
+        <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Verde · Extra</strong>
+        — permiso marcado que no está en el rol
       </span>
     </div>
 
@@ -375,6 +490,17 @@ const allFilteredSelected = computed(
             <XSquare class="h-3.5 w-3.5" />
             Limpiar
           </button>
+          <button
+            v-if="hasRoleReference"
+            type="button"
+            title="Restaurar los permisos predeterminados del rol"
+            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-300"
+            :disabled="!hasCustomizations"
+            @click="restoreRoleDefaults"
+          >
+            <RotateCcw class="h-3.5 w-3.5" />
+            Restaurar
+          </button>
           <label
             class="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-800/60 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
           >
@@ -399,30 +525,45 @@ const allFilteredSelected = computed(
               :key="perm.id"
               type="button"
               class="flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all"
-              :class="
-                isSelected(perm.id)
-                  ? 'border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/30'
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:border-slate-600'
-              "
+              :class="permissionCardClass(perm)"
               @click="toggle(perm.id)"
             >
               <span class="mt-0.5 shrink-0">
                 <CheckSquare
                   v-if="isSelected(perm.id)"
-                  class="h-4 w-4 text-sky-600 dark:text-sky-400"
+                  class="h-4 w-4"
+                  :class="
+                    isExtra(perm)
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-sky-600 dark:text-sky-400'
+                  "
+                />
+                <MinusSquare
+                  v-else-if="isRevoked(perm)"
+                  class="h-4 w-4 text-amber-600 dark:text-amber-400"
                 />
                 <Square v-else class="h-4 w-4 text-slate-400 dark:text-slate-500" />
               </span>
-              <span class="min-w-0">
-                <span
-                  class="block truncate text-xs font-semibold"
-                  :class="
-                    isSelected(perm.id)
-                      ? 'text-sky-700 dark:text-sky-300'
-                      : 'text-slate-700 dark:text-slate-200'
-                  "
-                >
-                  {{ getPermissionDisplayName(perm) }}
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5">
+                  <span
+                    class="block truncate text-xs font-semibold"
+                    :class="permissionTitleClass(perm)"
+                  >
+                    {{ getPermissionDisplayName(perm) }}
+                  </span>
+                  <span
+                    v-if="isRevoked(perm)"
+                    class="shrink-0 rounded-full bg-amber-200/80 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-800/60 dark:text-amber-200"
+                  >
+                    Removido
+                  </span>
+                  <span
+                    v-else-if="isExtra(perm)"
+                    class="shrink-0 rounded-full bg-emerald-200/80 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:bg-emerald-800/60 dark:text-emerald-200"
+                  >
+                    Extra
+                  </span>
                 </span>
                 <span
                   v-if="getPermissionDisplayDescription(perm)"

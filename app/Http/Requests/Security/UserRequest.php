@@ -74,7 +74,7 @@ class UserRequest extends FormRequest
                     return;
                 }
 
-                $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
+                $editorPermissionIds = $editor->getGrantedPermissions()->pluck('id');
                 $assignablePermissionIds = $editorPermissionIds;
 
                 if ($editor->hasRole('Superadmin')) {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
   CalendarClock,
@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-vue-next';
 import AppPagination from '../../../components/AppPagination.vue';
+import FilterDropdown from '../../../components/FilterDropdown.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
 import { alertError, firstError, useFlashAlerts } from '../../../composables/useFlashAlerts';
@@ -25,6 +26,8 @@ const props = defineProps({
   tab: { type: String, default: null },
   allowedTabs: { type: Array, default: () => [] },
   churches: { type: Array, default: () => [] },
+  churchId: { type: Number, default: null },
+  canFilterByChurch: { type: Boolean, default: false },
   lockedChurchId: { type: Number, default: null },
   scheduledChurchIds: { type: Array, default: () => [] },
 });
@@ -43,15 +46,32 @@ const allTabs = [
 ];
 const tabs = computed(() => allTabs.filter((item) => props.allowedTabs.includes(item.value)));
 
-const visitIndex = (tab = props.tab) => {
+const showChurchFilter = computed(
+  () =>
+    props.canFilterByChurch &&
+    permissions.value.includes('weekends.filter.church') &&
+    props.churches.length > 1,
+);
+const selectedChurchId = ref(props.churchId);
+watch(
+  () => props.churchId,
+  (value) => (selectedChurchId.value = value),
+);
+const churchOptions = computed(() =>
+  props.churches.map((church) => ({ value: church.id, label: church.name })),
+);
+
+const visitIndex = (tab = props.tab, churchId = selectedChurchId.value) => {
   router.get(
     '/fines-semana-misas',
-    { tab: tab === 'current' ? undefined : tab },
+    { tab: tab === 'current' ? undefined : tab, church_id: churchId || undefined },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };
 
 const selectTab = (tab) => visitIndex(tab);
+
+const selectChurch = (churchId) => visitIndex(props.tab, churchId);
 
 const destroyWeekend = (weekend) => {
   if (!confirm(`Eliminar el fin de semana ${weekend.name || weekend.starts_at}?`)) return;
@@ -200,6 +220,16 @@ const generate = () => {
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <FilterDropdown
+          v-if="showChurchFilter"
+          v-model="selectedChurchId"
+          :options="churchOptions"
+          placeholder="Todas las parroquias"
+          :icon="Church"
+          aria-label="Filtrar por parroquia"
+          @change="selectChurch"
+        />
+
         <Link
           v-if="canCreate"
           href="/fines-semana-misas/programar"

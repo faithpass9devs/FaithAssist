@@ -77,6 +77,7 @@ class SyncRolePermissionsSeeder extends Seeder
                 'weekends.tab.current',
                 'weekends.tab.upcoming',
                 'weekends.tab.history',
+                'weekends.filter.church',
                 'masses.scope.all',
                 'mass_attendance.scope.all',
                 'mass_attendance.scan',

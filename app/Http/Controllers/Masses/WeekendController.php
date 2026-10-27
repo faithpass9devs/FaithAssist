@@ -24,13 +24,14 @@ class WeekendController extends Controller
         $search = $request->input('search', '');
         $allowedTabs = $this->weekends->allowedTabs($request->user());
         $tab = $request->input('tab', 'current');
+        $churchId = $request->filled('church_id') ? (int) $request->input('church_id') : null;
 
         if (! in_array($tab, $allowedTabs, true)) {
             $tab = $allowedTabs[0] ?? null;
         }
 
         return Inertia::render('Masses/Weekends/Index', [
-            ...$this->weekends->indexData($request->user(), $search, $tab),
+            ...$this->weekends->indexData($request->user(), $search, $tab, $churchId),
             'allowedTabs' => $allowedTabs,
         ]);
     }
