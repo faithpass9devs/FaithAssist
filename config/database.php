@@ -21,6 +21,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Comandos destructivos contra bases remotas
+    |--------------------------------------------------------------------------
+    |
+    | Por seguridad, migrate:fresh / migrate:refresh / migrate:reset / db:wipe
+    | se bloquean cuando la conexión por defecto no es local. Solo cambia esto a
+    | true de forma puntual y consciente.
+    |
+    */
+
+    'allow_destructive_commands' => (bool) env('ALLOW_DESTRUCTIVE_DB_COMMANDS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |

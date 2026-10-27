@@ -38,6 +38,10 @@ const lastScan = ref({ code: '', at: 0 });
 const qrRegionId = 'mass-attendance-qr-reader';
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
+const backHref = computed(() =>
+  props.mass.weekend_id ? `/misas?weekend_id=${props.mass.weekend_id}` : '/fines-semana-misas',
+);
+
 const checkInStatus = computed(() => props.mass.attendance_check_in_status);
 const checkOutStatus = computed(() => props.mass.attendance_check_out_status);
 
@@ -322,7 +326,7 @@ onBeforeUnmount(() => {
     <CatalogHeader
       title="Asistencia a misa"
       :subtitle="`${mass.name} · ${mass.location} · ${mass.starts_at} - ${mass.ends_at ?? 'sin fin'}`"
-      back-href="/"
+      :back-href="backHref"
       :icon="QrCode"
     >
       <template #actions>

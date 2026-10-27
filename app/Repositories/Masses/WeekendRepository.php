@@ -17,13 +17,14 @@ class WeekendRepository
         return $this->paginateQuery($this->queryWithScope($user, $search), $perPage);
     }
 
-    public function queryWithScope(User $user, string $search): Builder
+    public function queryWithScope(User $user, string $search, ?int $churchId = null): Builder
     {
         $scope = new UserScopeService($user);
 
         return $scope->applyWeekendScope(
             Weekend::query()
                 ->with('church:id,name')
+                ->when($churchId, fn ($query) => $query->where('church_id', $churchId))
                 ->when($search, function ($query) use ($search) {
                     $query->where(function ($builder) use ($search) {
                         $builder->where('name', 'like', "%{$search}%")
