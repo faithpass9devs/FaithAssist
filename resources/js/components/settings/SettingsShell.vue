@@ -1,5 +1,5 @@
 <script setup>
-import { BadgeCheck, Settings } from 'lucide-vue-next';
+import { BadgeCheck, ClipboardCheck, Settings } from 'lucide-vue-next';
 
 defineProps({
   categories: { type: Array, required: true },
@@ -9,7 +9,7 @@ defineProps({
 const emit = defineEmits(['update:active']);
 
 const iconFor = (name) => {
-  const icons = { BadgeCheck };
+  const icons = { BadgeCheck, ClipboardCheck };
   return icons[name] ?? Settings;
 };
 

@@ -79,6 +79,7 @@ class PermissionsSeeder extends Seeder
             ['name' => 'weekends.tab.upcoming', 'module_key' => 'masses', 'description' => 'Permite ver la pestaña Próximos de fines de semana de misas'],
             ['name' => 'weekends.tab.history', 'module_key' => 'masses', 'description' => 'Permite ver la pestaña Histórico de fines de semana de misas'],
             ['name' => 'weekends.filter.church', 'module_key' => 'masses', 'description' => 'Permite filtrar los fines de semana'],
+            ['name' => 'weekends.report', 'module_key' => 'masses', 'description' => 'Permite descargar el reporte de asistencias en Excel'],
             ['name' => 'masses.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las misas'],
             ['name' => 'mass_attendance.scope.all', 'module_key' => 'masses', 'description' => 'Permite ver todas las asistencias a misas'],
             ['name' => 'mass_attendance.scan', 'module_key' => 'masses', 'description' => 'Permite capturar códigos QR de asistencia a misas'],

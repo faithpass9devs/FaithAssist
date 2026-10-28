@@ -157,10 +157,39 @@ const suggestPassword = () => {
   passwordCopied.value = false;
 };
 
+/** Texto que se copia: correo y contraseña, listo para compartir con el usuario. */
+const credentialsText = computed(() => {
+  const email = form.email.trim();
+  const lines = [];
+
+  if (email) lines.push(`Correo: ${email}`);
+  if (form.password) lines.push(`Contraseña: ${form.password}`);
+
+  return lines.join('\n');
+});
+
+const copyToClipboard = async (text) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // Respaldo para contextos sin la API de portapapeles (http sin TLS, navegadores antiguos).
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  textarea.remove();
+};
+
 const copyPassword = async () => {
   if (!form.password) return;
   try {
-    await navigator.clipboard.writeText(form.password);
+    await copyToClipboard(credentialsText.value);
     passwordCopied.value = true;
     clearTimeout(copiedTimer);
     copiedTimer = setTimeout(() => (passwordCopied.value = false), 2000);
@@ -794,12 +823,15 @@ const submit = () => {
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
                   "
                   :disabled="!form.password"
-                  :aria-label="passwordCopied ? 'Contraseña copiada' : 'Copiar contraseña'"
+                  :aria-label="
+                    passwordCopied ? 'Correo y contraseña copiados' : 'Copiar correo y contraseña'
+                  "
+                  :title="passwordCopied ? 'Copiados' : 'Copiar correo y contraseña'"
                   @click="copyPassword"
                 >
                   <Check v-if="passwordCopied" class="h-4 w-4" />
                   <Copy v-else class="h-4 w-4" />
-                  {{ passwordCopied ? 'Copiada' : 'Copiar' }}
+                  {{ passwordCopied ? 'Copiados' : 'Copiar' }}
                 </button>
               </div>
             </div>

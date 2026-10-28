@@ -9,6 +9,7 @@ use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
+use App\Http\Controllers\Masses\AttendanceReportController;
 use App\Http\Controllers\Masses\IncidenceTypeController;
 use App\Http\Controllers\Masses\ManualAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceController;
@@ -142,6 +143,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('fines-semana-misas.generar.preview');
     Route::post('fines-semana-misas/generar', [WeekendScheduleController::class, 'generate'])
         ->name('fines-semana-misas.generar.store');
+    Route::get('fines-semana-misas/reporte-asistencias/opciones', [AttendanceReportController::class, 'options'])
+        ->name('fines-semana-misas.reporte-asistencias.opciones');
+    Route::get('fines-semana-misas/reporte-asistencias', [AttendanceReportController::class, 'download'])
+        ->name('fines-semana-misas.reporte-asistencias');
 
     Route::resource('fines-semana-misas', WeekendController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])

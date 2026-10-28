@@ -21,6 +21,14 @@ class SettingCategorySeeder extends Seeder
                 'sort_order' => 1,
                 'is_active' => true,
             ],
+            [
+                'key' => 'attendance',
+                'name' => 'Asistencias',
+                'description' => 'Reglas de asistencia a misas por parroquia (límite de faltas y reportes).',
+                'icon' => 'ClipboardCheck',
+                'sort_order' => 2,
+                'is_active' => true,
+            ],
         ];
 
         foreach ($categories as $category) {

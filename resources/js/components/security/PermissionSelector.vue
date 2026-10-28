@@ -200,6 +200,8 @@ const getPermissionDisplayName = (perm) => {
       return `Enviar ${capitalize(meta.plural)}`;
     case 'scan':
       return `Escanear ${capitalize(meta.plural)}`;
+    case 'report':
+      return `Descargar reporte de asistencias`;
     case 'scope.all':
       return `Ver ${capitalize(getScopeAllText(meta.plural, meta.gender))}`;
     default:
@@ -238,6 +240,8 @@ const getPermissionDisplayDescription = (perm) => {
       return `Permite enviar ${meta.plural}`;
     case 'scan':
       return `Permite escanear ${meta.plural}`;
+    case 'report':
+      return `Permite ver el botón y descargar el reporte de asistencias en Excel desde ${meta.plural}`;
     case 'scope.all':
       return `Permite ver ${getScopeAllText(meta.plural, meta.gender)}`;
     default:
