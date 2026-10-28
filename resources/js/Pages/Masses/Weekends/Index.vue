@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Church,
   Clock3,
+  FileSpreadsheet,
   History,
   Pencil,
   Plus,
@@ -17,6 +18,7 @@ import AppPagination from '../../../components/AppPagination.vue';
 import FilterDropdown from '../../../components/FilterDropdown.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
+import AttendanceReportModal from '../../../components/masses/AttendanceReportModal.vue';
 import { alertError, firstError, useFlashAlerts } from '../../../composables/useFlashAlerts';
 
 useFlashAlerts();
@@ -39,6 +41,10 @@ const canUpdate = computed(() => permissions.value.includes('weekends.update'));
 const canDelete = computed(() => permissions.value.includes('weekends.delete'));
 const canGenerate = computed(() => permissions.value.includes('masses.create'));
 const canViewMasses = computed(() => permissions.value.includes('masses.read'));
+const canReport = computed(
+  () => permissions.value.includes('weekends.report') && props.churches.length > 0,
+);
+const reportOpen = ref(false);
 const allTabs = [
   { value: 'current', label: 'Actual', icon: CalendarDays },
   { value: 'upcoming', label: 'Próximos', icon: Clock3 },
@@ -188,7 +194,19 @@ const generate = () => {
       back-href="/"
       :count="weekends.total"
       :icon="CalendarDays"
-    />
+    >
+      <template #actions>
+        <button
+          v-if="canReport"
+          type="button"
+          class="btn btn-sm gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 sm:ml-auto"
+          @click="reportOpen = true"
+        >
+          <FileSpreadsheet class="h-4 w-4" />
+          Reporte de asistencias
+        </button>
+      </template>
+    </CatalogHeader>
 
     <div
       class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center"
@@ -556,5 +574,13 @@ const generate = () => {
         </div>
       </div>
     </dialog>
+
+    <AttendanceReportModal
+      :open="reportOpen"
+      :churches="churches"
+      :locked-church-id="lockedChurchId"
+      :initial-church-id="selectedChurchId"
+      @close="reportOpen = false"
+    />
   </AppShell>
 </template>
