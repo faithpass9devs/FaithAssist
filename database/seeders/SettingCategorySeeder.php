@@ -21,6 +21,14 @@ class SettingCategorySeeder extends Seeder
                 'sort_order' => 1,
                 'is_active' => true,
             ],
+            [
+                'key' => 'staff_badge',
+                'name' => 'Gafete de personal',
+                'description' => 'Personalización del gafete del personal (una hoja tamaño carta).',
+                'icon' => 'IdCard',
+                'sort_order' => 2,
+                'is_active' => true,
+            ],
         ];
 
         foreach ($categories as $category) {

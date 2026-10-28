@@ -9,6 +9,8 @@ use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
+use App\Http\Controllers\Masses\EventAttendanceController;
+use App\Http\Controllers\Masses\EventController;
 use App\Http\Controllers\Masses\IncidenceTypeController;
 use App\Http\Controllers\Masses\ManualAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceController;
@@ -21,6 +23,8 @@ use App\Http\Controllers\Operation\LevelController;
 use App\Http\Controllers\Operation\PeriodController;
 use App\Http\Controllers\Operation\PeriodMovementController;
 use App\Http\Controllers\Operation\PeriodMovementTypeController;
+use App\Http\Controllers\Operation\StaffController;
+use App\Http\Controllers\Operation\StaffTypeController;
 use App\Http\Controllers\Regions\CommunityController;
 use App\Http\Controllers\Regions\MunicipalityController;
 use App\Http\Controllers\Regions\StateController;
@@ -133,6 +137,15 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['niveles' => 'nivel']);
 
+    Route::resource('tipos-personal', StaffTypeController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['tipos-personal' => 'tipo_personal']);
+
+    Route::get('/personal/{personal}/badge-pdf', [StaffController::class, 'badgePdf'])->name('personal.badge-pdf');
+    Route::resource('personal', StaffController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['personal' => 'personal']);
+
     // Misas
     Route::get('fines-semana-misas/programar', [WeekendScheduleController::class, 'edit'])
         ->name('fines-semana-misas.programar.edit');
@@ -151,6 +164,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
+    Route::resource('eventos', EventController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['eventos' => 'evento']);
+
     Route::resource('asistencias-manuales', ManualAttendanceController::class)
         ->only(['index', 'store'])
         ->parameters(['asistencias-manuales' => 'manualAttendance']);
@@ -162,6 +179,13 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('misas/{misa}/asistencias/status', [MassAttendanceController::class, 'updateCaptureStatus'])
         ->name('misas.asistencias.status');
 
+    Route::get('eventos/{evento}/asistencias', [EventAttendanceController::class, 'index'])
+        ->name('eventos.asistencias.index');
+    Route::post('eventos/{evento}/asistencias/scan', [EventAttendanceController::class, 'scan'])
+        ->name('eventos.asistencias.scan');
+    Route::post('eventos/{evento}/asistencias/status', [EventAttendanceController::class, 'updateCaptureStatus'])
+        ->name('eventos.asistencias.status');
+
     Route::resource('tipos-incidencias', IncidenceTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['tipos-incidencias' => 'incidenceType']);
@@ -171,6 +195,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->parameters(['incidencias-asistencia' => 'attendanceIncident']);
 
     // Catechism
+    Route::get('/children/search', [ChildController::class, 'search'])->name('children.search');
+    Route::get('/children/{child}/panel', [ChildController::class, 'panel'])->name('children.panel');
+
     Route::resource('children', ChildController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 

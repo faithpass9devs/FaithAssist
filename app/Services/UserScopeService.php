@@ -341,6 +341,38 @@ class UserScopeService
     }
 
     /**
+     * Apply event visibility. Events belong to a church only.
+     */
+    public function applyEventScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereIn('church_id', $allowedChurchIds);
+    }
+
+    /**
+     * Apply event attendance visibility by church.
+     */
+    public function applyEventAttendanceScope(Builder $query): Builder
+    {
+        if ($this->isGlobal()) {
+            return $query;
+        }
+
+        $allowedChurchIds = $this->churchIds();
+
+        return $allowedChurchIds->isEmpty()
+            ? $query->whereRaw('1 = 0')
+            : $query->whereIn('church_id', $allowedChurchIds);
+    }
+
+    /**
      * Apply attendance incident visibility through the incident's weekend.
      */
     public function applyMassAttendanceIncidentScope(Builder $query): Builder
