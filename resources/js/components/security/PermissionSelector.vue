@@ -65,6 +65,8 @@ const permissionResourceMetaByModule = {
       gender: 'm',
     },
     niveles: { singular: 'nivel', plural: 'niveles', gender: 'm' },
+    tipos_personal: { singular: 'tipo de personal', plural: 'tipos de personal', gender: 'm' },
+    personal: { singular: 'personal', plural: 'personal', gender: 'm' },
   },
   masses: {
     weekends: {
@@ -204,6 +206,10 @@ const getPermissionDisplayName = (perm) => {
       return `Descargar reporte de asistencias`;
     case 'scope.all':
       return `Ver ${capitalize(getScopeAllText(meta.plural, meta.gender))}`;
+    case 'search.show':
+      return `Mostrar buscador de ${capitalize(meta.plural)}`;
+    case 'search.execute':
+      return `Buscar ${capitalize(meta.plural)} en dashboard`;
     default:
       return perm.name;
   }
@@ -244,6 +250,10 @@ const getPermissionDisplayDescription = (perm) => {
       return `Permite ver el botón y descargar el reporte de asistencias en Excel desde ${meta.plural}`;
     case 'scope.all':
       return `Permite ver ${getScopeAllText(meta.plural, meta.gender)}`;
+    case 'search.show':
+      return `Permite mostrar el buscador global de ${meta.plural}`;
+    case 'search.execute':
+      return `Permite buscar ${meta.plural} por código o nombre desde el dashboard`;
     default:
       return perm.description;
   }
