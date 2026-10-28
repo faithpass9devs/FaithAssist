@@ -9,6 +9,8 @@ use App\Http\Controllers\Ecclesiastes\ChapelController;
 use App\Http\Controllers\Ecclesiastes\ChurchController;
 use App\Http\Controllers\Ecclesiastes\DeaneryController;
 use App\Http\Controllers\Ecclesiastes\DioceseController;
+use App\Http\Controllers\Masses\EventAttendanceController;
+use App\Http\Controllers\Masses\EventController;
 use App\Http\Controllers\Masses\IncidenceTypeController;
 use App\Http\Controllers\Masses\ManualAttendanceController;
 use App\Http\Controllers\Masses\MassAttendanceController;
@@ -162,6 +164,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
         ->parameters(['misas' => 'misa']);
 
+    Route::resource('eventos', EventController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['eventos' => 'evento']);
+
     Route::resource('asistencias-manuales', ManualAttendanceController::class)
         ->only(['index', 'store'])
         ->parameters(['asistencias-manuales' => 'manualAttendance']);
@@ -172,6 +178,13 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('misas.asistencias.scan');
     Route::post('misas/{misa}/asistencias/status', [MassAttendanceController::class, 'updateCaptureStatus'])
         ->name('misas.asistencias.status');
+
+    Route::get('eventos/{evento}/asistencias', [EventAttendanceController::class, 'index'])
+        ->name('eventos.asistencias.index');
+    Route::post('eventos/{evento}/asistencias/scan', [EventAttendanceController::class, 'scan'])
+        ->name('eventos.asistencias.scan');
+    Route::post('eventos/{evento}/asistencias/status', [EventAttendanceController::class, 'updateCaptureStatus'])
+        ->name('eventos.asistencias.status');
 
     Route::resource('tipos-incidencias', IncidenceTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])

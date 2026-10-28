@@ -4,6 +4,7 @@ namespace App\Models\Operation;
 
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Church;
+use App\Models\Masses\EventAttendance;
 use App\Models\Regions\Community;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -73,6 +75,11 @@ class Staff extends Model
     public function deleter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function eventAttendances(): MorphMany
+    {
+        return $this->morphMany(EventAttendance::class, 'attendee');
     }
 
     public function scopeSearch(Builder $query, string $search): Builder

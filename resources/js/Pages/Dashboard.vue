@@ -168,6 +168,12 @@ const modules = computed(() =>
           moduleKey: 'weekends',
         },
         {
+          label: 'Eventos',
+          icon: CalendarDays,
+          href: '/eventos',
+          moduleKey: 'eventos',
+        },
+        {
           label: 'Asistencia manual',
           icon: ClipboardCheck,
           href: '/asistencias-manuales',
