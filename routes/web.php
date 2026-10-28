@@ -21,6 +21,8 @@ use App\Http\Controllers\Operation\LevelController;
 use App\Http\Controllers\Operation\PeriodController;
 use App\Http\Controllers\Operation\PeriodMovementController;
 use App\Http\Controllers\Operation\PeriodMovementTypeController;
+use App\Http\Controllers\Operation\StaffController;
+use App\Http\Controllers\Operation\StaffTypeController;
 use App\Http\Controllers\Regions\CommunityController;
 use App\Http\Controllers\Regions\MunicipalityController;
 use App\Http\Controllers\Regions\StateController;
@@ -133,6 +135,15 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->only(['index', 'store', 'update', 'destroy'])
         ->parameters(['niveles' => 'nivel']);
 
+    Route::resource('tipos-personal', StaffTypeController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->parameters(['tipos-personal' => 'tipo_personal']);
+
+    Route::get('/personal/{personal}/badge-pdf', [StaffController::class, 'badgePdf'])->name('personal.badge-pdf');
+    Route::resource('personal', StaffController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->parameters(['personal' => 'personal']);
+
     // Misas
     Route::get('fines-semana-misas/programar', [WeekendScheduleController::class, 'edit'])
         ->name('fines-semana-misas.programar.edit');
@@ -171,6 +182,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->parameters(['incidencias-asistencia' => 'attendanceIncident']);
 
     // Catechism
+    Route::get('/children/search', [ChildController::class, 'search'])->name('children.search');
+    Route::get('/children/{child}/panel', [ChildController::class, 'panel'])->name('children.panel');
+
     Route::resource('children', ChildController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 

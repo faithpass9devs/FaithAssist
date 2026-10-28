@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Catechism\Child;
+use App\Models\DeviceSession;
 use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
@@ -14,12 +15,13 @@ use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Masses\Weekend;
-use App\Models\DeviceSession;
 use App\Models\Module;
 use App\Models\Operation\Level;
 use App\Models\Operation\Period;
 use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
+use App\Models\Operation\Staff;
+use App\Models\Operation\StaffType;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\Regions\State;
@@ -29,6 +31,7 @@ use App\Policies\ChildPolicy;
 use App\Policies\ChurchPolicy;
 use App\Policies\CommunityPolicy;
 use App\Policies\DeaneryPolicy;
+use App\Policies\DeviceSessionPolicy;
 use App\Policies\DiocesePolicy;
 use App\Policies\ExternosPolicy;
 use App\Policies\IncidenceTypePolicy;
@@ -44,6 +47,8 @@ use App\Policies\PeriodMovementTypePolicy;
 use App\Policies\PeriodPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\SettingsPolicy;
+use App\Policies\StaffPolicy;
+use App\Policies\StaffTypePolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -66,7 +71,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Module::class, ModulePolicy::class);
-        Gate::policy(DeviceSession::class, \App\Policies\DeviceSessionPolicy::class);
+        Gate::policy(DeviceSession::class, DeviceSessionPolicy::class);
         Gate::policy(Child::class, ChildPolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(State::class, StatePolicy::class);
@@ -80,6 +85,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Period::class, PeriodPolicy::class);
         Gate::policy(PeriodMovement::class, PeriodMovementPolicy::class);
         Gate::policy(PeriodMovementType::class, PeriodMovementTypePolicy::class);
+        Gate::policy(StaffType::class, StaffTypePolicy::class);
+        Gate::policy(Staff::class, StaffPolicy::class);
         Gate::policy(Weekend::class, WeekendPolicy::class);
         Gate::policy(Mass::class, MassPolicy::class);
         Gate::policy(MassAttendance::class, MassAttendancePolicy::class);

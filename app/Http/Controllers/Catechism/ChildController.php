@@ -9,6 +9,7 @@ use App\Http\Requests\Catechism\ChildImportRequest;
 use App\Http\Requests\Catechism\ChildRequest;
 use App\Models\Catechism\Child;
 use App\Models\Ecclesiastes\Church;
+use App\Models\Masses\MassAttendance;
 use App\Models\User;
 use App\Services\Catechism\ChildBatchPdfService;
 use App\Services\Catechism\ChildImportService;
@@ -16,6 +17,7 @@ use App\Services\Catechism\ChildQrWhatsappService;
 use App\Services\Catechism\ChildService;
 use App\Services\CatechismPeriodMovementService;
 use App\Services\UserScopeService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,6 +49,95 @@ class ChildController extends Controller
             $request->input('status'),
             $request->input('origin'),
         ));
+    }
+
+    public function search(Request $request)
+    {
+        abort_unless($request->user()?->can('children.search.execute'), 403);
+
+        $term = trim((string) $request->query('q', ''));
+
+        if ($term === '') {
+            return redirect()->back()->with('error', 'Ingresa un código o nombre para buscar.');
+        }
+
+        $scope = new UserScopeService($request->user());
+        $tokens = array_values(array_filter(preg_split('/\s+/u', $term) ?: []));
+
+        $query = Child::query()
+            ->with(['church:id,name', 'community:id,name', 'activeLevelAssignments.level:id,name'])
+            ->where(function (Builder $builder) use ($term, $tokens): void {
+                $builder->where('code', 'like', "%{$term}%")
+                    ->orWhere(function (Builder $nameQuery) use ($tokens, $term): void {
+                        $nameTokens = $tokens === [] ? [$term] : $tokens;
+
+                        foreach ($nameTokens as $nameToken) {
+                            $nameQuery->where(function (Builder $fieldQuery) use ($nameToken): void {
+                                $fieldQuery->where('name', 'like', "%{$nameToken}%")
+                                    ->orWhere('paterno', 'like', "%{$nameToken}%")
+                                    ->orWhere('materno', 'like', "%{$nameToken}%");
+                            });
+                        }
+                    });
+            })
+            ->orderBy('paterno')
+            ->orderBy('materno')
+            ->orderBy('name')
+            ->limit(50);
+
+        $scope->applyChildScope($query);
+
+        $results = $query->get();
+
+        if ($results->isEmpty()) {
+            return redirect()->back()->with('error', 'No se encontraron niños con ese código o nombre.');
+        }
+
+        if ($results->count() === 1) {
+            return redirect()->route('children.panel', ['child' => $results->first()->id]);
+        }
+
+        return Inertia::render('Catechism/Children/SearchResults', [
+            'query' => $term,
+            'results' => $results->map(fn (Child $child): array => $this->serializeChildForPanel($child))->values()->all(),
+        ]);
+    }
+
+    public function panel(Request $request, Child $child): Response
+    {
+        abort_unless($request->user()?->can('children.search.execute'), 403);
+        abort_unless($this->childWithinScope($request->user(), $child), 403);
+
+        $child->loadMissing(['church:id,name', 'community:id,name', 'activeLevelAssignments.level:id,name']);
+
+        $attendances = MassAttendance::query()
+            ->with([
+                'mass:id,weekend_id,name,starts_at,ends_at',
+                'mass.weekend:id,name,starts_at,ends_at',
+                'church:id,name',
+                'chapel:id,name',
+            ])
+            ->where('child_id', $child->id)
+            ->latest('check_in_at')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString()
+            ->through(fn (MassAttendance $attendance): array => [
+                'id' => $attendance->id,
+                'mass_name' => $attendance->mass?->name,
+                'weekend_name' => $attendance->mass?->weekend?->name
+                    ?: $attendance->mass?->weekend?->starts_at?->format('Y-m-d'),
+                'location' => $attendance->chapel?->name ?: $attendance->church?->name,
+                'check_in_at' => $attendance->check_in_at?->format('Y-m-d H:i:s'),
+                'check_out_at' => $attendance->check_out_at?->format('Y-m-d H:i:s'),
+                'status' => $attendance->status,
+                'valid' => $attendance->isValidAttendance(),
+            ]);
+
+        return Inertia::render('Catechism/Children/Panel', [
+            'child' => $this->serializeChildForPanel($child),
+            'attendances' => $attendances,
+        ]);
     }
 
     public function create(Request $request): Response
@@ -302,5 +393,52 @@ class ChildController extends Controller
         $parts = preg_split('/\s+/u', $value) ?: [];
 
         return $parts[0] ?? $fallback;
+    }
+
+    private function childWithinScope(?User $user, Child $child): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $scope = new UserScopeService($user);
+
+        if ($scope->isGlobal()) {
+            return true;
+        }
+
+        return $scope->churchIds()->contains($child->church_id)
+            || $scope->communityIds()->contains($child->community_id);
+    }
+
+    private function serializeChildForPanel(Child $child): array
+    {
+        return [
+            'id' => $child->id,
+            'code' => $child->code,
+            'name' => $child->name,
+            'paterno' => $child->paterno,
+            'materno' => $child->materno,
+            'full_name' => trim(collect([$child->name, $child->paterno, $child->materno])->filter()->implode(' ')),
+            'birthdate' => $child->birthdate?->format('Y-m-d'),
+            'sex' => $child->sex,
+            'blood_type' => $child->blood_type,
+            'status' => $child->status,
+            'email' => $child->email,
+            'phone_lada' => $child->phone_lada,
+            'phone' => $child->phone,
+            'emergency_phone_lada' => $child->emergency_phone_lada,
+            'emergency_phone' => $child->emergency_phone,
+            'church' => $child->church?->name,
+            'community' => $child->community?->name,
+            'levels' => $child->activeLevelAssignments
+                ->map(fn ($assignment): array => [
+                    'id' => $assignment->level?->id,
+                    'name' => $assignment->level?->name,
+                ])
+                ->filter(fn (array $level): bool => $level['id'] !== null)
+                ->values()
+                ->all(),
+        ];
     }
 }

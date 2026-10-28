@@ -48,6 +48,99 @@ class ChildControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_search_requires_execute_permission(): void
+    {
+        $user = $this->makeGlobalUser('children.search.show');
+
+        $this->actingAs($user)
+            ->get('/children/search?q=JUAN')
+            ->assertForbidden();
+    }
+
+    public function test_search_by_code_redirects_to_panel_on_single_match(): void
+    {
+        $chain = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain, ['code' => '2026-ABC-20180314-CH1-1234']));
+        $user = $this->makeGlobalUser('children.search.execute');
+
+        $this->actingAs($user)
+            ->get('/children/search?q=1234')
+            ->assertRedirect("/children/{$child->id}/panel");
+    }
+
+    public function test_search_returns_results_page_when_multiple_matches(): void
+    {
+        $chain = $this->createChain();
+        Child::query()->create($this->childRow($chain, ['name' => 'JUAN', 'code' => '2026-AAA-20180314-CH1-0001']));
+        Child::query()->create($this->childRow($chain, ['name' => 'JUAN', 'code' => '2026-BBB-20180314-CH1-0002']));
+        $user = $this->makeGlobalUser('children.search.execute');
+
+        $this->actingAs($user)
+            ->get('/children/search?q=JUAN')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Catechism/Children/SearchResults')
+                ->where('query', 'JUAN')
+                ->has('results', 2));
+    }
+
+    public function test_search_respects_scope_for_church_user(): void
+    {
+        $chain1 = $this->createChain();
+        $chain2 = $this->createChain();
+        $chain2['community']->update(['name' => 'Comunidad B']);
+        $chain2['church']->update(['name' => 'Parroquia B']);
+
+        $visible = Child::query()->create($this->childRow($chain1, ['name' => 'JUAN', 'code' => '2026-AAA-20180314-CH1-0001']));
+        Child::query()->create($this->childRow($chain2, ['name' => 'JUAN', 'code' => '2026-BBB-20180314-CH2-0001']));
+
+        $user = $this->makeChurchUser($chain1['diocese'], $chain1['deanery'], $chain1['church'], 'children.search.execute');
+
+        $this->actingAs($user)
+            ->get('/children/search?q=JUAN')
+            ->assertRedirect("/children/{$visible->id}/panel");
+    }
+
+    public function test_panel_requires_execute_permission(): void
+    {
+        $chain = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('children.read');
+
+        $this->actingAs($user)
+            ->get("/children/{$child->id}/panel")
+            ->assertForbidden();
+    }
+
+    public function test_panel_is_forbidden_outside_scope(): void
+    {
+        $chain1 = $this->createChain();
+        $chain2 = $this->createChain();
+        $chain2['community']->update(['name' => 'Comunidad B']);
+        $chain2['church']->update(['name' => 'Parroquia B']);
+
+        $child = Child::query()->create($this->childRow($chain2, ['code' => '2026-BBB-20180314-CH2-0001']));
+        $user = $this->makeChurchUser($chain1['diocese'], $chain1['deanery'], $chain1['church'], 'children.search.execute');
+
+        $this->actingAs($user)
+            ->get("/children/{$child->id}/panel")
+            ->assertForbidden();
+    }
+
+    public function test_panel_returns_inertia_page_for_authorized_user(): void
+    {
+        $chain = $this->createChain();
+        $child = Child::query()->create($this->childRow($chain));
+        $user = $this->makeGlobalUser('children.search.execute');
+
+        $this->actingAs($user)
+            ->get("/children/{$child->id}/panel")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Catechism/Children/Panel')
+                ->where('child.id', $child->id));
+    }
+
     public function test_create_returns_children_form_options(): void
     {
         $chain = $this->createChain();

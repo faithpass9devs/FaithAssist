@@ -121,6 +121,18 @@ const modules = computed(() =>
           moduleKey: 'periodo_movimientos',
         },
         { label: 'Niveles', icon: LayoutGrid, href: '/niveles', moduleKey: 'niveles' },
+        {
+          label: 'Tipos de Personal',
+          icon: Tags,
+          href: '/tipos-personal',
+          moduleKey: 'tipos_personal',
+        },
+        {
+          label: 'Personal',
+          icon: Users,
+          href: '/personal',
+          moduleKey: 'personal',
+        },
       ],
     },
     {

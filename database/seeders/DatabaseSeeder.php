@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             ModuleSeeder::class,
             SettingCategorySeeder::class,
             SettingsSeeder::class,
+            StaffBadgeSettingsSeeder::class,
             StateSeeder::class,
             DioceseSeeder::class,
             MunicipalitySeeder::class,
