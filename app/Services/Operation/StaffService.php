@@ -140,7 +140,12 @@ class StaffService
         $lada = preg_replace('/\D/', '', (string) ($data['phone_lada'] ?? '')) ?: null;
         $phone = preg_replace('/\D/', '', (string) ($data['phone'] ?? '')) ?: null;
 
-        if ($lada && $phone && str_starts_with($phone, $lada) && strlen($phone) > strlen($lada)) {
+        if (
+            $lada && $phone
+            && str_starts_with(ltrim((string) ($data['phone'] ?? '')), '+')
+            && str_starts_with($phone, $lada)
+            && strlen($phone) > strlen($lada)
+        ) {
             $phone = substr($phone, strlen($lada)) ?: null;
         }
 
