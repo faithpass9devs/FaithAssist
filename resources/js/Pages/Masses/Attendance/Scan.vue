@@ -326,7 +326,7 @@ onBeforeUnmount(() => {
     <CatalogHeader
       title="Asistencia a misa"
       :subtitle="`${mass.name} · ${mass.location} · ${mass.starts_at} - ${mass.ends_at ?? 'sin fin'}`"
-      :back-href="backHref"
+      :back-href="($page.props.auth?.permissions ?? []).includes('masses.read') ? backHref : '/'"
       :icon="QrCode"
     >
       <template #actions>
