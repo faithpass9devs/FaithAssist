@@ -264,7 +264,7 @@ class AttendanceReportService
         $month = $filters['month'] ?? null;
 
         if ($month) {
-            $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+            $start = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
 
             return [
                 $start->toDateString(),
