@@ -10,13 +10,15 @@ use App\Services\Masses\AttendanceReportService;
 use Illuminate\Database\Seeder;
 
 /**
- * Fija el límite de faltas por parroquia. El valor global (3) aplica a
- * Coatepec Harinas; Ixtapan de la Sal permite 4 faltas.
+ * Fija el límite de faltas por parroquia (valor explícito a nivel parroquia,
+ * editable después desde Ajustes → Asistencias): 3 para Coatepec Harinas y
+ * 4 para Ixtapan de la Sal. El valor global sigue siendo 3.
  */
 class AttendanceAbsenceLimitSeeder extends Seeder
 {
     /** @var array<string, int> Municipio (o fragmento del nombre de la parroquia) => límite de faltas. */
     private const CHURCH_LIMITS = [
+        'COATEPEC HARINAS' => 3,
         'IXTAPAN DE LA SAL' => 4,
     ];
 

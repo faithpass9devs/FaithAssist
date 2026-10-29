@@ -6,7 +6,7 @@ defineProps({
   activeKey: { type: String, required: true },
 });
 
-const emit = defineEmits(['update:active']);
+const emit = defineEmits(['update:activeKey']);
 
 const iconFor = (name) => {
   const icons = { BadgeCheck, ClipboardCheck };
@@ -33,7 +33,7 @@ defineExpose({ iconFor });
                   ? 'bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-slate-100'
                   : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50'
               "
-              @click="emit('update:active', cat.key)"
+              @click="emit('update:activeKey', cat.key)"
             >
               <span class="flex items-center gap-2.5">
                 <component :is="iconFor(cat.icon)" class="h-4 w-4 shrink-0" />
