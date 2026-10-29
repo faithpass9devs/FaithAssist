@@ -399,6 +399,7 @@ class AttendanceReportTest extends TestCase
         unset($children, $attendance);
         gc_collect_cycles();
 
+        memory_reset_peak_usage();
         $before = memory_get_usage(true);
         $started = microtime(true);
 
