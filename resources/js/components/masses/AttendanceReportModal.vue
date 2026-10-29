@@ -505,9 +505,7 @@ const download = async () => {
                 <p class="mt-0.5 text-xs opacity-80">
                   Límite de faltas de la parroquia:
                   <strong>{{ options.absence_limit }}</strong>
-                  (configurable en Ajustes → Asistencias). Cuenta como asistencia haber ido a
-                  cualquier misa de cualquiera de los dos días; solo es falta no asistir ninguno. Se
-                  evalúan únicamente fines de semana concluidos con asistencia capturada.
+                  Se evalúan únicamente fines de semana concluidos con asistencia capturada.
                 </p>
               </div>
             </div>
