@@ -137,17 +137,19 @@ class UserRepository
             ->get(['id', 'name', 'description', 'module_key']);
     }
 
-    public function allowedRoles(User $editor): Collection
+    public function allowedRoles(User $editor, ?User $user = null): Collection
     {
         $editorPermissionIds = $this->assignablePermissionIds($editor);
+        $retainedRoleIds = $user?->roles()->pluck('roles.id') ?? collect();
 
         return Role::with('permissions:id')
             ->orderBy('name')
             ->get(['id', 'name', 'description'])
-            ->filter(function (Role $role) use ($editorPermissionIds): bool {
-                return $role->permissions->every(
-                    fn ($p) => $editorPermissionIds->contains($p->id)
-                );
+            ->filter(function (Role $role) use ($editorPermissionIds, $retainedRoleIds): bool {
+                return $retainedRoleIds->contains($role->id)
+                    || $role->permissions->every(
+                        fn ($p) => $editorPermissionIds->contains($p->id)
+                    );
             })
             ->map(fn (Role $role) => [
                 'id' => $role->id,
@@ -160,7 +162,7 @@ class UserRepository
 
     private function assignablePermissionIds(User $editor): Collection
     {
-        $permissionIds = $editor->getGrantedPermissions()->pluck('id');
+        $permissionIds = $editor->getAllPermissions()->pluck('id');
 
         if ($editor->hasRole('Superadmin')) {
             $permissionIds = $permissionIds->merge(

@@ -124,13 +124,4 @@ class User extends Authenticatable
             ->reject(fn (Permission $permission): bool => $revokedIds->contains($permission->getKey()))
             ->values();
     }
-
-    /**
-     * Permissions granted via roles or directly, ignoring per-user revocations.
-     * Used to decide what the user can delegate, not what the user can do.
-     */
-    public function getGrantedPermissions(): Collection
-    {
-        return $this->spatieGetAllPermissions();
-    }
 }

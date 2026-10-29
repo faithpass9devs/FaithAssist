@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Security;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
@@ -74,7 +75,7 @@ class UserRequest extends FormRequest
                     return;
                 }
 
-                $editorPermissionIds = $editor->getGrantedPermissions()->pluck('id');
+                $editorPermissionIds = $editor->getAllPermissions()->pluck('id');
                 $assignablePermissionIds = $editorPermissionIds;
 
                 if ($editor->hasRole('Superadmin')) {
@@ -106,10 +107,15 @@ class UserRequest extends FormRequest
                     }
                 }
 
-                // Validate the submitted role only has permissions the editor can delegate
+                // Validate the submitted role only has permissions the editor can delegate.
+                // Keeping the target user's existing role is retention, not a new grant.
                 $roleId = $this->input('role_id');
                 if ($roleId) {
-                    $role = Role::with('permissions:id')->find($roleId);
+                    $targetUser = $this->route('usuario');
+                    $retainsExistingRole = $targetUser instanceof User
+                        && $targetUser->roles()->whereKey($roleId)->exists();
+
+                    $role = $retainsExistingRole ? null : Role::with('permissions:id')->find($roleId);
                     if ($role) {
                         $hasUnallowed = $role->permissions->contains(
                             fn ($p) => ! in_array($p->id, $assignablePermissionIds)
