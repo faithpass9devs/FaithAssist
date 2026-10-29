@@ -47,7 +47,9 @@ use App\Policies\PermissionPolicy;
 use App\Policies\SettingsPolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -96,22 +98,37 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bloquea migrate:fresh, migrate:refresh, migrate:reset y db:wipe cuando la
-     * conexión por defecto apunta a un servidor remoto (p. ej. Hostinger).
+     * conexión seleccionada para el comando apunta a un servidor remoto (p. ej. Hostinger).
      * Para permitirlos de forma explícita: ALLOW_DESTRUCTIVE_DB_COMMANDS=true.
      */
     private function prohibitDestructiveCommandsAgainstRemoteDatabases(): void
     {
-        if (config('database.allow_destructive_commands')) {
-            return;
-        }
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            if (! in_array($event->command, [
+                'db:wipe',
+                'migrate:fresh',
+                'migrate:refresh',
+                'migrate:reset',
+                'migrate:rollback',
+            ], true)) {
+                return;
+            }
 
-        $connection = config('database.default');
-        $driver = config("database.connections.{$connection}.driver");
-        $host = (string) config("database.connections.{$connection}.host", '');
+            if (config('database.allow_destructive_commands')) {
+                DB::prohibitDestructiveCommands(false);
 
-        $isLocal = $driver === 'sqlite'
-            || in_array(strtolower($host), ['127.0.0.1', 'localhost', '::1'], true);
+                return;
+            }
 
-        DB::prohibitDestructiveCommands(! $isLocal);
+            $connection = $event->input->getOption('database') ?: config('database.default');
+            $configuration = DB::connection($connection)->getConfig();
+            $driver = $configuration['driver'] ?? null;
+            $host = (string) ($configuration['host'] ?? '');
+
+            $isLocal = $driver === 'sqlite'
+                || in_array(strtolower($host), ['127.0.0.1', 'localhost', '::1'], true);
+
+            DB::prohibitDestructiveCommands(! $isLocal);
+        });
     }
 }
