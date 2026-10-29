@@ -182,7 +182,7 @@ class AttendanceReportWriter
 
     private function writeSummary(array $report): void
     {
-        $summary = $report['summary'];
+        $summary = ($report['summary'])();
         $filters = $report['filters'];
         $sheet = $this->writer->getCurrentSheet();
         $sheet->setName('Indicadores');
@@ -345,7 +345,7 @@ class AttendanceReportWriter
     private function writeDetail(array $report): void
     {
         $weekends = $report['weekends'];
-        $rows = $report['rows'];
+        $totalChildren = $report['total_children'];
         $fixedCount = count(self::DETAIL_FIXED_HEADERS);
         $weekendCount = count($weekends);
         $totalCount = count(self::DETAIL_TOTAL_HEADERS);
@@ -375,7 +375,7 @@ class AttendanceReportWriter
             'Periodo: %s   ·   Límite de faltas: %d   ·   Niños: %d   ·   Fines de semana: %d   ·   Generado: %s',
             $report['period_label'],
             $report['absence_limit'],
-            count($rows),
+            $totalChildren,
             $weekendCount,
             $report['generated_at']->format('d/m/Y'),
         ), $this->styles->muted, lastColumn: $lastColumn);
@@ -396,7 +396,7 @@ class AttendanceReportWriter
         $this->rowNumber++;
         $this->writer->addRow(new Row($headerCells, height: 36));
 
-        if ($rows === []) {
+        if ($totalChildren === 0) {
             $this->mergedRow('No hay niños que coincidan con los filtros seleccionados.', $this->styles->muted, lastColumn: $lastColumn);
 
             return;
@@ -404,7 +404,9 @@ class AttendanceReportWriter
 
         $styles = $this->styles;
 
-        foreach ($rows as $index => $row) {
+        // Las filas llegan como generador: cada una se vuelca al escritor en cuanto
+        // se produce, sin que el reporte completo exista nunca en memoria.
+        foreach ($report['rows'] as $index => $row) {
             $statusStyle = $styles->statuses[$row['status']];
             $isRegular = $row['status'] === AttendanceReportService::STATUS_REGULAR;
 

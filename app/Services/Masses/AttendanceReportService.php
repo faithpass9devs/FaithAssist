@@ -12,6 +12,7 @@ use App\Models\Operation\Level;
 use App\Models\Regions\Community;
 use App\Models\User;
 use App\Services\Settings\SettingResolver;
+use Generator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -118,7 +119,11 @@ class AttendanceReportService
     }
 
     /**
-     * Arma el reporte completo listo para exportar.
+     * Arma el reporte listo para exportar. Las filas no se materializan: `rows` es un
+     * generador que produce cada fila (niño) conforme se consume, y `summary` es un
+     * cierre que debe invocarse después de agotar las filas, porque el resumen se
+     * acumula mientras el generador las produce. Así la memoria no crece con el
+     * número de niños de la parroquia.
      *
      * @param  array{church_id:int, community_id?:int|null, level_id?:int|null, month?:string|null, date_from?:string|null, date_to?:string|null, child_status?:string|null}  $filters
      */
@@ -153,22 +158,6 @@ class AttendanceReportService
         $limit = $this->absenceLimit($church);
         $context = $this->buildContext($weekends, $limit);
         $accumulator = $this->emptyAccumulator($weekends->count());
-        $rows = [];
-
-        // Se recorre a los niños por bloques: cada bloque trae solo filas agregadas
-        // (niño × fin de semana) desde SQL, nunca modelos de asistencia individuales.
-        $this->childrenQuery($church->id, $filters)->chunk(self::CHUNK_SIZE, function (Collection $children) use ($context, &$rows, &$accumulator): void {
-            $childIds = $children->pluck('id')->all();
-            $attended = $this->attendedByChildAndWeekend($childIds, $context['weekend_ids'], $context['church_id']);
-            $incidents = $this->incidentsByChildAndWeekend($childIds, $context['weekend_ids']);
-            $levels = $this->levelNamesByChild($childIds);
-
-            foreach ($children as $child) {
-                $row = $this->buildRow($child, $context, $attended, $incidents, $levels[$child->id] ?? '');
-                $rows[] = $row;
-                $this->accumulate($accumulator, $row);
-            }
-        });
 
         $communityName = isset($filters['community_id']) && $filters['community_id']
             ? Community::query()->whereKey($filters['community_id'])->value('name')
@@ -190,9 +179,46 @@ class AttendanceReportService
             'generated_at' => now(),
             'generated_by' => $this->userDisplayName($user),
             'weekends' => $weekends->map(fn (Weekend $weekend): array => $this->serializeWeekend($weekend))->values()->all(),
-            'rows' => $rows,
-            'summary' => $this->summarize($accumulator, $weekends),
+            'total_children' => $this->childrenQuery($church->id, $filters)->count(),
+            'rows' => $this->streamRows($church->id, $filters, $context, $accumulator),
+            'summary' => function () use (&$accumulator, $weekends): array {
+                return $this->summarize($accumulator, $weekends);
+            },
         ];
+    }
+
+    /**
+     * Produce las filas por bloques: cada bloque trae solo filas agregadas
+     * (niño × fin de semana) desde SQL, nunca modelos de asistencia individuales.
+     * Cada fila se acumula en el resumen y se cede de inmediato, sin retenerse.
+     *
+     * @return Generator<int, array<string, mixed>>
+     */
+    private function streamRows(int $churchId, array $filters, array $context, array &$accumulator): Generator
+    {
+        $page = 1;
+
+        do {
+            $children = $this->childrenQuery($churchId, $filters)->forPage($page, self::CHUNK_SIZE)->get();
+
+            if ($children->isEmpty()) {
+                return;
+            }
+
+            $childIds = $children->pluck('id')->all();
+            $attended = $this->attendedByChildAndWeekend($childIds, $context['weekend_ids'], $context['church_id']);
+            $incidents = $this->incidentsByChildAndWeekend($childIds, $context['weekend_ids']);
+            $levels = $this->levelNamesByChild($childIds);
+
+            foreach ($children as $child) {
+                $row = $this->buildRow($child, $context, $attended, $incidents, $levels[$child->id] ?? '');
+                $this->accumulate($accumulator, $row);
+
+                yield $row;
+            }
+
+            $page++;
+        } while ($children->count() === self::CHUNK_SIZE);
     }
 
     private function userDisplayName(User $user): string
