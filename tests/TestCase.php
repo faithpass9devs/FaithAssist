@@ -31,11 +31,15 @@ abstract class TestCase extends BaseTestCase
             $problems[] = "APP_ENV es '{$this->app->environment()}' en lugar de 'testing'";
         }
 
-        $connection = config('database.default');
-        $database = config("database.connections.{$connection}.database");
+        // Se usa la conexión ya resuelta (no la config cruda) porque un DB_URL
+        // exportado en el entorno puede sobrescribir driver y base de datos.
+        // La conexión se crea de forma perezosa: aquí no se abre ningún PDO.
+        $connection = $this->app['db']->connection();
+        $driver = $connection->getConfig('driver');
+        $database = $connection->getConfig('database');
 
-        if ($connection !== 'sqlite' || $database !== ':memory:') {
-            $problems[] = "la conexión de BD es '{$connection}' / '{$database}' en lugar de sqlite / :memory:";
+        if ($driver !== 'sqlite' || $database !== ':memory:') {
+            $problems[] = "la conexión de BD es '{$driver}' / '{$database}' en lugar de sqlite / :memory:";
         }
 
         if ($problems === []) {
@@ -44,7 +48,8 @@ abstract class TestCase extends BaseTestCase
 
         throw new RuntimeException(
             'PRUEBAS ABORTADAS para proteger la base de datos: '.implode('; ', $problems).'. '
-            .'Ejecuta "php artisan config:clear" y vuelve a correr las pruebas con "composer test".'
+            .'Ejecuta "php artisan config:clear", revisa que no haya variables DB_URL / DB_CONNECTION / DB_DATABASE '
+            .'exportadas en tu terminal y vuelve a correr las pruebas con "composer test".'
         );
     }
 }

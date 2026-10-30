@@ -13,6 +13,8 @@ const props = defineProps({
   ariaLabel: { type: String, default: 'Filtrar' },
   /** `md` iguala a los botones pequeños; `lg` iguala a los campos de búsqueda. */
   size: { type: String, default: 'md' },
+  /** En `false` oculta la opción "todos" y obliga a tener siempre un valor seleccionado. */
+  clearable: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
@@ -27,7 +29,7 @@ const highlighted = ref(-1);
 const optionRefs = ref([]);
 
 const allOptions = computed(() => [
-  { value: null, label: props.placeholder },
+  ...(props.clearable ? [{ value: null, label: props.placeholder }] : []),
   ...props.options.map((option) => ({ value: option.value, label: option.label })),
 ]);
 
