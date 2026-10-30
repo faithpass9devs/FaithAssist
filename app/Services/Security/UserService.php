@@ -93,7 +93,7 @@ class UserService
                 'full_name' => $this->resolveFullName($user),
                 'created_at' => $user->created_at?->format('d/m/Y'),
             ],
-            ...$this->formOptions($editor),
+            ...$this->formOptions($editor, $user),
             'selectedRole' => $user->roles->first()?->id,
             'selectedPermissions' => $selectedPermissionIds,
             'selectedDiocese' => $user->diocese_id,
@@ -182,7 +182,7 @@ class UserService
                 'materno' => $data['materno'] ?? null,
             ])->save();
 
-            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null);
+            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null, $user);
             $user->syncRoles($roleId ? [$roleId] : collect());
             $user->unsetRelation('roles');
 
@@ -218,12 +218,12 @@ class UserService
         ];
     }
 
-    private function formOptions(User $editor): array
+    private function formOptions(User $editor, ?User $user = null): array
     {
         $scope = new UserScopeService($editor);
 
         return [
-            'roles' => $this->users->allowedRoles($editor),
+            'roles' => $this->users->allowedRoles($editor, $user),
             'permissionGroups' => $this->groupedPermissions($editor),
             'dioceses' => $this->users->activeDioceses($scope),
             'deaneries' => $this->users->activeDeaneries($scope),
@@ -246,11 +246,20 @@ class UserService
             ->toArray();
     }
 
-    private function allowedRoleId(User $editor, mixed $roleId): mixed
+    private function allowedRoleId(User $editor, mixed $roleId, ?User $user = null): mixed
     {
+        if (! $roleId) {
+            return null;
+        }
+
+        // Keeping the user's existing role is retention, not a new delegation.
+        if ($user && $user->roles()->whereKey($roleId)->exists()) {
+            return $roleId;
+        }
+
         $allowedRoleIds = $this->users->allowedRoles($editor)->pluck('id');
 
-        return $roleId && $allowedRoleIds->contains($roleId)
+        return $allowedRoleIds->contains($roleId)
             ? $roleId
             : null;
     }
@@ -354,7 +363,7 @@ class UserService
 
     private function assignablePermissionIds(User $editor): Collection
     {
-        $permissionIds = $editor->getGrantedPermissions()->pluck('id');
+        $permissionIds = $editor->getAllPermissions()->pluck('id');
 
         if ($editor->hasRole('Superadmin')) {
             $permissionIds = $permissionIds->merge(

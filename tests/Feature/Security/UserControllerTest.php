@@ -543,6 +543,51 @@ class UserControllerTest extends TestCase
         $this->assertCount(0, $editor->getDirectPermissions());
     }
 
+    public function test_editor_cannot_restore_own_revoked_permission_on_update(): void
+    {
+        $readPermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.read', 'guard_name' => 'web'],
+            ['description' => 'usuarios.read', 'module_key' => 'security']
+        );
+        $updatePermission = Permission::firstOrCreate(
+            ['name' => 'usuarios.update', 'guard_name' => 'web'],
+            ['description' => 'usuarios.update', 'module_key' => 'security']
+        );
+        $extraPermission = Permission::firstOrCreate(
+            ['name' => 'roles.read', 'guard_name' => 'web'],
+            ['description' => 'roles.read', 'module_key' => 'security']
+        );
+
+        $role = Role::create(['name' => 'Admin Parcial', 'guard_name' => 'web']);
+        $role->givePermissionTo([$readPermission, $updatePermission, $extraPermission]);
+
+        $editor = User::factory()->create(['diocese_id' => null]);
+        $editor->assignRole($role);
+        $editor->revokedPermissions()->sync([$extraPermission->id]);
+        Profile::create(['user_id' => $editor->id, 'name' => 'Admin', 'paterno' => 'Parcial', 'materno' => null]);
+
+        $this->assertFalse($editor->fresh()->can('roles.read'));
+
+        // Submitting the revoked permission on a self-update must be rejected.
+        $this->actingAs($editor)
+            ->put("/usuarios/{$editor->id}", $this->validUserPayload([
+                'email' => $editor->email,
+                'name' => 'Admin',
+                'paterno' => 'Parcial',
+                'role_id' => $role->id,
+                'permissions' => [$readPermission->id, $updatePermission->id, $extraPermission->id],
+            ]))
+            ->assertSessionHasErrors('permissions');
+
+        $editor->refresh();
+
+        $this->assertFalse($editor->can('roles.read'));
+        $this->assertContains(
+            $extraPermission->id,
+            $editor->revokedPermissions()->pluck('permissions.id')->all()
+        );
+    }
+
     public function test_destroy_requires_usuarios_delete_permission(): void
     {
         $target = User::factory()->create(['diocese_id' => null]);

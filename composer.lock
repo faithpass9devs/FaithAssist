@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "964d1bb7d2fb6023229d9924634d6d43",
+    "content-hash": "119ca47b374807c64192be49ee17de43",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -3630,16 +3630,16 @@
         },
         {
             "name": "openspout/openspout",
-            "version": "v5.13.0",
+            "version": "v5.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/openspout/openspout.git",
-                "reference": "dffb46563920c898216e64bbeb4e229b5a6b3d73"
+                "reference": "bc0d2cdefa3fa90c7caceb778192654b20f414f7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/openspout/openspout/zipball/dffb46563920c898216e64bbeb4e229b5a6b3d73",
-                "reference": "dffb46563920c898216e64bbeb4e229b5a6b3d73",
+                "url": "https://api.github.com/repos/openspout/openspout/zipball/bc0d2cdefa3fa90c7caceb778192654b20f414f7",
+                "reference": "bc0d2cdefa3fa90c7caceb778192654b20f414f7",
                 "shasum": ""
             },
             "require": {
@@ -3648,18 +3648,17 @@
                 "ext-libxml": "*",
                 "ext-xmlreader": "*",
                 "ext-zip": "*",
-                "php": "~8.4.0 || ~8.5.0 || ~8.6.0"
+                "php": "~8.3.0 || ~8.4.0 || ~8.5.0"
             },
             "require-dev": {
-                "ext-fileinfo": "*",
                 "ext-zlib": "*",
-                "friendsofphp/php-cs-fixer": "^3.95.27",
-                "infection/infection": "^0.35",
-                "phpbench/phpbench": "^1.7.0",
-                "phpstan/phpstan": "^2.3.1",
-                "phpstan/phpstan-phpunit": "^2.1.1",
-                "phpstan/phpstan-strict-rules": "^2.1.0",
-                "phpunit/phpunit": "^13.4.3"
+                "friendsofphp/php-cs-fixer": "^3.93.1",
+                "infection/infection": "^0.32.3",
+                "phpbench/phpbench": "^1.4.3",
+                "phpstan/phpstan": "^2.1.38",
+                "phpstan/phpstan-phpunit": "^2.0.12",
+                "phpstan/phpstan-strict-rules": "^2.0.8",
+                "phpunit/phpunit": "^12.5.8"
             },
             "suggest": {
                 "ext-iconv": "To handle non UTF-8 CSV files (if \"php-mbstring\" is not already installed or is too limited)",
@@ -3707,7 +3706,7 @@
             ],
             "support": {
                 "issues": "https://github.com/openspout/openspout/issues",
-                "source": "https://github.com/openspout/openspout/tree/v5.13.0"
+                "source": "https://github.com/openspout/openspout/tree/v5.3.0"
             },
             "funding": [
                 {
@@ -3719,7 +3718,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-27T07:05:50+00:00"
+            "time": "2026-02-02T13:08:39+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -10270,5 +10269,5 @@
         "php": "^8.3"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

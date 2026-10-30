@@ -159,13 +159,15 @@ class AttendanceReportTest extends TestCase
         $this->assertSame(3, $rows[$justified->id]['justified']);
         $this->assertSame(AttendanceReportService::STATUS_REGULAR, $rows[$justified->id]['status']);
 
-        $this->assertSame(4, $report['summary']['children']);
-        $this->assertSame(2, $report['summary']['regular']);
-        $this->assertSame(1, $report['summary']['at_risk']);
-        $this->assertSame(1, $report['summary']['blocked']);
-        $this->assertSame(2, $report['summary']['by_weekend'][0]['present']);
-        $this->assertSame(1, $report['summary']['by_weekend'][0]['absent']);
-        $this->assertSame(1, $report['summary']['by_weekend'][0]['justified']);
+        $summary = ($report['summary'])();
+
+        $this->assertSame(4, $summary['children']);
+        $this->assertSame(2, $summary['regular']);
+        $this->assertSame(1, $summary['at_risk']);
+        $this->assertSame(1, $summary['blocked']);
+        $this->assertSame(2, $summary['by_weekend'][0]['present']);
+        $this->assertSame(1, $summary['by_weekend'][0]['absent']);
+        $this->assertSame(1, $summary['by_weekend'][0]['justified']);
     }
 
     public function test_church_level_setting_raises_the_absence_limit(): void
@@ -399,6 +401,7 @@ class AttendanceReportTest extends TestCase
         unset($children, $attendance);
         gc_collect_cycles();
 
+        memory_reset_peak_usage();
         $before = memory_get_usage(true);
         $started = microtime(true);
 
