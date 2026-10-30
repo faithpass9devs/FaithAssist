@@ -105,5 +105,7 @@ class IxtapanSalSeeder extends Seeder
         );
 
         $this->command?->info('Parroquia de Ixtapan de la Sal creada exitosamente.');
+
+        $this->call(AttendanceAbsenceLimitSeeder::class);
     }
 }

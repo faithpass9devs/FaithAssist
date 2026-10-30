@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Settings\Setting;
 use App\Models\Settings\SettingCategory;
 use App\Models\User;
+use App\Services\Masses\AttendanceReportService;
 use Illuminate\Database\Seeder;
 
 class SettingsSeeder extends Seeder
@@ -13,14 +14,30 @@ class SettingsSeeder extends Seeder
     {
         $superadmin = User::query()->where('email', 'd.g.adrian28@gmail.com')->first();
         $badge = SettingCategory::query()->where('key', 'badge')->first();
+        $attendance = SettingCategory::query()->where('key', 'attendance')->first();
 
-        if (! $badge) {
-            $this->command?->warn('Categoria badge no encontrada. Ejecuta SettingCategorySeeder primero.');
+        if (! $badge || ! $attendance) {
+            $this->command?->warn('Categorias badge/attendance no encontradas. Ejecuta SettingCategorySeeder primero.');
 
             return;
         }
 
         $settings = [
+            [
+                'category' => $attendance,
+                'key' => AttendanceReportService::MAX_ABSENCES_SETTING,
+                'name' => 'Límite de faltas',
+                'description' => 'Número de faltas (no justificadas) a partir del cual el niño pierde el derecho a seguir registrando asistencia.',
+                'type' => 'number',
+                'default_value' => AttendanceReportService::DEFAULT_MAX_ABSENCES,
+                'meta' => [
+                    'min' => 1,
+                    'max' => 20,
+                    'step' => 1,
+                    'help' => 'Se usa en el reporte de asistencias para marcar a los niños como Regular, En riesgo o Sin derecho.',
+                ],
+                'sort_order' => 1,
+            ],
             [
                 'key' => 'badge.logo_image',
                 'name' => 'Logo del gafete',
@@ -154,7 +171,7 @@ class SettingsSeeder extends Seeder
             Setting::query()->updateOrCreate(
                 ['key' => $setting['key']],
                 [
-                    'category_id' => $badge->id,
+                    'category_id' => ($setting['category'] ?? $badge)->id,
                     'name' => $setting['name'],
                     'description' => $setting['description'],
                     'type' => $setting['type'],

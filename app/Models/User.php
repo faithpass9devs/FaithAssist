@@ -12,11 +12,14 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -38,7 +41,12 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, LogsActivityTrail, Notifiable, SoftDeletes;
+    use HasFactory, LogsActivityTrail, Notifiable, SoftDeletes;
+
+    use HasRoles {
+        hasPermissionTo as protected spatieHasPermissionTo;
+        getAllPermissions as protected spatieGetAllPermissions;
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -82,5 +90,38 @@ class User extends Authenticatable
     public function profile(): HasOne
     {
         return $this->hasOne(Profile::class);
+    }
+
+    /**
+     * Role permissions explicitly removed for this user while keeping the role.
+     */
+    public function revokedPermissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'user_revoked_permissions')->withTimestamps();
+    }
+
+    public function revokedPermissionIds(): Collection
+    {
+        return $this->loadMissing('revokedPermissions')->revokedPermissions->pluck('id');
+    }
+
+    public function hasPermissionTo($permission, ?string $guardName = null): bool
+    {
+        $permission = $this->filterPermission($permission, $guardName);
+
+        if ($this->revokedPermissionIds()->contains($permission->getKey())) {
+            return false;
+        }
+
+        return $this->spatieHasPermissionTo($permission, $guardName);
+    }
+
+    public function getAllPermissions(): Collection
+    {
+        $revokedIds = $this->revokedPermissionIds();
+
+        return $this->spatieGetAllPermissions()
+            ->reject(fn (Permission $permission): bool => $revokedIds->contains($permission->getKey()))
+            ->values();
     }
 }

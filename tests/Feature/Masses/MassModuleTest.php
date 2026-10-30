@@ -77,7 +77,13 @@ class MassModuleTest extends TestCase
     public function test_weekend_index_defaults_to_current_and_tabs_filter_other_statuses(): void
     {
         $chain = $this->createChain();
-        $user = $this->makeGlobalUser('weekends.read', 'weekends.scope.all');
+        $user = $this->makeGlobalUser(
+            'weekends.read',
+            'weekends.scope.all',
+            'weekends.tab.current',
+            'weekends.tab.upcoming',
+            'weekends.tab.history',
+        );
 
         $this->createWeekend($chain, [
             'name' => 'FIN DE SEMANA PROXIMO',
@@ -112,6 +118,7 @@ class MassModuleTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Masses/Weekends/Index')
                 ->where('tab', 'current')
+                ->where('allowedTabs', ['current', 'upcoming', 'history'])
                 ->where('weekends.total', 2)
                 ->where('weekends.data.0.status', Status::IN_PROGRESS)
             );
@@ -132,6 +139,138 @@ class MassModuleTest extends TestCase
                 ->where('tab', 'upcoming')
                 ->where('weekends.total', 1)
                 ->where('weekends.data.0.status', Status::UPCOMING)
+            );
+    }
+
+    public function test_weekend_index_only_exposes_tabs_the_user_is_allowed_to_see(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeGlobalUser('weekends.read', 'weekends.scope.all', 'weekends.tab.history');
+
+        $this->createWeekend($chain, [
+            'name' => 'EN CURSO',
+            'starts_at' => '2026-07-11 00:00:00',
+            'status' => Status::IN_PROGRESS,
+        ]);
+        $this->createWeekend($chain, [
+            'name' => 'TERMINADO',
+            'starts_at' => '2026-07-04 00:00:00',
+            'status' => Status::COMPLETED,
+        ]);
+
+        // Sin pestaña permitida en la URL, cae en la primera permitida (history).
+        $this->actingAs($user)
+            ->get('/fines-semana-misas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', 'history')
+                ->where('allowedTabs', ['history'])
+                ->where('weekends.total', 1)
+                ->where('weekends.data.0.name', 'TERMINADO')
+            );
+
+        // Pedir una pestaña no permitida tampoco expone sus datos.
+        $this->actingAs($user)
+            ->get('/fines-semana-misas?tab=current')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', 'history')
+                ->where('weekends.total', 1)
+            );
+    }
+
+    public function test_weekend_index_without_tab_permissions_shows_nothing(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeGlobalUser('weekends.read', 'weekends.scope.all');
+        $this->createWeekend($chain, ['status' => Status::IN_PROGRESS]);
+
+        $this->actingAs($user)
+            ->get('/fines-semana-misas')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('tab', null)
+                ->where('allowedTabs', [])
+                ->where('weekends.total', 0)
+            );
+    }
+
+    public function test_weekend_index_filters_by_church_only_with_permission(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $this->createWeekend($chain, ['name' => 'PRINCIPAL']);
+        $this->createWeekend($chain, ['name' => 'OTRA', 'church_id' => $otherChurch->id]);
+
+        $withoutPermission = $this->makeGlobalUser('weekends.read', 'weekends.scope.all', 'weekends.tab.current');
+
+        $this->actingAs($withoutPermission)
+            ->get("/fines-semana-misas?church_id={$otherChurch->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('canFilterByChurch', false)
+                ->where('churchId', null)
+                ->where('weekends.total', 2)
+            );
+
+        $withPermission = $this->makeGlobalUser(
+            'weekends.read',
+            'weekends.scope.all',
+            'weekends.tab.current',
+            'weekends.filter.church',
+        );
+
+        $this->actingAs($withPermission)
+            ->get("/fines-semana-misas?church_id={$otherChurch->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('canFilterByChurch', true)
+                ->where('churchId', $otherChurch->id)
+                ->where('weekends.total', 1)
+                ->where('weekends.data.0.name', 'OTRA')
+            );
+
+        $this->actingAs($withPermission)
+            ->get('/fines-semana-misas')
+            ->assertInertia(fn ($page) => $page
+                ->where('churchId', null)
+                ->where('weekends.total', 2)
+            );
+    }
+
+    public function test_weekend_index_church_filter_ignores_churches_outside_scope(): void
+    {
+        $chain = $this->createChain();
+        $otherChurch = Church::query()->create([
+            'name' => 'Otra Parroquia',
+            'deanery_id' => $chain['deanery']->id,
+            'municipality_id' => $chain['municipality']->id,
+            'status' => Status::ACTIVE,
+        ]);
+        $this->createWeekend($chain, ['name' => 'PRINCIPAL']);
+        $this->createWeekend($chain, ['name' => 'OTRA', 'church_id' => $otherChurch->id]);
+
+        $user = $this->makeChurchUser(
+            $chain['diocese'],
+            $chain['deanery'],
+            $chain['church'],
+            'weekends.read',
+            'weekends.tab.current',
+            'weekends.filter.church',
+        );
+
+        $this->actingAs($user)
+            ->get("/fines-semana-misas?church_id={$otherChurch->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('churchId', null)
+                ->where('weekends.total', 1)
+                ->where('weekends.data.0.name', 'PRINCIPAL')
             );
     }
 
@@ -178,7 +317,7 @@ class MassModuleTest extends TestCase
                 'starts_at' => '2026-07-04',
                 'status' => Status::COMPLETED,
             ])
-            ->assertRedirect('/fines-semana-misas');
+            ->assertRedirect('/fines-semana-misas?tab=history');
 
         $this->assertDatabaseHas('weekends', [
             'id' => $current->id,
@@ -213,7 +352,7 @@ class MassModuleTest extends TestCase
                 'starts_at' => '2026-07-04',
                 'status' => Status::COMPLETED,
             ])
-            ->assertRedirect('/fines-semana-misas');
+            ->assertRedirect('/fines-semana-misas?tab=history');
 
         $this->assertDatabaseHas('weekends', ['id' => $current->id, 'status' => Status::COMPLETED]);
         $this->assertDatabaseHas('weekends', ['id' => $previous->id, 'status' => Status::UPCOMING]);

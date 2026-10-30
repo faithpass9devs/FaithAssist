@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Catechism\Child;
+use App\Models\DeviceSession;
 use App\Models\Ecclesiastes\Chapel;
 use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
@@ -14,7 +15,6 @@ use App\Models\Masses\Mass;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Masses\Weekend;
-use App\Models\DeviceSession;
 use App\Models\Module;
 use App\Models\Operation\Level;
 use App\Models\Operation\Period;
@@ -29,6 +29,7 @@ use App\Policies\ChildPolicy;
 use App\Policies\ChurchPolicy;
 use App\Policies\CommunityPolicy;
 use App\Policies\DeaneryPolicy;
+use App\Policies\DeviceSessionPolicy;
 use App\Policies\DiocesePolicy;
 use App\Policies\ExternosPolicy;
 use App\Policies\IncidenceTypePolicy;
@@ -46,6 +47,9 @@ use App\Policies\PermissionPolicy;
 use App\Policies\SettingsPolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
+use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -65,8 +69,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->prohibitDestructiveCommandsAgainstRemoteDatabases();
+
         Gate::policy(Module::class, ModulePolicy::class);
-        Gate::policy(DeviceSession::class, \App\Policies\DeviceSessionPolicy::class);
+        Gate::policy(DeviceSession::class, DeviceSessionPolicy::class);
         Gate::policy(Child::class, ChildPolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(State::class, StatePolicy::class);
@@ -88,5 +94,41 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MassAttendanceIncident::class, MassAttendanceIncidentPolicy::class);
         Gate::policy(ExternalChild::class, ExternosPolicy::class);
         Gate::policy(Setting::class, SettingsPolicy::class);
+    }
+
+    /**
+     * Bloquea migrate:fresh, migrate:refresh, migrate:reset y db:wipe cuando la
+     * conexión seleccionada para el comando apunta a un servidor remoto (p. ej. Hostinger).
+     * Para permitirlos de forma explícita: ALLOW_DESTRUCTIVE_DB_COMMANDS=true.
+     */
+    private function prohibitDestructiveCommandsAgainstRemoteDatabases(): void
+    {
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            if (! in_array($event->command, [
+                'db:wipe',
+                'migrate:fresh',
+                'migrate:refresh',
+                'migrate:reset',
+                'migrate:rollback',
+            ], true)) {
+                return;
+            }
+
+            if (config('database.allow_destructive_commands')) {
+                DB::prohibitDestructiveCommands(false);
+
+                return;
+            }
+
+            $connection = $event->input->getOption('database') ?: config('database.default');
+            $configuration = DB::connection($connection)->getConfig();
+            $driver = $configuration['driver'] ?? null;
+            $host = (string) ($configuration['host'] ?? '');
+
+            $isLocal = $driver === 'sqlite'
+                || in_array(strtolower($host), ['127.0.0.1', 'localhost', '::1'], true);
+
+            DB::prohibitDestructiveCommands(! $isLocal);
+        });
     }
 }

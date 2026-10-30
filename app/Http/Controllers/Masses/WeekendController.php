@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Masses;
 
+use App\Globals\Status;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Masses\WeekendRequest;
 use App\Models\Masses\Weekend;
@@ -21,13 +22,18 @@ class WeekendController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $allowedTabs = $this->weekends->allowedTabs($request->user());
         $tab = $request->input('tab', 'current');
+        $churchId = $request->filled('church_id') ? (int) $request->input('church_id') : null;
 
-        if (! in_array($tab, ['current', 'history', 'upcoming'], true)) {
-            $tab = 'current';
+        if (! in_array($tab, $allowedTabs, true)) {
+            $tab = $allowedTabs[0] ?? null;
         }
 
-        return Inertia::render('Masses/Weekends/Index', $this->weekends->indexData($request->user(), $search, $tab));
+        return Inertia::render('Masses/Weekends/Index', [
+            ...$this->weekends->indexData($request->user(), $search, $tab, $churchId),
+            'allowedTabs' => $allowedTabs,
+        ]);
     }
 
     public function create(Request $request): Response
@@ -39,8 +45,7 @@ class WeekendController extends Controller
     {
         $this->weekends->createWeekend($request->validated());
 
-        return redirect()->route('fines-semana-misas.index')
-            ->with('success', 'Fin de semana creado correctamente.');
+        return redirect()->route('fines-semana-misas.index')->with('success', 'Fin de semana creado correctamente.');
     }
 
     public function edit(Request $request, Weekend $weekend): Response
@@ -50,9 +55,16 @@ class WeekendController extends Controller
 
     public function update(WeekendRequest $request, Weekend $weekend): RedirectResponse
     {
-        $this->weekends->updateWeekend($weekend, $request->validated());
+        $updated = $this->weekends->updateWeekend($weekend, $request->validated());
 
-        return redirect()->route('fines-semana-misas.index')
+        $tab = match ($updated->status) {
+            Status::COMPLETED => 'history',
+            Status::UPCOMING => 'upcoming',
+            default => null,
+        };
+
+        return redirect()
+            ->route('fines-semana-misas.index', array_filter(['tab' => $tab]))
             ->with('success', 'Fin de semana actualizado correctamente.');
     }
 
@@ -60,7 +72,6 @@ class WeekendController extends Controller
     {
         $this->weekends->deleteWeekend($weekend, auth()->id());
 
-        return redirect()->route('fines-semana-misas.index')
-            ->with('success', 'Fin de semana eliminado correctamente.');
+        return redirect()->route('fines-semana-misas.index')->with('success', 'Fin de semana eliminado correctamente.');
     }
 }
