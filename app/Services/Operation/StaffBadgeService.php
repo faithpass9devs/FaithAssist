@@ -19,10 +19,19 @@ class StaffBadgeService
 
     public function generateStaffBadgePdf(Staff $staff): string
     {
-        $staff->loadMissing(['staffType:id,name', 'church:id,name,deanery_id', 'church.deanery:id,diocese_id', 'community:id,name']);
+        $staff->loadMissing([
+            'staffType:id,name',
+            'church:id,name,deanery_id,municipality_id',
+            'church.municipality.state',
+            'church.deanery:id,diocese_id',
+            'community:id,name,municipality_id',
+            'community.municipality.state',
+        ]);
 
         $churchId = $staff->church?->id;
         $dioceseId = $staff->church?->deanery?->diocese_id;
+        $municipality = $staff->church?->municipality ?? $staff->community?->municipality;
+        $state = $municipality?->state;
 
         $logo = $this->resolveFile('staff_badge.logo_image', $churchId, $dioceseId)
             ?? $this->resolveDefaultLogo();
@@ -30,6 +39,12 @@ class StaffBadgeService
             ?? $this->resolveDefaultBackground();
 
         $title = $this->resolveText('staff_badge.title_text', 'Gafete de personal', $churchId, $dioceseId);
+        $footerText = $this->resolveText(
+            'staff_badge.footer_text',
+            'Este gafete es personal e intransferible. Preséntelo junto con su código QR cuando se le solicite para acreditar su identificación como parte del personal.',
+            $churchId,
+            $dioceseId
+        );
         $accentColor = $this->resolveColor('staff_badge.accent_color', '#2563eb', $churchId, $dioceseId);
         $bodyTextColor = $this->resolveColor('staff_badge.body_text_color', '#111827', $churchId, $dioceseId);
         $qrBorderColor = $this->resolveColor('staff_badge.qr_border_color', '#d1d5db', $churchId, $dioceseId);
@@ -43,13 +58,17 @@ class StaffBadgeService
             'staffCode' => $staff->code,
             'staffTypeName' => $staff->staffType?->name ?? 'Sin tipo',
             'churchName' => $staff->church?->name ?? 'No especificada',
+            'municipalityName' => $municipality?->name ?? 'No especificado',
+            'stateName' => $state?->short_name ?? $state?->name ?? '',
             'communityName' => $staff->community?->name ?? 'No especificada',
             'phone' => $this->formatPhone($staff->phone_lada, $staff->phone),
             'birthdate' => $staff->birthdate?->format('Y-m-d') ?? '',
             'qrImageUrl' => $qrDataUri,
             'badgeLogoPath' => $logo,
+            'pageOneBackgroundPath' => $background,
             'backgroundPath' => $background,
             'badgeTitleText' => $title,
+            'footerText' => $footerText,
             'accentColor' => $accentColor,
             'bodyTextColor' => $bodyTextColor,
             'qrBorderColor' => $qrBorderColor,

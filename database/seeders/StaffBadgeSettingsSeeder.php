@@ -105,6 +105,19 @@ class StaffBadgeSettingsSeeder extends Seeder
                 'meta' => ['validation' => ['string', 'max:7'], 'help' => 'Formato hexadecimal.'],
                 'sort_order' => 108,
             ],
+            [
+                'key' => 'staff_badge.footer_text',
+                'name' => 'Nota del gafete de personal',
+                'description' => 'Texto mostrado al pie del gafete de personal.',
+                'type' => 'string',
+                'default_value' => 'Este gafete es personal e intransferible. Preséntelo junto con su código QR cuando se le solicite para acreditar su identificación como parte del personal.',
+                'meta' => [
+                    'validation' => ['string', 'min:1', 'max:240'],
+                    'help' => 'Máximo 240 caracteres.',
+                    'placeholder' => 'Este gafete es personal e intransferible.',
+                ],
+                'sort_order' => 109,
+            ],
         ];
 
         foreach ($settings as $setting) {
