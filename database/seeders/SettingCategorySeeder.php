@@ -26,6 +26,12 @@ class SettingCategorySeeder extends Seeder
                 'name' => 'Gafete de personal',
                 'description' => 'Personalización del gafete del personal (una hoja tamaño carta).',
                 'icon' => 'IdCard',
+            ],
+            [
+                'key' => 'attendance',
+                'name' => 'Asistencias',
+                'description' => 'Reglas de asistencia a misas por parroquia (límite de faltas y reportes).',
+                'icon' => 'ClipboardCheck',
                 'sort_order' => 2,
                 'is_active' => true,
             ],

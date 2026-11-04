@@ -4,9 +4,10 @@
 
 - **Install dependencies:** `composer install && cp .env.example .env && php artisan key:generate && php artisan migrate --seed && pnpm install`
 - **Run the full local stack:** `composer run dev`
-- **Run backend tests:** `composer test` or `php artisan test`
-- **Run a single test file:** `php artisan test tests/Feature/DataScopeTest.php`
-- **Run a single test/method:** `php artisan test --filter=test_chapel_index_uses_community_or_church_scope`
+- **Run backend tests:** `composer test` (runs `config:clear` first, then PHPUnit via `php artisan test`). **Never run `php artisan test` or `vendor/bin/phpunit` directly.**
+- **Run a single test file:** `composer test -- tests/Feature/DataScopeTest.php`
+- **Run a single test/method:** `composer test -- --filter=test_chapel_index_uses_community_or_church_scope`
+- **DATABASE SAFETY (critical):** the local `.env` may point to a remote Hostinger database. Feature tests use `RefreshDatabase` (`migrate:fresh`). If `bootstrap/cache/config.php` exists, Laravel ignores the `phpunit.xml` overrides (SQLite `:memory:`) and the tests will **wipe the remote database**. Always run `php artisan config:clear` before tests, never create a config cache locally (`config:cache` / `optimize`), and never run `migrate:fresh`, `migrate:refresh`, `migrate:reset` or `db:wipe` unless `DB_HOST` is local. `tests/TestCase.php` and `AppServiceProvider` enforce these guards; do not weaken them.
 - **Build frontend assets:** `pnpm run build`
 - **Format PHP:** `vendor/bin/pint`
 - **Format frontend and shared files:** `pnpm run format`

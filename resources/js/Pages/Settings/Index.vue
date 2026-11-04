@@ -1,9 +1,11 @@
 <script setup>
-import { Link, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
-import { ArrowLeft, Building2, Save } from 'lucide-vue-next';
+import { Church, Save, Settings } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import AppShell from '../../components/layouts/AppShell.vue';
+import CatalogHeader from '../../components/catalogs/CatalogHeader.vue';
+import FilterDropdown from '../../components/FilterDropdown.vue';
 import SettingsShell from '../../components/settings/SettingsShell.vue';
 import SettingField from '../../components/settings/SettingField.vue';
 
@@ -151,8 +153,11 @@ const uploadFile = async (setting, file) => {
   }
 };
 
-const changeChurch = (event) => {
-  const churchId = Number(event.target.value);
+const churchFilterOptions = computed(
+  () => props.churchOptions?.map((opt) => ({ value: opt.id, label: opt.name })) ?? [],
+);
+
+const changeChurch = (churchId) => {
   if (!churchId || churchId === props.church.id || busy.value) return;
 
   router.get('/ajustes', { church_id: churchId }, { preserveState: false });
@@ -165,44 +170,34 @@ const dirtyCount = computed(
 
 <template>
   <AppShell :page-title="`Ajustes — ${church.name}`">
-    <div class="mx-auto w-full max-w-6xl space-y-6">
-      <div
-        class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+    <div class="mx-auto w-full max-w-6xl">
+      <CatalogHeader
+        title="Configuración de la parroquia"
+        subtitle="Personalización de los ajustes por parroquia"
+        back-href="/"
+        :icon="Settings"
       >
-        <div class="min-w-0">
-          <h1 class="text-lg font-bold text-slate-900 dark:text-slate-100">
-            Configuración de la parroquia
-          </h1>
-          <p
-            class="mt-1 inline-flex max-w-full items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400"
-          >
-            <Link
-              href="/dashboard"
-              class="inline-flex shrink-0 items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              title="Regresar al inicio"
-            >
-              <ArrowLeft class="h-4 w-4" />
-            </Link>
-            <Building2 class="h-4 w-4 shrink-0 text-slate-400" />
-            <span class="truncate">{{ church.name }}</span>
-          </p>
-        </div>
+        <template #actions>
+          <FilterDropdown
+            v-if="churchOptions"
+            :model-value="church.id"
+            :options="churchFilterOptions"
+            :clearable="false"
+            :icon="Church"
+            aria-label="Cambiar de parroquia"
+            class="w-full sm:ml-auto sm:w-auto"
+            @change="changeChurch"
+          />
 
-        <label v-if="churchOptions" class="w-full sm:w-64">
-          <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            Parroquia
-          </span>
-          <select
-            class="select select-bordered select-sm w-full"
-            :value="church.id"
-            @change="changeChurch($event)"
+          <span
+            v-else
+            class="inline-flex h-9 max-w-full items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-800 shadow-sm dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-200 sm:ml-auto"
           >
-            <option v-for="opt in churchOptions" :key="opt.id" :value="opt.id">
-              {{ opt.name }}
-            </option>
-          </select>
-        </label>
-      </div>
+            <Church class="h-4 w-4 shrink-0 text-sky-700 dark:text-sky-300" aria-hidden="true" />
+            <span class="truncate">{{ church.name }}</span>
+          </span>
+        </template>
+      </CatalogHeader>
 
       <SettingsShell v-model:active-key="activeKey" :categories="groups">
         <div v-if="activeCategory" class="space-y-6">
