@@ -6,31 +6,34 @@ import {
   CalendarDays,
   Church,
   Clock3,
+  FileSpreadsheet,
   History,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-vue-next';
 import AppPagination from '../../../components/AppPagination.vue';
+import FilterDropdown from '../../../components/FilterDropdown.vue';
 import CatalogHeader from '../../../components/catalogs/CatalogHeader.vue';
 import AppShell from '../../../components/layouts/AppShell.vue';
+import AttendanceReportModal from '../../../components/masses/AttendanceReportModal.vue';
 import { alertError, firstError, useFlashAlerts } from '../../../composables/useFlashAlerts';
 
 useFlashAlerts();
 
 const props = defineProps({
   weekends: { type: Object, required: true },
-  search: { type: String, default: '' },
-  tab: { type: String, default: 'current' },
+  tab: { type: String, default: null },
+  allowedTabs: { type: Array, default: () => [] },
   churches: { type: Array, default: () => [] },
+  churchId: { type: Number, default: null },
+  canFilterByChurch: { type: Boolean, default: false },
   lockedChurchId: { type: Number, default: null },
   scheduledChurchIds: { type: Array, default: () => [] },
 });
 
-const searchTerm = ref(props.search);
 const page = usePage();
 const permissions = computed(() => page.props.auth?.permissions ?? []);
 const canCreate = computed(() => permissions.value.includes('weekends.create'));
@@ -38,31 +41,43 @@ const canUpdate = computed(() => permissions.value.includes('weekends.update'));
 const canDelete = computed(() => permissions.value.includes('weekends.delete'));
 const canGenerate = computed(() => permissions.value.includes('masses.create'));
 const canViewMasses = computed(() => permissions.value.includes('masses.read'));
-const tabs = [
+const canReport = computed(
+  () => permissions.value.includes('weekends.report') && props.churches.length > 0,
+);
+const reportOpen = ref(false);
+const allTabs = [
   { value: 'current', label: 'Actual', icon: CalendarDays },
   { value: 'upcoming', label: 'Próximos', icon: Clock3 },
   { value: 'history', label: 'Histórico', icon: History },
 ];
+const tabs = computed(() => allTabs.filter((item) => props.allowedTabs.includes(item.value)));
 
-let debounce = null;
+const showChurchFilter = computed(
+  () =>
+    props.canFilterByChurch &&
+    permissions.value.includes('weekends.filter.church') &&
+    props.churches.length > 1,
+);
+const selectedChurchId = ref(props.churchId);
+watch(
+  () => props.churchId,
+  (value) => (selectedChurchId.value = value),
+);
+const churchOptions = computed(() =>
+  props.churches.map((church) => ({ value: church.id, label: church.name })),
+);
 
-const visitIndex = (tab = props.tab, search = searchTerm.value) => {
+const visitIndex = (tab = props.tab, churchId = selectedChurchId.value) => {
   router.get(
     '/fines-semana-misas',
-    {
-      tab: tab === 'current' ? undefined : tab,
-      search: search || undefined,
-    },
+    { tab: tab === 'current' ? undefined : tab, church_id: churchId || undefined },
     { preserveState: true, preserveScroll: true, replace: true },
   );
 };
 
-watch(searchTerm, (value) => {
-  clearTimeout(debounce);
-  debounce = setTimeout(() => visitIndex(props.tab, value), 400);
-});
-
 const selectTab = (tab) => visitIndex(tab);
+
+const selectChurch = (churchId) => visitIndex(props.tab, churchId);
 
 const destroyWeekend = (weekend) => {
   if (!confirm(`Eliminar el fin de semana ${weekend.name || weekend.starts_at}?`)) return;
@@ -74,6 +89,11 @@ const emptyMessages = {
   history: 'Aún no hay fines de semana concluidos.',
   upcoming: 'No hay fines de semana próximos.',
 };
+const emptyMessage = computed(
+  () =>
+    emptyMessages[props.tab] ??
+    'No tienes permisos para consultar las pestañas de fines de semana de misas.',
+);
 
 const generatorOpen = ref(false);
 const generatorChurchId = ref(null);
@@ -107,12 +127,9 @@ const loadPreview = async () => {
 
   const churchId = generatorChurchId.value;
   try {
-    const response = await fetch(
-      `/fines-semana-misas/generar?church_id=${churchId}`,
-      {
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      },
-    );
+    const response = await fetch(`/fines-semana-misas/generar?church_id=${churchId}`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
     const json = await response.json();
 
     if (generatorChurchId.value !== churchId) return;
@@ -177,10 +194,26 @@ const generate = () => {
       back-href="/"
       :count="weekends.total"
       :icon="CalendarDays"
-    />
+    >
+      <template #actions>
+        <button
+          v-if="canReport"
+          type="button"
+          class="btn btn-sm gap-1.5 rounded-xl border-0 bg-sky-700 text-white shadow-md shadow-sky-900/20 transition-all hover:-translate-y-0.5 hover:bg-sky-800 sm:ml-auto"
+          @click="reportOpen = true"
+        >
+          <FileSpreadsheet class="h-4 w-4" />
+          Reporte de asistencias
+        </button>
+      </template>
+    </CatalogHeader>
 
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center"
+      :class="tabs.length ? 'sm:justify-between' : 'sm:justify-end'"
+    >
       <div
+        v-if="tabs.length"
         class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         role="tablist"
         aria-label="Fines de semana"
@@ -205,26 +238,15 @@ const generate = () => {
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label
-          class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 sm:w-72 dark:border-slate-700 dark:bg-slate-900 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
-        >
-          <Search class="h-4 w-4 shrink-0 text-slate-400" />
-          <input
-            v-model="searchTerm"
-            type="text"
-            placeholder="Buscar por nombre o parroquia..."
-            class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-          />
-          <button
-            v-if="searchTerm"
-            type="button"
-            class="text-slate-400 hover:text-slate-600"
-            aria-label="Limpiar búsqueda"
-            @click="searchTerm = ''"
-          >
-            <X class="h-3.5 w-3.5" />
-          </button>
-        </label>
+        <FilterDropdown
+          v-if="showChurchFilter"
+          v-model="selectedChurchId"
+          :options="churchOptions"
+          placeholder="Todas las parroquias"
+          :icon="Church"
+          aria-label="Filtrar por parroquia"
+          @change="selectChurch"
+        />
 
         <Link
           v-if="canCreate"
@@ -282,6 +304,15 @@ const generate = () => {
                 aria-label="Ver misas del fin de semana"
               >
                 <Church class="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                v-if="canUpdate"
+                :href="`/fines-semana-misas/${weekend.id}/edit`"
+                class="btn btn-ghost btn-xs text-sky-600"
+                title="Editar"
+                aria-label="Editar fin de semana"
+              >
+                <Pencil class="h-3.5 w-3.5" />
               </Link>
             </td>
           </tr>
@@ -391,7 +422,7 @@ const generate = () => {
     >
       <CalendarDays class="mx-auto h-9 w-9 text-slate-400" />
       <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">
-        {{ emptyMessages[tab] }}
+        {{ emptyMessage }}
       </p>
     </div>
 
@@ -543,5 +574,13 @@ const generate = () => {
         </div>
       </div>
     </dialog>
+
+    <AttendanceReportModal
+      :open="reportOpen"
+      :churches="churches"
+      :locked-church-id="lockedChurchId"
+      :initial-church-id="selectedChurchId"
+      @close="reportOpen = false"
+    />
   </AppShell>
 </template>

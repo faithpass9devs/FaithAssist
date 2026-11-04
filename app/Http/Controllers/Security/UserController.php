@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Security\UserRequest;
 use App\Models\User;
 use App\Services\Security\UserService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,10 +19,12 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search', '');
+        $churchId = $request->filled('church_id') ? (int) $request->input('church_id') : null;
+        $roleId = $request->filled('role_id') ? (int) $request->input('role_id') : null;
 
         return Inertia::render(
             'Security/Users/Index',
-            $this->users->paginatedIndexData($request->user(), $search)
+            $this->users->paginatedIndexData($request->user(), $search, $churchId, $roleId)
         );
     }
 

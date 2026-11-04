@@ -5,9 +5,11 @@ import {
   CalendarDays,
   Check,
   Church,
+  Copy,
   Eye,
   EyeOff,
   KeyRound,
+  LockKeyholeOpen,
   MapPinned,
   ShieldCheck,
   User,
@@ -109,6 +111,92 @@ const passwordRules = computed(() => [
 ]);
 
 const passwordChecklistPassed = computed(() => passwordRules.value.every((rule) => rule.valid));
+
+const PASSWORD_SETS = {
+  upper: 'ABCDEFGHJKLMNPQRSTUVWXYZ',
+  lower: 'abcdefghijkmnopqrstuvwxyz',
+  digit: '23456789',
+  symbol: '!@#$%&*?',
+};
+const PASSWORD_LENGTH = 12;
+
+const randomInt = (max) => {
+  const buffer = new Uint32Array(1);
+  window.crypto.getRandomValues(buffer);
+  return buffer[0] % max;
+};
+const randomChar = (set) => set[randomInt(set.length)];
+
+/** Genera una contraseña aleatoria que cumple todas las reglas (mayúscula, minúscula, número, 8+). */
+const generatePassword = () => {
+  const all = Object.values(PASSWORD_SETS).join('');
+  const chars = [
+    randomChar(PASSWORD_SETS.upper),
+    randomChar(PASSWORD_SETS.lower),
+    randomChar(PASSWORD_SETS.digit),
+    randomChar(PASSWORD_SETS.symbol),
+  ];
+  while (chars.length < PASSWORD_LENGTH) chars.push(randomChar(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+};
+
+const passwordCopied = ref(false);
+let copiedTimer = null;
+
+const suggestPassword = () => {
+  const password = generatePassword();
+  form.password = password;
+  form.password_confirmation = password;
+  form.clearErrors('password', 'password_confirmation');
+  showPassword.value = true;
+  showPasswordConfirmation.value = true;
+  passwordCopied.value = false;
+};
+
+/** Texto que se copia: correo y contraseña, listo para compartir con el usuario. */
+const credentialsText = computed(() => {
+  const email = form.email.trim();
+  const lines = [];
+
+  if (email) lines.push(`Correo: ${email}`);
+  if (form.password) lines.push(`Contraseña: ${form.password}`);
+
+  return lines.join('\n');
+});
+
+const copyToClipboard = async (text) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // Respaldo para contextos sin la API de portapapeles (http sin TLS, navegadores antiguos).
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  textarea.remove();
+};
+
+const copyPassword = async () => {
+  if (!form.password) return;
+  try {
+    await copyToClipboard(credentialsText.value);
+    passwordCopied.value = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => (passwordCopied.value = false), 2000);
+  } catch {
+    passwordCopied.value = false;
+  }
+};
 const canSubmit = computed(() => {
   if (isEditing.value && form.password.length === 0) {
     return true;
@@ -118,10 +206,8 @@ const canSubmit = computed(() => {
 });
 
 const selectedRoleObj = computed(() => props.roles.find((r) => r.id === form.role_id));
+/** Siempre es un arreglo para que el selector muestre la leyenda y colores aunque no haya rol. */
 const selectedRolePermissionIds = computed(() => selectedRoleObj.value?.permissions ?? []);
-const willDetachRoleOnSave = computed(() =>
-  selectedRolePermissionIds.value.some((permissionId) => !form.permissions.includes(permissionId)),
-);
 
 const totalPermissions = computed(() => form.permissions.length);
 const hasDiocese = computed(() => form.diocese_id !== null);
@@ -691,14 +777,11 @@ const submit = () => {
 
           <!-- Permisos -->
           <div v-show="activeSection === 'permisos'">
-            <div
-              v-if="selectedRoleObj && willDetachRoleOnSave"
-              class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300"
-            >
-              Desmarcaste permisos incluidos en el rol "{{ selectedRoleObj.name }}". Al guardar se
-              retirara el rol y se conservaran solo los permisos seleccionados para este usuario.
-            </div>
-            <PermissionSelector v-model="form.permissions" :groups="permissionGroups" />
+            <PermissionSelector
+              v-model="form.permissions"
+              :groups="permissionGroups"
+              :role-permission-ids="selectedRolePermissionIds"
+            />
             <p v-if="form.errors.permissions" class="mt-2 text-xs text-red-500">
               {{ form.errors.permissions }}
             </p>
@@ -714,13 +797,44 @@ const submit = () => {
             >
               Seguridad
             </h2>
-            <p class="mb-5 text-xs text-slate-400 dark:text-slate-500">
-              {{
-                isEditing
-                  ? 'Deja los campos vacios para mantener la contrasena actual.'
-                  : 'Define la contrasena de acceso.'
-              }}
-            </p>
+            <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <p class="text-xs text-slate-400 dark:text-slate-500">
+                {{
+                  isEditing
+                    ? 'Deja los campos vacios para mantener la contrasena actual.'
+                    : 'Define la contrasena de acceso.'
+                }}
+              </p>
+              <div class="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-sm gap-1.5 rounded-xl border border-sky-200 bg-white text-sky-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 dark:border-sky-800 dark:bg-slate-900 dark:text-sky-300 dark:hover:bg-slate-800"
+                  @click="suggestPassword"
+                >
+                  <LockKeyholeOpen class="h-4 w-4" />
+                  Sugerir contraseña
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm gap-1.5 rounded-xl border shadow-sm transition-all hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50"
+                  :class="
+                    passwordCopied
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                  "
+                  :disabled="!form.password"
+                  :aria-label="
+                    passwordCopied ? 'Correo y contraseña copiados' : 'Copiar correo y contraseña'
+                  "
+                  :title="passwordCopied ? 'Copiados' : 'Copiar correo y contraseña'"
+                  @click="copyPassword"
+                >
+                  <Check v-if="passwordCopied" class="h-4 w-4" />
+                  <Copy v-else class="h-4 w-4" />
+                  {{ passwordCopied ? 'Copiados' : 'Copiar' }}
+                </button>
+              </div>
+            </div>
 
             <div class="grid gap-5 lg:grid-cols-2">
               <div class="space-y-1.5">

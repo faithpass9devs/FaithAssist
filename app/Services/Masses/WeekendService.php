@@ -17,21 +17,47 @@ class WeekendService
         private readonly WeekendScheduleService $schedules,
     ) {}
 
-    public function indexData(User $user, string $search, string $tab = 'current'): array
+    public const TABS = ['current', 'upcoming', 'history'];
+
+    /**
+     * Pestañas del índice que el usuario puede ver, en el orden de la UI.
+     *
+     * @return list<string>
+     */
+    public function allowedTabs(User $user): array
     {
-        $query = $this->weekends->queryWithScope($user, $search);
+        return array_values(array_filter(
+            self::TABS,
+            fn (string $tab): bool => $user->can("weekends.tab.{$tab}"),
+        ));
+    }
+
+    public function indexData(User $user, string $search, ?string $tab = 'current', ?int $churchId = null): array
+    {
+        $canFilterByChurch = $user->can('weekends.filter.church');
+        $churches = $this->schedules->churchOptions($user);
+
+        // The filter is only honored for users with the permission and for churches within their scope.
+        if (! $canFilterByChurch || ($churchId !== null && ! $churches->contains('id', $churchId))) {
+            $churchId = null;
+        }
+
+        $query = $this->weekends->queryWithScope($user, $search, $churchId);
         $weekends = match ($tab) {
             'history' => (clone $query)->completed()->reorder('starts_at', 'desc'),
             'upcoming' => (clone $query)->upcoming()->reorder('starts_at'),
-            default => (clone $query)->progress(),
+            'current' => (clone $query)->progress(),
+            default => (clone $query)->whereRaw('1 = 0'),
         };
 
         return [
             'weekends' => $this->weekends->paginateQuery($weekends, 5, 'weekends_page')
                 ->through(fn (Weekend $weekend) => $this->weekends->serializeWeekend($weekend)),
-            'churches' => $this->schedules->churchOptions($user),
+            'churches' => $churches,
             'search' => $search,
             'tab' => $tab,
+            'churchId' => $churchId,
+            'canFilterByChurch' => $canFilterByChurch,
             ...$this->schedules->indexData($user),
         ];
     }

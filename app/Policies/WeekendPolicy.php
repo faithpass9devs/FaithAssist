@@ -38,6 +38,11 @@ class WeekendPolicy extends BasePermissionPolicy
         return $this->can($user, 'delete') && $this->canManageChurchWeekends($user, $weekend->church_id);
     }
 
+    public function report(User $user): bool
+    {
+        return $this->can($user, 'report');
+    }
+
     private function withinVisibleScope(User $user, Weekend $weekend): bool
     {
         $scope = new UserScopeService($user);
