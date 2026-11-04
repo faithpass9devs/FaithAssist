@@ -9,7 +9,7 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
 use App\Models\External\ExternalChild;
-use App\Models\Masses\Event;
+use App\Models\Masses\Event as EventMasses;
 use App\Models\Masses\EventAttendance;
 use App\Models\Masses\IncidenceType;
 use App\Models\Masses\ManualAttendance;
@@ -57,7 +57,7 @@ use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -99,7 +99,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Weekend::class, WeekendPolicy::class);
         Gate::policy(Mass::class, MassPolicy::class);
         Gate::policy(MassAttendance::class, MassAttendancePolicy::class);
-        Gate::policy(Event::class, EventPolicy::class);
+        Gate::policy(EventMasses::class, EventPolicy::class);
         Gate::policy(EventAttendance::class, EventAttendancePolicy::class);
         Gate::policy(ManualAttendance::class, ManualAttendancePolicy::class);
         Gate::policy(IncidenceType::class, IncidenceTypePolicy::class);
@@ -115,7 +115,7 @@ class AppServiceProvider extends ServiceProvider
      */
     private function prohibitDestructiveCommandsAgainstRemoteDatabases(): void
     {
-        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+        EventFacade::listen(CommandStarting::class, function (CommandStarting $event): void {
             if (! in_array($event->command, [
                 'db:wipe',
                 'migrate:fresh',
