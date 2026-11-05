@@ -25,7 +25,8 @@ class EventModuleTest extends TestCase
         $response = $this->actingAs($user)->post('/eventos', [
             'church_id' => $chain['church']->id,
             'name' => 'EVENTO TEST',
-            'starts_at' => '2026-11-01',
+            'starts_at' => '2026-11-01 09:00',
+            'ends_at' => '2026-11-01 12:00',
             'status' => Status::UPCOMING,
         ]);
 
@@ -34,7 +35,97 @@ class EventModuleTest extends TestCase
         $this->assertDatabaseHas('events', [
             'church_id' => $chain['church']->id,
             'name' => 'EVENTO TEST',
+            'starts_at' => '2026-11-01 09:00:00',
+            'ends_at' => '2026-11-01 12:00:00',
             'status' => Status::UPCOMING,
+        ]);
+    }
+
+    public function test_event_end_datetime_is_required(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'eventos.create');
+
+        $this->actingAs($user)
+            ->postJson('/eventos', [
+                'church_id' => $chain['church']->id,
+                'name' => 'EVENTO SIN FIN',
+                'starts_at' => '2026-11-01 09:00',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['ends_at']);
+    }
+
+    public function test_event_end_datetime_must_be_after_start(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'eventos.create');
+
+        $this->actingAs($user)
+            ->postJson('/eventos', [
+                'church_id' => $chain['church']->id,
+                'name' => 'EVENTO FIN ANTERIOR',
+                'starts_at' => '2026-11-01 09:00',
+                'ends_at' => '2026-11-01 08:59',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['ends_at']);
+
+        $this->actingAs($user)
+            ->postJson('/eventos', [
+                'church_id' => $chain['church']->id,
+                'name' => 'EVENTO FIN IGUAL',
+                'starts_at' => '2026-11-01 09:00',
+                'ends_at' => '2026-11-01 09:00',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['ends_at']);
+    }
+
+    public function test_event_end_can_be_later_on_the_same_day(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'eventos.create');
+
+        $this->actingAs($user)
+            ->post('/eventos', [
+                'church_id' => $chain['church']->id,
+                'name' => 'EVENTO MISMO DIA',
+                'starts_at' => '2026-11-01 09:00',
+                'ends_at' => '2026-11-01 10:30',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertRedirect('/eventos');
+
+        $this->assertDatabaseHas('events', [
+            'name' => 'EVENTO MISMO DIA',
+            'starts_at' => '2026-11-01 09:00:00',
+            'ends_at' => '2026-11-01 10:30:00',
+        ]);
+    }
+
+    public function test_event_end_can_be_on_a_later_date(): void
+    {
+        $chain = $this->createChain();
+        $user = $this->makeChurchUser($chain['diocese'], $chain['deanery'], $chain['church'], 'eventos.create');
+
+        $this->actingAs($user)
+            ->post('/eventos', [
+                'church_id' => $chain['church']->id,
+                'name' => 'EVENTO VARIOS DIAS',
+                'starts_at' => '2026-11-01 09:00',
+                'ends_at' => '2026-11-03 08:00',
+                'status' => Status::UPCOMING,
+            ])
+            ->assertRedirect('/eventos');
+
+        $this->assertDatabaseHas('events', [
+            'name' => 'EVENTO VARIOS DIAS',
+            'starts_at' => '2026-11-01 09:00:00',
+            'ends_at' => '2026-11-03 08:00:00',
         ]);
     }
 

@@ -37,15 +37,7 @@ const form = useForm({
   notes: props.event?.notes ?? '',
 });
 
-const computedEndsAt = computed(() => {
-  if (!form.starts_at) return '';
-
-  return form.starts_at;
-});
-
 const submit = () => {
-  form.ends_at = computedEndsAt.value;
-
   const options = {
     preserveScroll: true,
     onError: (errors) =>
@@ -66,7 +58,12 @@ const submit = () => {
 <template>
   <AppShell :page-title="pageTitle">
     <form @submit.prevent="submit">
-      <CatalogHeader :title="pageTitle" subtitle="Configura la parroquia y fecha del evento" back-href="/eventos" :icon="CalendarDays">
+      <CatalogHeader
+        :title="pageTitle"
+        subtitle="Configura la parroquia y las fechas del evento"
+        back-href="/eventos"
+        :icon="CalendarDays"
+      >
         <template #actions>
           <Link
             href="/eventos"
@@ -84,7 +81,9 @@ const submit = () => {
         </template>
       </CatalogHeader>
 
-      <div class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm sm:p-8">
+      <div
+        class="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm sm:p-8"
+      >
         <div class="space-y-9">
           <UnderlineSection title="Datos del evento">
             <div class="grid gap-x-9 gap-y-7 md:grid-cols-2">
@@ -100,22 +99,28 @@ const submit = () => {
                 required
               />
 
-              <UnderlineField v-model="form.name" label="Nombre" :error="form.errors.name" required />
+              <UnderlineField
+                v-model="form.name"
+                label="Nombre"
+                :error="form.errors.name"
+                required
+              />
 
               <UnderlineField
                 v-model="form.starts_at"
-                label="Fecha"
-                type="date"
+                label="Fecha y hora de inicio"
+                type="datetime-local"
                 :error="form.errors.starts_at"
                 required
               />
 
               <UnderlineField
-                :model-value="computedEndsAt"
-                label="Fecha final calculada"
-                type="date"
+                v-model="form.ends_at"
+                label="Fecha y hora de fin"
+                type="datetime-local"
+                :min="form.starts_at || undefined"
                 :error="form.errors.ends_at"
-                disabled
+                required
               />
 
               <UnderlineField
