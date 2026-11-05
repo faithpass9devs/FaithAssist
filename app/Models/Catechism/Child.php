@@ -5,6 +5,7 @@ namespace App\Models\Catechism;
 use App\Globals\Status;
 use App\Models\Concerns\LogsActivityTrail;
 use App\Models\Ecclesiastes\Church;
+use App\Models\Masses\EventAttendance;
 use App\Models\Masses\MassAttendance;
 use App\Models\Masses\MassAttendanceIncident;
 use App\Models\Operation\Level;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -104,6 +106,11 @@ class Child extends Model
     public function massAttendanceIncidents(): HasMany
     {
         return $this->hasMany(MassAttendanceIncident::class, 'child_id');
+    }
+
+    public function eventAttendances(): MorphMany
+    {
+        return $this->morphMany(EventAttendance::class, 'attendee');
     }
 
     public function levels(): BelongsToMany

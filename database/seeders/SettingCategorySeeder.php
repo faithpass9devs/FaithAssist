@@ -22,11 +22,19 @@ class SettingCategorySeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'key' => 'staff_badge',
+                'name' => 'Gafete de personal',
+                'description' => 'Personalización del gafete del personal (una hoja tamaño carta).',
+                'icon' => 'IdCard',
+                'sort_order' => 2,
+                'is_active' => true,
+            ],
+            [
                 'key' => 'attendance',
                 'name' => 'Asistencias',
                 'description' => 'Reglas de asistencia a misas por parroquia (límite de faltas y reportes).',
                 'icon' => 'ClipboardCheck',
-                'sort_order' => 2,
+                'sort_order' => 3,
                 'is_active' => true,
             ],
         ];

@@ -7,6 +7,7 @@ const props = defineProps({
   error: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   type: { type: String, default: 'text' },
+  min: { type: String, default: '' },
   as: { type: String, default: 'input' },
   options: { type: Array, default: () => [] },
   required: { type: Boolean, default: false },
@@ -76,6 +77,7 @@ const controlClass = computed(() => [
       v-else
       :value="modelValue"
       :type="type"
+      :min="min || undefined"
       :placeholder="placeholder"
       :disabled="disabled"
       :class="controlClass"

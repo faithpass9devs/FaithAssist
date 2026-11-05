@@ -9,6 +9,8 @@ use App\Models\Ecclesiastes\Church;
 use App\Models\Ecclesiastes\Deanery;
 use App\Models\Ecclesiastes\Diocese;
 use App\Models\External\ExternalChild;
+use App\Models\Masses\Event as EventMasses;
+use App\Models\Masses\EventAttendance;
 use App\Models\Masses\IncidenceType;
 use App\Models\Masses\ManualAttendance;
 use App\Models\Masses\Mass;
@@ -20,6 +22,8 @@ use App\Models\Operation\Level;
 use App\Models\Operation\Period;
 use App\Models\Operation\PeriodMovement;
 use App\Models\Operation\PeriodMovementType;
+use App\Models\Operation\Staff;
+use App\Models\Operation\StaffType;
 use App\Models\Regions\Community;
 use App\Models\Regions\Municipality;
 use App\Models\Regions\State;
@@ -31,6 +35,8 @@ use App\Policies\CommunityPolicy;
 use App\Policies\DeaneryPolicy;
 use App\Policies\DeviceSessionPolicy;
 use App\Policies\DiocesePolicy;
+use App\Policies\EventAttendancePolicy;
+use App\Policies\EventPolicy;
 use App\Policies\ExternosPolicy;
 use App\Policies\IncidenceTypePolicy;
 use App\Policies\LevelPolicy;
@@ -45,11 +51,13 @@ use App\Policies\PeriodMovementTypePolicy;
 use App\Policies\PeriodPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\SettingsPolicy;
+use App\Policies\StaffPolicy;
+use App\Policies\StaffTypePolicy;
 use App\Policies\StatePolicy;
 use App\Policies\WeekendPolicy;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -86,9 +94,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Period::class, PeriodPolicy::class);
         Gate::policy(PeriodMovement::class, PeriodMovementPolicy::class);
         Gate::policy(PeriodMovementType::class, PeriodMovementTypePolicy::class);
+        Gate::policy(StaffType::class, StaffTypePolicy::class);
+        Gate::policy(Staff::class, StaffPolicy::class);
         Gate::policy(Weekend::class, WeekendPolicy::class);
         Gate::policy(Mass::class, MassPolicy::class);
         Gate::policy(MassAttendance::class, MassAttendancePolicy::class);
+        Gate::policy(EventMasses::class, EventPolicy::class);
+        Gate::policy(EventAttendance::class, EventAttendancePolicy::class);
         Gate::policy(ManualAttendance::class, ManualAttendancePolicy::class);
         Gate::policy(IncidenceType::class, IncidenceTypePolicy::class);
         Gate::policy(MassAttendanceIncident::class, MassAttendanceIncidentPolicy::class);
@@ -103,7 +115,7 @@ class AppServiceProvider extends ServiceProvider
      */
     private function prohibitDestructiveCommandsAgainstRemoteDatabases(): void
     {
-        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+        EventFacade::listen(CommandStarting::class, function (CommandStarting $event): void {
             if (! in_array($event->command, [
                 'db:wipe',
                 'migrate:fresh',
