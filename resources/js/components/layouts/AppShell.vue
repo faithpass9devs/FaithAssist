@@ -1,7 +1,7 @@
 <script setup>
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Bell, CircleAlert, MapPin, MoonStar, Palette, RotateCcw, ShieldAlert, SunMedium, X } from 'lucide-vue-next';
+import { Bell, CircleAlert, MapPin, MoonStar, Palette, RotateCcw, Search, ShieldAlert, SunMedium, X } from 'lucide-vue-next';
 import { useTheme } from '../../composables/useTheme';
 import { getDeviceModel } from '../../utils/deviceModel';
 
@@ -14,6 +14,7 @@ defineProps({
 
 const page = usePage();
 const form = useForm({});
+const childSearchQuery = ref('');
 const menuOpen = ref(false);
 const menuRef = ref(null);
 const paletteRef = ref(null);
@@ -35,6 +36,9 @@ const {
 const appName = import.meta.env.VITE_APP_NAME || 'FAITHPASS';
 
 const authUser = computed(() => page.props.auth?.user ?? null);
+const permissions = computed(() => page.props.auth?.permissions ?? []);
+const canShowChildSearch = computed(() => permissions.value.includes('children.search.show'));
+const canExecuteChildSearch = computed(() => permissions.value.includes('children.search.execute'));
 
 const displayName = computed(() => {
   const profile = authUser.value?.profile;
@@ -210,6 +214,20 @@ const logout = () => {
       closeMenu();
     },
   });
+};
+
+const submitChildSearch = () => {
+  if (!canExecuteChildSearch.value) {
+    return;
+  }
+
+  const query = childSearchQuery.value.trim();
+
+  if (!query) {
+    return;
+  }
+
+  router.get('/children/search', { q: query });
 };
 
 const onWindowClick = (event) => {
@@ -428,6 +446,26 @@ onBeforeUnmount(() => {
         <Link href="/" class="ui-brand">
           {{ appName }}
         </Link>
+
+        <form
+          v-if="canShowChildSearch"
+          class="mx-3 hidden max-w-xl flex-1 md:block"
+          @submit.prevent="submitChildSearch"
+        >
+          <label
+            class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white/95 px-3 py-2 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-colors focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200 dark:focus-within:border-sky-600 dark:focus-within:ring-sky-900/40"
+          >
+            <Search class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+            <input
+              v-model="childSearchQuery"
+              type="search"
+              autocomplete="off"
+              :disabled="!canExecuteChildSearch"
+              :placeholder="canExecuteChildSearch ? 'Buscar niño por código o nombre...' : 'Sin permiso para buscar'"
+              class="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 dark:text-slate-200 dark:placeholder:text-slate-500"
+            />
+          </label>
+        </form>
 
         <div class="flex items-center gap-2 sm:gap-3">
           <div class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-sm">
