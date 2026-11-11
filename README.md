@@ -129,32 +129,26 @@ Generados por el seeder de usuarios:
 
 ### Comandos utiles
 
-Ejecutar pruebas:
+Ejecutar pruebas (limpia la caché de configuración y corre PHPUnit en SQLite en memoria):
 
 ```bash
 composer test
 ```
 
-Ejecutar pruebas con Pest directamente:
+Ejecutar un archivo o filtro específico:
 
 ```bash
-composer test:pest
+composer test -- tests/Feature/Auth/ForgotPasswordWhatsappTest.php
+composer test -- --filter=test_confirms_phone
 ```
 
-Ejecutar un archivo o filtro específico con Pest:
+> **Importante:** usa siempre `composer test`. No ejecutes `php artisan test` ni `vendor/bin/phpunit` directamente: si existe `bootstrap/cache/config.php`, las pruebas ignoran `phpunit.xml` y `RefreshDatabase` puede vaciar la base de datos del `.env`. Tampoco generes caché de configuración (`config:cache` / `optimize`) en tu entorno local.
+
+Validar formato PHP antes de confirmar cambios:
 
 ```bash
-./vendor/bin/pest tests/Feature/Auth/ForgotPasswordWhatsappTest.php
-./vendor/bin/pest --filter="confirms phone"
+composer format:check
 ```
-
-Validar formato PHP y pruebas antes de confirmar cambios:
-
-```bash
-composer precommit
-```
-
-El proyecto usa Husky para ejecutar `composer precommit` antes de cada commit. Si necesitas omitir el hook por una emergencia puntual, puedes usar `git commit --no-verify`, pero lo recomendado es corregir el fallo antes de confirmar.
 
 Compilar frontend para produccion:
 

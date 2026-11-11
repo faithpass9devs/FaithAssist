@@ -11,20 +11,34 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class UserService
 {
     public function __construct(private readonly UserRepository $users) {}
 
-    public function paginatedIndexData(User $editor, string $search): array
+    public function paginatedIndexData(User $editor, string $search, ?int $churchId = null, ?int $roleId = null): array
     {
+        $churches = $this->users->churchesWithUsers($editor);
+        $roles = $this->users->rolesForFilter();
+
+        // Ignore filter values outside the editor's visible options.
+        $churchId = $churchId !== null && $churches->contains('id', $churchId) ? $churchId : null;
+        $roleId = $roleId !== null && $roles->contains('id', $roleId) ? $roleId : null;
+
         return [
             'users' => $this->users
-                ->paginateVisibleUsers($editor, $search)
+                ->paginateVisibleUsers($editor, $search, 10, $churchId, $roleId)
                 ->through(fn (User $user) => $this->indexUserData($user)),
             'search' => $search,
+            'filters' => [
+                'church_id' => $churchId,
+                'role_id' => $roleId,
+            ],
+            'filterOptions' => [
+                'churches' => $churches->map(fn ($church) => ['value' => $church->id, 'label' => $church->name])->values(),
+                'roles' => $roles->map(fn ($role) => ['value' => $role->id, 'label' => $role->name])->values(),
+            ],
         ];
     }
 
@@ -79,7 +93,7 @@ class UserService
                 'full_name' => $this->resolveFullName($user),
                 'created_at' => $user->created_at?->format('d/m/Y'),
             ],
-            ...$this->formOptions($editor),
+            ...$this->formOptions($editor, $user),
             'selectedRole' => $user->roles->first()?->id,
             'selectedPermissions' => $selectedPermissionIds,
             'selectedDiocese' => $user->diocese_id,
@@ -119,7 +133,7 @@ class UserService
                 'materno' => $data['materno'] ?? null,
             ]);
 
-            $roleId = $this->allowedRoleIdForSubmittedPermissions($editor, $data['role_id'] ?? null, $data);
+            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null);
 
             if ($roleId) {
                 $user->syncRoles([$roleId]);
@@ -127,6 +141,8 @@ class UserService
 
             $directPerms = $this->directPermissionsForCreate($editor, $user, $data);
             $user->syncPermissions($directPerms);
+            $user->revokedPermissions()->sync($this->revokedPermissionIdsForCreate($editor, $user, $data)->all());
+            $user->unsetRelation('revokedPermissions');
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -166,12 +182,14 @@ class UserService
                 'materno' => $data['materno'] ?? null,
             ])->save();
 
-            $roleId = $this->allowedRoleIdForSubmittedPermissions($editor, $data['role_id'] ?? null, $data);
+            $roleId = $this->allowedRoleId($editor, $data['role_id'] ?? null, $user);
             $user->syncRoles($roleId ? [$roleId] : collect());
             $user->unsetRelation('roles');
 
             $finalPerms = $this->directPermissionsForUpdate($editor, $user, $data);
             $user->syncPermissions($finalPerms);
+            $user->revokedPermissions()->sync($this->revokedPermissionIdsForUpdate($editor, $user, $data)->all());
+            $user->unsetRelation('revokedPermissions');
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -200,12 +218,12 @@ class UserService
         ];
     }
 
-    private function formOptions(User $editor): array
+    private function formOptions(User $editor, ?User $user = null): array
     {
         $scope = new UserScopeService($editor);
 
         return [
-            'roles' => $this->users->allowedRoles($editor),
+            'roles' => $this->users->allowedRoles($editor, $user),
             'permissionGroups' => $this->groupedPermissions($editor),
             'dioceses' => $this->users->activeDioceses($scope),
             'deaneries' => $this->users->activeDeaneries($scope),
@@ -228,37 +246,66 @@ class UserService
             ->toArray();
     }
 
-    private function allowedRoleId(User $editor, mixed $roleId): mixed
+    private function allowedRoleId(User $editor, mixed $roleId, ?User $user = null): mixed
     {
+        if (! $roleId) {
+            return null;
+        }
+
+        // Keeping the user's existing role is retention, not a new delegation.
+        if ($user && $user->roles()->whereKey($roleId)->exists()) {
+            return $roleId;
+        }
+
         $allowedRoleIds = $this->users->allowedRoles($editor)->pluck('id');
 
-        return $roleId && $allowedRoleIds->contains($roleId)
+        return $allowedRoleIds->contains($roleId)
             ? $roleId
             : null;
     }
 
-    private function allowedRoleIdForSubmittedPermissions(User $editor, mixed $roleId, array $data): mixed
+    /**
+     * Role permissions the editor can manage that were left unchecked: they stay revoked for this user.
+     * Manual attendance permissions are only effective when direct, so they are never revoked.
+     */
+    private function revokedPermissionIdsForCreate(User $editor, User $user, array $data): Collection
     {
-        $roleId = $this->allowedRoleId($editor, $roleId);
-
-        if (! $roleId || ! array_key_exists('permissions', $data)) {
-            return $roleId;
-        }
-
-        $rolePermissionIds = Role::query()
-            ->find($roleId)
-            ?->permissions()
-            ->pluck('id') ?? collect();
-
-        if ($rolePermissionIds->isEmpty()) {
-            return $roleId;
+        if (! array_key_exists('permissions', $data)) {
+            return collect();
         }
 
         $safeIds = $this->safeSubmittedPermissionIds($editor, $data);
 
-        return $rolePermissionIds->diff($safeIds)->isEmpty()
-            ? $roleId
-            : null;
+        return $this->revocableRolePermissionIds($editor, $user)->diff($safeIds)->values();
+    }
+
+    private function revokedPermissionIdsForUpdate(User $editor, User $user, array $data): Collection
+    {
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
+        $preservedIds = $user->revokedPermissionIds()
+            ->reject(fn ($id) => $editorPermissionIds->contains($id));
+
+        if (! array_key_exists('permissions', $data)) {
+            return $user->revokedPermissionIds();
+        }
+
+        $safeIds = $this->safeSubmittedPermissionIds($editor, $data);
+
+        return $preservedIds
+            ->merge($this->revocableRolePermissionIds($editor, $user)->diff($safeIds))
+            ->unique()
+            ->values();
+    }
+
+    private function revocableRolePermissionIds(User $editor, User $user): Collection
+    {
+        $editorPermissionIds = $this->assignablePermissionIds($editor);
+
+        return $user->getPermissionsViaRoles()
+            ->reject(fn (Permission $permission): bool => str_starts_with($permission->name, 'asistencias_manuales.'))
+            ->pluck('id')
+            ->filter(fn ($id) => $editorPermissionIds->contains($id))
+            ->values();
     }
 
     private function directPermissionsForCreate(User $editor, User $user, array $data): Collection
